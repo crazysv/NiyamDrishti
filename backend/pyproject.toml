@@ -1,7 +1,7 @@
-﻿[project]
+[project]
 name = "niyamdrishti-backend"
 version = "0.1.0"
-description = "NiyamDrishti — Legal Metrology label compliance backend"
+description = "NiyamDrishti ? Legal Metrology label compliance backend"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.111.0",
@@ -40,6 +40,4 @@ python_version = "3.11"
 strict = false
 ignore_missing_imports = true
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-testpaths = ["tests"]
+
