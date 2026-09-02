@@ -30,8 +30,8 @@ async def get_current_user(db: AsyncSession = Depends(get_db), token: str = Depe
         token_data = TokenPayload(**payload)
         if token_data.sub is None:
             raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+    except JWTError as err:
+        raise credentials_exception from err
 
     stmt = select(User).where(User.id == token_data.sub)
     result = await db.execute(stmt)
@@ -46,13 +46,45 @@ async def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
     if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
     return current_user
+
+
+class RoleChecker:
+    """Callable dependency for enforcing role permissions."""
+
+    def __init__(self, allowed_roles: list[str]) -> None:
+        self.allowed_roles = allowed_roles
+
+    def __call__(self, current_user: User = Depends(get_current_active_user)) -> User:
+        if not current_user.is_active:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        if current_user.role not in self.allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User role '{current_user.role}' does not have sufficient permissions",
+            )
+        return current_user
+
+
+require_officer = RoleChecker(["officer", "supervisor", "admin"])
+require_supervisor = RoleChecker(["supervisor", "admin"])
+require_admin = RoleChecker(["admin"])
+
+
+async def get_current_active_officer(
+    current_user: User = Depends(require_officer),
+) -> User:
+    return require_officer(current_user)
+
+
+async def get_current_active_supervisor(
+    current_user: User = Depends(require_supervisor),
+) -> User:
+    return require_supervisor(current_user)
 
 
 async def get_current_active_admin(
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_admin),
 ) -> User:
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="The user doesn't have enough privileges")
-    return current_user
+    return require_admin(current_user)

@@ -3,7 +3,7 @@
 **This file is a status mirror of `07_IMPLEMENTATION_PLAN.md`. Every task ID here must exist there, and every task ID there must exist here â€” no exceptions, no "minor" ones left off.** This 1:1 parity is enforced process, not a suggestion: see `AGENTS.md` rule 3 and `12_GUARDRAILS.md` Â§"Tracker/Plan parity procedure." The failure that prompted this entire documentation system was exactly this file silently containing fewer tasks than the plan did â€” do not let it happen again.
 
 **Status values:** `Not Started` Â· `In Progress` Â· `Blocked` Â· `Done`
-**Last updated:** 2026-09-02 — SETUP-01 through SETUP-05 all Done
+**Last updated:** 2026-09-02 — AUTH-01 through AUTH-05 all Done (all unit/integration tests passing, CI green)
 
 ---
 
@@ -189,6 +189,7 @@
 - [ ] The "Last updated" line above is current.
 
 If this checklist ever fails, fixing it is the immediate next task â€” before starting anything else â€” because every downstream session-start/session-continue check trusts this file to be complete.
+
 
 
 

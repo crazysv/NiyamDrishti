@@ -27,19 +27,45 @@ async def test_db():
 
     app.dependency_overrides[deps.get_db] = override_get_db
 
-    # Seed user
-    user_id = uuid.uuid4()
+    # Seed users with different roles
     async with async_session() as session:
-        user = User(
-            id=user_id,
+        officer = User(
+            id=uuid.uuid4(),
             email="officer@test.gov.in",
             password_hash=get_password_hash("password123"),
-            full_name="Officer Test",
+            full_name="Test Officer",
             role="officer",
+            region="Delhi-North",
+            is_active=True,
+        )
+        supervisor = User(
+            id=uuid.uuid4(),
+            email="supervisor@test.gov.in",
+            password_hash=get_password_hash("password123"),
+            full_name="Test Supervisor",
+            role="supervisor",
             region="Delhi",
             is_active=True,
         )
-        session.add(user)
+        admin = User(
+            id=uuid.uuid4(),
+            email="admin@test.gov.in",
+            password_hash=get_password_hash("password123"),
+            full_name="Test Admin",
+            role="admin",
+            region="National",
+            is_active=True,
+        )
+        inactive = User(
+            id=uuid.uuid4(),
+            email="inactive@test.gov.in",
+            password_hash=get_password_hash("password123"),
+            full_name="Inactive User",
+            role="officer",
+            region="Delhi",
+            is_active=False,
+        )
+        session.add_all([officer, supervisor, admin, inactive])
         await session.commit()
 
     yield async_session
@@ -58,15 +84,35 @@ async def test_login_and_refresh_flow(test_db):
         data = resp.json()
         assert "access_token" in data
         assert "refresh_token" in data
+        assert data["token_type"] == "bearer"
 
+        access_token = data["access_token"]
         refresh_token = data["refresh_token"]
 
         # 2. Login failure (wrong password)
         bad_resp = await ac.post("/api/v1/auth/login", data={"username": "officer@test.gov.in", "password": "wrong"})
         assert bad_resp.status_code == 401
 
-        # 3. Refresh token success
+        # 3. Login failure (inactive user)
+        inact_resp = await ac.post(
+            "/api/v1/auth/login", data={"username": "inactive@test.gov.in", "password": "password123"}
+        )
+        assert inact_resp.status_code == 400
+
+        # 4. Refresh token success
         ref_resp = await ac.post(f"/api/v1/auth/refresh?refresh_token={refresh_token}")
         assert ref_resp.status_code == 200
         ref_data = ref_resp.json()
         assert "access_token" in ref_data
+
+        # 5. GET /me success with Bearer token
+        me_resp = await ac.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
+        assert me_resp.status_code == 200
+        me_data = me_resp.json()
+        assert me_data["email"] == "officer@test.gov.in"
+        assert me_data["role"] == "officer"
+        assert me_data["full_name"] == "Test Officer"
+
+        # 6. GET /me failure without token
+        me_bad = await ac.get("/api/v1/auth/me")
+        assert me_bad.status_code == 401

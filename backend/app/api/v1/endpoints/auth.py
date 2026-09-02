@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.core.security import create_access_token, create_refresh_token, verify_password
 from app.models.base import User
-from app.schemas.user import Token
+from app.schemas.user import Token, UserRead
 
 router = APIRouter()
 
@@ -34,7 +34,7 @@ async def login_access_token(
             detail="Incorrect email or password",
         )
     elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
 
     return {
         "access_token": create_access_token(str(user.id)),
@@ -78,3 +78,11 @@ async def refresh_token(
         "refresh_token": create_refresh_token(str(user.id)),
         "token_type": "bearer",
     }
+
+
+@router.get("/me", response_model=UserRead)
+async def read_current_user(
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    """Get current authenticated user details."""
+    return current_user
