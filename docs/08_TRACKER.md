@@ -28,11 +28,11 @@
 ### Auth
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| AUTH-01 | `users` table + model | Not Started | |
-| AUTH-02 | Password hashing + JWT issuance/refresh | Not Started | |
-| AUTH-03 | `/auth/login`, `/auth/refresh` endpoints | Not Started | |
-| AUTH-04 | Role-based access control middleware | Not Started | |
-| AUTH-05 | Rate limiting on auth endpoints | Not Started | |
+| AUTH-01 | `users` table + model | Done | Completed as part of SETUP-05 (base.py includes User model) | |
+| AUTH-02 | Password hashing + JWT issuance/refresh | Done | Passlib bcrypt + python-jose; unit tests pass | |
+| AUTH-03 | `/auth/login`, `/auth/refresh` endpoints | Done | OAuth2 password request form + refresh token flow; integration tests pass | |
+| AUTH-04 | Role-based access control middleware | Done | FastAPI dependencies: get_current_user, get_current_active_user, get_current_active_admin | |
+| AUTH-05 | Rate limiting on auth endpoints | Done | SlowAPI limiter attached (5/min for login, 10/min for refresh) | |
 
 ### Capture
 | ID | Task | Status | Notes |
@@ -189,6 +189,8 @@
 - [ ] The "Last updated" line above is current.
 
 If this checklist ever fails, fixing it is the immediate next task â€” before starting anything else â€” because every downstream session-start/session-continue check trusts this file to be complete.
+
+
 
 
 

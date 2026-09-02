@@ -1,13 +1,13 @@
-﻿"""
+"""
 Database session — SQLAlchemy async engine.
 Uses SQLite for local dev/offline, PostgreSQL (Neon) in production.
 Switch is done purely via DATABASE_URL in .env — no code change required.
 """
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
-
 
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -21,12 +21,14 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=As
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy models."""
+
     pass
 
 
 async def init_db() -> None:
     """Create all tables on startup (dev only — prod uses Alembic migrations)."""
-    from app.models import user, inspection, rule_pack  # noqa: F401 — registers models
+    from app.models import inspection, rule_pack, user  # noqa: F401 — registers models
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

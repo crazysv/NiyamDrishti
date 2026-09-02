@@ -1,6 +1,9 @@
-﻿"""Rule-packs endpoints — implemented in RULE-05/RULE-06."""
+"""Rule-packs endpoints — implemented in RULE-05/RULE-06."""
+
 from fastapi import APIRouter
+
 router = APIRouter()
+
 
 @router.get("/ping")
 async def ping():

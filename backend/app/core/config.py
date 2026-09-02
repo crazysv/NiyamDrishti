@@ -1,11 +1,13 @@
-﻿"""
+"""
 Central config — all settings loaded from environment variables via Pydantic Settings.
 Every variable here must also appear in .env.example and docs/11_SECRETS_CHECKLIST.md.
 Add new secrets to BOTH files in the same commit — never one without the other.
 """
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+
 from typing import Literal
+
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -41,8 +43,8 @@ class Settings(BaseSettings):
     R2_ACCESS_KEY_ID: str = ""
     R2_SECRET_ACCESS_KEY: str = ""
     R2_BUCKET_NAME: str = "niyamdrishti-media"
-    R2_ENDPOINT_URL: str = ""          # https://<account_id>.r2.cloudflarestorage.com
-    R2_PUBLIC_BASE_URL: str = ""       # public CDN / presigned base URL
+    R2_ENDPOINT_URL: str = ""  # https://<account_id>.r2.cloudflarestorage.com
+    R2_PUBLIC_BASE_URL: str = ""  # public CDN / presigned base URL
 
     # ------------------------------------------------------------------
     # SMTP Email  (Gmail SMTP default — see ADR-003)
@@ -61,7 +63,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Rule engine
     # ------------------------------------------------------------------
-    ACTIVE_RULE_PACK_VERSION: str = ""   # set after RULE-02 seeds initial pack
+    ACTIVE_RULE_PACK_VERSION: str = ""  # set after RULE-02 seeds initial pack
 
     # ------------------------------------------------------------------
     # CORS  (comma-separated origins)

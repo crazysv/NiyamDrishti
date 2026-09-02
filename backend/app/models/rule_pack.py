@@ -1,1 +1,1 @@
-﻿from app.models.base import RulePack, AuditLog  # noqa: F401
+from app.models.base import AuditLog, RulePack  # noqa: F401

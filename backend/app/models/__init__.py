@@ -1,11 +1,12 @@
-﻿"""Import all models so SQLAlchemy registers them with Base.metadata."""
+"""Import all models so SQLAlchemy registers them with Base.metadata."""
+
 from app.models.base import (  # noqa: F401
-    User,
+    AuditLog,
+    ExtractedField,
     Inspection,
     InspectionImage,
-    ExtractedField,
-    Violation,
     Report,
     RulePack,
-    AuditLog,
+    User,
+    Violation,
 )
