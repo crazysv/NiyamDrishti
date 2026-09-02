@@ -49,7 +49,7 @@ jobs:
           JWT_ALGORITHM: HS256
           JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "60"
           JWT_REFRESH_TOKEN_EXPIRE_DAYS: "7"
-          CORS_ALLOWED_ORIGINS: http://localhost:3000
+          CORS_ALLOWED_ORIGINS: '["http://localhost:3000"]'
         run: pytest --cov=app --cov-report=term-missing -q --tb=short
 
   # ---------------------------------------------------------------------------
@@ -83,3 +83,4 @@ jobs:
 
       - name: Build
         run: npm run build
+
