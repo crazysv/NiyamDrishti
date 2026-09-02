@@ -1,0 +1,106 @@
+﻿version: "3.9"
+
+# NiyamDrishti — Local development stack
+# Mirrors production as closely as possible on the free tier.
+#
+# Services:
+#   api      — FastAPI backend (hot-reload via volume mount)
+#   db       — PostgreSQL 15 (matches Neon in prod; swap DATABASE_URL for SQLite if preferred)
+#   minio    — S3-compatible local object storage (stand-in for Cloudflare R2)
+#
+# Usage:
+#   docker compose up --build        # first run
+#   docker compose up                 # subsequent runs
+#   docker compose down -v            # stop and remove volumes
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # FastAPI backend
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app              # hot-reload: code changes reflect immediately
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://niyam:niyam@db:5432/niyamdrishti
+      SECRET_KEY: local-dev-secret-change-in-prod
+      CORS_ORIGINS: "http://localhost:3000"
+      # R2 → MinIO local stand-in
+      R2_ACCOUNT_ID: local
+      R2_ACCESS_KEY_ID: minioadmin
+      R2_SECRET_ACCESS_KEY: minioadmin
+      R2_BUCKET_NAME: niyamdrishti-media
+      R2_PUBLIC_BASE_URL: "http://localhost:9000/niyamdrishti-media"
+      R2_ENDPOINT_URL: "http://minio:9000"   # internal Docker network endpoint
+      PADDLEOCR_LANG: en
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 15 — matches Neon's Postgres version in production
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: niyam
+      POSTGRES_PASSWORD: niyam
+      POSTGRES_DB: niyamdrishti
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"                  # expose for direct psql / DB GUI access
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U niyam -d niyamdrishti"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # MinIO — S3-compatible local stand-in for Cloudflare R2
+  # Access the MinIO console at http://localhost:9001 (minioadmin / minioadmin)
+  # ---------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"                  # S3 API
+      - "9001:9001"                  # MinIO web console
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # MinIO bucket init — creates the bucket on first start
+  # ---------------------------------------------------------------------------
+  minio_init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/niyamdrishti-media;
+      mc anonymous set download local/niyamdrishti-media;
+      echo 'Bucket ready.';
+      "
+    restart: "no"
+
+volumes:
+  pgdata:
+  minio_data:

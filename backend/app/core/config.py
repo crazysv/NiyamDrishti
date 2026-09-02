@@ -1,0 +1,92 @@
+﻿"""
+Central config — all settings loaded from environment variables via Pydantic Settings.
+Every variable here must also appear in .env.example and docs/11_SECRETS_CHECKLIST.md.
+Add new secrets to BOTH files in the same commit — never one without the other.
+"""
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator
+from typing import Literal
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    # ------------------------------------------------------------------
+    # App
+    # ------------------------------------------------------------------
+    APP_ENV: Literal["development", "staging", "production"] = "development"
+
+    # ------------------------------------------------------------------
+    # JWT Auth
+    # ------------------------------------------------------------------
+    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # ------------------------------------------------------------------
+    # Database
+    # SQLite for local dev, postgresql+asyncpg://... for Neon (prod)
+    # ------------------------------------------------------------------
+    DATABASE_URL: str = "sqlite+aiosqlite:///./niyamdrishti.db"
+
+    # ------------------------------------------------------------------
+    # Cloudflare R2  (S3-compatible)
+    # ------------------------------------------------------------------
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET_NAME: str = "niyamdrishti-media"
+    R2_ENDPOINT_URL: str = ""          # https://<account_id>.r2.cloudflarestorage.com
+    R2_PUBLIC_BASE_URL: str = ""       # public CDN / presigned base URL
+
+    # ------------------------------------------------------------------
+    # SMTP Email  (Gmail SMTP default — see ADR-003)
+    # ------------------------------------------------------------------
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_APP_PASSWORD: str = ""
+
+    # ------------------------------------------------------------------
+    # OCR
+    # ------------------------------------------------------------------
+    PADDLEOCR_LANG: str = "en"
+    OCR_MODEL_CACHE_DIR: str = "./ocr_models"
+
+    # ------------------------------------------------------------------
+    # Rule engine
+    # ------------------------------------------------------------------
+    ACTIVE_RULE_PACK_VERSION: str = ""   # set after RULE-02 seeds initial pack
+
+    # ------------------------------------------------------------------
+    # CORS  (comma-separated origins)
+    # ------------------------------------------------------------------
+    CORS_ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    # ------------------------------------------------------------------
+    # Rate limiting
+    # ------------------------------------------------------------------
+    RATE_LIMIT_AUTH: str = "5/minute"
+
+    @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",")]
+        return v  # type: ignore[return-value]
+
+    @property
+    def is_sqlite(self) -> bool:
+        return "sqlite" in self.DATABASE_URL
+
+    @property
+    def is_production(self) -> bool:
+        return self.APP_ENV == "production"
+
+
+settings = Settings()

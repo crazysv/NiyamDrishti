@@ -1,0 +1,45 @@
+﻿[project]
+name = "niyamdrishti-backend"
+version = "0.1.0"
+description = "NiyamDrishti — Legal Metrology label compliance backend"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "alembic>=1.13.0",
+    "aiosqlite>=0.20.0",         # local/offline SQLite
+    "asyncpg>=0.29.0",            # Neon Postgres (prod)
+    "psycopg2-binary>=2.9.0",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27.0",
+    "pillow>=10.3.0",
+    "opencv-python-headless>=4.9.0",
+    "paddlepaddle==2.6.2",
+    "paddleocr==2.9.1",
+    "zxing-cpp>=2.2.0",
+    "weasyprint>=61.0",
+    "boto3>=1.34.0",               # Cloudflare R2 (S3-compat)
+    "slowapi>=0.1.9",
+    "python-dotenv>=1.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E","F","I","UP","B","SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,27 @@
+﻿# Python
+backend/.env
+backend/__pycache__/
+backend/*.pyc
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.pytest_cache/
+backend/*.db
+backend/.paddleocr/
+backend/htmlcov/
+
+# Node
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.production
+
+# Docker
+docker/*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test data / spike outputs (keep photos, exclude results)
+test_data/spike_01_results/
+test_data/spike_02_results/
