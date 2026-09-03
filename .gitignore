@@ -11,6 +11,10 @@ backend/*.db
 backend/.paddleocr/
 backend/uploads/
 backend/htmlcov/
+backend/.coverage
+backend/.coverage.*
+*.coverage
+*.coverage.*
 
 # Node
 frontend/.next/
