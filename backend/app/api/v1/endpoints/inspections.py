@@ -1,4 +1,5 @@
 import hashlib
+import json
 import time
 import uuid
 from datetime import datetime, timezone
@@ -1106,7 +1107,15 @@ async def get_inspection_evidence(
     for idx, f in enumerate(sorted_fields):
         evidence_tag = f"E{idx + 1:02d}"
         if f.field_type == "commodity_name" and f.parsed_value:
-            product_name = f.parsed_value
+            raw_cname = f.parsed_value
+            if isinstance(raw_cname, str) and raw_cname.strip().startswith("{"):
+                try:
+                    cname_obj = json.loads(raw_cname)
+                    if isinstance(cname_obj, dict) and "commodity_name" in cname_obj:
+                        raw_cname = str(cname_obj["commodity_name"])
+                except Exception:
+                    pass
+            product_name = raw_cname
 
         src_img = img_map.get(f.source_image_id, front_img)
         cur_w = float(src_img.width_px or img_w) if src_img else img_w
@@ -1173,12 +1182,28 @@ async def get_inspection_evidence(
 
         label = FIELD_LABELS.get(f.field_type, f.field_type.replace("_", " ").upper())
 
+        clean_parsed = f.parsed_value
+        if isinstance(clean_parsed, str) and clean_parsed.strip().startswith("{"):
+            try:
+                parsed_dict = json.loads(clean_parsed)
+                if isinstance(parsed_dict, dict):
+                    if "commodity_name" in parsed_dict:
+                        clean_parsed = str(parsed_dict["commodity_name"])
+                    elif "name_and_address" in parsed_dict:
+                        clean_parsed = str(parsed_dict["name_and_address"])
+                    elif "value" in parsed_dict:
+                        clean_parsed = str(parsed_dict["value"])
+            except Exception:
+                pass
+
         display_url = ""
         if src_img:
             if src_img.storage_url.startswith("local://"):
                 display_url = f"/api/v1/inspections/{inspection.id}/images/{src_img.id}/file"
-            else:
+            elif src_img.storage_url.startswith("/uploads/"):
                 display_url = src_img.storage_url
+            else:
+                display_url = generate_presigned_download_url(src_img.storage_url)
 
         items.append(
             EvidenceItemRead(
@@ -1187,7 +1212,7 @@ async def get_inspection_evidence(
                 field_type=f.field_type,
                 field_label=label,
                 raw_text=f.raw_text,
-                parsed_value=f.parsed_value,
+                parsed_value=clean_parsed,
                 confidence=f.confidence,
                 verdict=item_verdict,
                 bounding_box=normalized_bbox,

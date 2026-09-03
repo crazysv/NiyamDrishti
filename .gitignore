@@ -8,6 +8,7 @@ backend/.mypy_cache/
 backend/.ruff_cache/
 backend/.pytest_cache/
 backend/*.db
+*.db
 backend/.paddleocr/
 backend/uploads/
 backend/htmlcov/
