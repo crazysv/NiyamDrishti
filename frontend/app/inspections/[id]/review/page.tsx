@@ -26,12 +26,16 @@ export default function ReviewPage({ params }: ReviewPageProps) {
       setError(null);
 
       try {
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") || undefined : undefined;
+        const token =
+          typeof window !== "undefined"
+            ? localStorage.getItem("access_token") || localStorage.getItem("token") || undefined
+            : undefined;
         const data = await fetchReviewQueue(inspectionId, token);
         setQueue(data);
-      } catch {
-        // Provide offline fallback demonstration queue if backend API is not responding or in preview
-        const fallbackQueue: InspectionReviewQueue = {
+      } catch (err: unknown) {
+        if (inspectionId === "demo" || inspectionId === "sample") {
+          // Provide offline fallback demonstration queue if backend API is not responding or in preview
+          const fallbackQueue: InspectionReviewQueue = {
           inspection_id: inspectionId,
           overall_status: "needs_review",
           total_fields: 5,
@@ -90,7 +94,10 @@ export default function ReviewPage({ params }: ReviewPageProps) {
             },
           ],
         };
-        setQueue(fallbackQueue);
+          setQueue(fallbackQueue);
+        } else {
+          setError((err as Error).message || "Failed to load review queue from server");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -127,7 +134,7 @@ export default function ReviewPage({ params }: ReviewPageProps) {
     <ReviewQueue
       initialQueue={queue}
       inspectionId={inspectionId}
-      productTitle="Premium Basmati Rice · Packaged Food"
+      productTitle={`Inspection Package (${inspectionId.slice(0, 8)}...)`}
       onComplete={() => router.push(`/inspections/${inspectionId}/report`)}
     />
   );

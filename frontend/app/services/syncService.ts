@@ -198,8 +198,28 @@ export async function syncSingleInspection(
     }
   }
 
-  // Step 3: Finalize status
+  // Step 3: Trigger automated OCR extraction & legal metrology rule evaluation, then finalize status
   if (allImagesSucceeded) {
+    if (backendInspectionId) {
+      try {
+        await fetchWithRetry(
+          `${API_BASE}/inspections/${backendInspectionId}/process`,
+          {
+            method: 'POST',
+            headers: getAuthHeaders(token),
+          },
+          {
+            maxRetries: 2,
+            onRetry: (attempt, delay, reason) => {
+              console.warn('[Sync] Retrying inspection process (' + attempt + '): ' + reason);
+            },
+          }
+        );
+      } catch (procErr) {
+        console.warn('[Sync] Auto-process extraction trigger notice:', procErr);
+      }
+    }
+
     await updateInspectionSyncState(inspectionId, {
       status: 'synced',
       syncedAt: new Date().toISOString(),

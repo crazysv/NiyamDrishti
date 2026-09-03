@@ -51,6 +51,7 @@ from app.services.rules.schemas import EvaluationSummary
 from app.services.storage import (
     UPLOAD_DIR,
     generate_presigned_download_url,
+    get_image_bytes,
     parse_data_url,
     save_image_bytes,
     save_report_bytes,
@@ -379,6 +380,14 @@ async def upload_inspection_image(
                 detail=f"Invalid image data_url: {e}",
             )
         filename = f"{role}_{uuid.uuid4().hex[:8]}.{ext}"
+        if width_px is None or height_px is None:
+            try:
+                import io
+                from PIL import Image as PILImage
+                with PILImage.open(io.BytesIO(file_bytes)) as pil_img:
+                    width_px, height_px = pil_img.size
+            except Exception:
+                pass
 
     elif "multipart/form-data" in content_type:
         form = await request.form()
@@ -710,27 +719,30 @@ async def extract_inspection_declarations(
     all_declarations: list[ExtractedDeclaration] = []
 
     for img in inspection.images:
-        # Load image from local storage
-        img_path = img.storage_url.replace("local://", "")
-        full_path = UPLOAD_DIR / img_path
+        # Load image bytes from R2/S3, HTTP, or local storage
+        img_bytes = await get_image_bytes(img.storage_url, inspection.id)
+        if not img_bytes:
+            logger.warning(f"Could not load image bytes for image {img.id} ({img.storage_url})")
+            continue
 
         # Calibrate image if scale not yet derived
         if img.calibration_scale_mm_per_px is None:
             try:
                 calib_service = OpticalCalibrationService()
-                calib_res = calib_service.calibrate_image(str(full_path))
+                calib_res = calib_service.calibrate_image(img_bytes)
                 if calib_res.is_calibrated and calib_res.scale_mm_per_px is not None:
                     img.calibration_scale_mm_per_px = calib_res.scale_mm_per_px
-            except Exception:
-                pass
+            except Exception as calib_err:
+                logger.warning(f"Calibration warning for image {img.id}: {calib_err}")
 
         try:
             t0_ocr = time.perf_counter()
-            ocr_res = ocr_service.process_image(str(full_path), source_image_id=str(img.id))
+            ocr_res = ocr_service.process_image(img_bytes, source_image_id=str(img.id))
             record_ocr_duration(time.perf_counter() - t0_ocr, engine="paddleocr", status="success")
             declarations = extraction_service.extract_from_ocr_result(ocr_res)
             all_declarations.extend(declarations)
-        except Exception:
+        except Exception as ocr_err:
+            logger.error(f"OCR processing failed for image {img.id}: {ocr_err}", exc_info=True)
             record_ocr_duration(0.0, engine="paddleocr", status="error")
             # Continue on error for other images
             pass

@@ -119,6 +119,12 @@ async def save_report_bytes(
     return f"/uploads/{inspection_id}/reports/{filename}"
 
 
+import logging
+import httpx
+
+logger = logging.getLogger(__name__)
+
+
 def generate_presigned_download_url(
     storage_url_or_key: str,
     expires_in: int = 3600,
@@ -137,8 +143,18 @@ def generate_presigned_download_url(
         key = key[5:]
     elif settings.R2_PUBLIC_BASE_URL and key.startswith(settings.R2_PUBLIC_BASE_URL):
         key = key[len(settings.R2_PUBLIC_BASE_URL) :].lstrip("/")
+    elif key.startswith("http://") or key.startswith("https://"):
+        url_path = key.split("?")[0]
+        if f"/{settings.R2_BUCKET_NAME}/" in url_path:
+            key = url_path.split(f"/{settings.R2_BUCKET_NAME}/", 1)[1]
+        elif "inspections/" in url_path:
+            key = "inspections/" + url_path.split("inspections/", 1)[1]
+        else:
+            return storage_url_or_key
     elif key.startswith("/"):
         key = key.lstrip("/")
+
+    key = key.split("?")[0]
 
     try:
         return client.generate_presigned_url(
@@ -148,6 +164,76 @@ def generate_presigned_download_url(
         )
     except Exception:
         return storage_url_or_key
+
+
+async def get_image_bytes(
+    storage_url_or_key: str,
+    inspection_id: uuid.UUID | None = None,
+) -> bytes | None:
+    """
+    Retrieves the raw image bytes for an image stored in Cloudflare R2 / Supabase S3 (prod),
+    via HTTP/HTTPS URL, or local filesystem (dev/offline).
+    """
+    if not storage_url_or_key:
+        return None
+
+    # Case 1: Base64 Data URL
+    if storage_url_or_key.startswith("data:image"):
+        try:
+            _, encoded = storage_url_or_key.split(",", 1)
+            return base64.b64decode(encoded)
+        except Exception as e:
+            logger.warning(f"Failed decoding base64 data URL: {e}")
+            return None
+
+    # Case 2: HTTP or HTTPS URL (direct download)
+    if storage_url_or_key.startswith("http://") or storage_url_or_key.startswith("https://"):
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client_http:
+                resp = await client_http.get(storage_url_or_key)
+                if resp.status_code == 200:
+                    return resp.content
+                logger.warning(f"HTTP GET returned {resp.status_code} for {storage_url_or_key}")
+        except Exception as e:
+            logger.warning(f"HTTP download failed for {storage_url_or_key}: {e}")
+
+    # Case 3: S3 / Cloudflare R2 object
+    client = get_r2_client()
+    if client and settings.R2_BUCKET_NAME and not storage_url_or_key.startswith("/uploads/"):
+        key = storage_url_or_key.replace("r2://", "").lstrip("/")
+        if f"/{settings.R2_BUCKET_NAME}/" in key:
+            key = key.split(f"/{settings.R2_BUCKET_NAME}/", 1)[1]
+        elif "inspections/" in key:
+            key = "inspections/" + key.split("inspections/", 1)[1]
+        key = key.split("?")[0]
+
+        try:
+            resp = client.get_object(Bucket=settings.R2_BUCKET_NAME, Key=key)
+            return resp["Body"].read()
+        except Exception as e:
+            logger.warning(f"S3 get_object failed for key '{key}': {e}")
+
+    # Case 4: Local filesystem
+    clean_path = storage_url_or_key.replace("local://", "").lstrip("/").replace("uploads/", "")
+    candidates = [
+        UPLOAD_DIR / clean_path,
+        UPLOAD_DIR / Path(storage_url_or_key).name,
+    ]
+    if inspection_id:
+        candidates.extend([
+            UPLOAD_DIR / str(inspection_id) / clean_path,
+            UPLOAD_DIR / str(inspection_id) / Path(storage_url_or_key).name,
+            UPLOAD_DIR / str(inspection_id) / "images" / Path(storage_url_or_key).name,
+        ])
+    for p in candidates:
+        if p.exists() and p.is_file():
+            try:
+                with open(p, "rb") as f:
+                    return f.read()
+            except Exception as e:
+                logger.warning(f"Failed reading local file {p}: {e}")
+
+    return None
 
 
 def generate_presigned_upload_url(

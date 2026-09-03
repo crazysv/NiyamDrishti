@@ -8,6 +8,19 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
+### 2026-09-04 — Fix: Live Evidence Viewer Remote Storage, Auto-Processing Trigger & Mobile Parity
+- **Live Evidence Viewer Fixes (`frontend/app/inspections/[id]/evidence/page.tsx`, `review/page.tsx`):**
+  - Updated Evidence Viewer from relative path `/api/v1/...` to centralized `API_BASE` (`@/app/utils/apiConfig`) to eliminate HTTP 404s on Vercel.
+  - Normalized token retrieval to check both `access_token` and `token` from `localStorage`.
+  - Added dual lookup by local `id` and `backendId` in Dexie IndexedDB for robust offline fallback to actual captured photos.
+  - Removed hardcoded "Royal Basmati Rice" Stitch mockup fallback on real inspections so placeholder images never overwrite or mask officer captures.
+- **Automated Processing Pipeline Trigger (`frontend/app/services/syncService.ts`):**
+  - Added automated trigger to `POST /api/v1/inspections/{id}/process` in `syncSingleInspection` as soon as all package images upload successfully.
+- **Remote Cloud Object Storage & OCR Integration (`backend/app/services/storage.py`, `backend/app/api/v1/endpoints/inspections.py`):**
+  - Added `get_image_bytes` in `storage.py` supporting remote Supabase S3 / Cloudflare R2 object fetching via HTTP/S3 and local disk fallbacks.
+  - Fixed S3 key extraction in `generate_presigned_download_url` to prevent double-encoding (`https%3A`) of presigned URLs.
+  - Updated `/process` and `/extract` endpoints to load raw image bytes from remote storage for optical calibration and OCR execution.
+
 ### 2026-09-04 — E4-06 complete (Production Pilot Rollout & Operational Deployment Verification Checklist)
 - **E4-06 (Full Deployment Checklist per `03_TECHSPEC.md` §7, `11_SECRETS_CHECKLIST.md`, `07_IMPLEMENTATION_PLAN.md`):**
   - **Automated Pre-Flight System Audit Tool (`backend/scripts/pilot_readiness_check.py`):**
