@@ -20,7 +20,7 @@ services:
       - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
         value: "1440"
       - key: CORS_ALLOWED_ORIGINS
-        value: https://niyamdrishti.pages.dev,https://niyamdrishti.vercel.app,http://localhost:3000
+        value: https://niyam-drishti.vercel.app,https://niyamdrishti.vercel.app,https://niyamdrishti.pages.dev,http://localhost:3000
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
