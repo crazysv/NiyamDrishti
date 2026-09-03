@@ -49,6 +49,9 @@ def normalize_database_url(raw_url: str) -> tuple[str, dict[str, Any], dict[str,
         if mode in ("require", "verify-ca", "verify-full"):
             connect_args["ssl"] = True
 
+    # asyncpg does not support channel_binding query parameter
+    query_params.pop("channel_binding", None)
+
     new_query = urlencode(query_params)
     normalized_url = urlunparse((scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment))
 
