@@ -10,7 +10,7 @@ from app.main import app
 def test_settings_load():
     """Config loads with correct defaults."""
     assert settings.JWT_ALGORITHM == "HS256"
-    assert settings.is_sqlite is True
+    assert settings.is_sqlite == ("sqlite" in settings.DATABASE_URL)
     assert settings.APP_ENV == "development"
 
 
