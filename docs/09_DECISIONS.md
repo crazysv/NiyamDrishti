@@ -1,4 +1,4 @@
-﻿# 09_DECISIONS â€” Architecture Decision Records
+# 09_DECISIONS â€” Architecture Decision Records
 
 A running, dated log of real technical decisions and why they were made. Add a new entry every time you make a non-trivial choice â€” a library swap, an architecture change, a rule interpretation, a threshold you tuned empirically. Do this **at the time you decide**, not retroactively; retroactive ADRs tend to rationalize rather than record.
 
@@ -75,14 +75,87 @@ A running, dated log of real technical decisions and why they were made. Add a n
 
 ### ADR-006 â€” Barcode calibration viable but requires pyzbar DLL; OpenCV BarcodeDetector pixel-width unreliable at small sizes (SPIKE-02 outcome)
 **Date:** 2026-09-02
-**Status:** Superseded by ADR-006 Amendment (2026-09-02) — pyzbar replaced by zxing-cpp`n**Context:** SPIKE-02 tested barcode-based mm-per-pixel calibration on 46 photos to decide on the acceptable-use threshold (OQ-04 feeds into RULE-03).
-**Decision:** Barcode calibration is valid and will be implemented (CAL-01..CAL-03) but with two constraints: (1) pyzbar (with the zbar system DLL) is the required barcode detector â€” OpenCV BarcodeDetector reports px=0 or px=1â€“4 for many valid barcodes, making its pixel-width measurement unreliable; (2) calibration is only used when detected pixel width > 50px; below that threshold, the reading is treated as uncalibrated and the fallback path (CAL-03) is triggered.
-**Evidence:** 46 photos scanned; 20 had barcodes detected by OpenCV. Of those, 10 reported px=0 or px<5 (measurement failure). The 5 readings with px>50 clustered at 0.23â€“0.28 mm/px (reasonable for a mid-distance label photo), giving ~19% spread â€” slightly above the 15% "reliable" threshold, likely due to angle variation. With a minimum-pixel-width gate, consistency improves.
+### ADR-006 — Barcode calibration viable but requires pyzbar DLL; OpenCV BarcodeDetector pixel-width unreliable at small sizes (SPIKE-02 outcome)
+**Date:** 2026-09-02
+**Status:** Superseded by ADR-006 Amendment (2026-09-02) — pyzbar replaced by zxing-cpp
+**Context:** SPIKE-02 tested barcode-based mm-per-pixel calibration on 46 photos to decide on the acceptable-use threshold (OQ-04 feeds into RULE-03).
+**Decision:** Barcode calibration is valid and will be implemented (CAL-01..CAL-03) but with two constraints: (1) pyzbar (with the zbar system DLL) is the required barcode detector — OpenCV BarcodeDetector reports px=0 or px=1–4 for many valid barcodes, making its pixel-width measurement unreliable; (2) calibration is only used when detected pixel width > 50px; below that threshold, the reading is treated as uncalibrated and the fallback path (CAL-03) is triggered.
+**Evidence:** 46 photos scanned; 20 had barcodes detected by OpenCV. Of those, 10 reported px=0 or px<5 (measurement failure). The 5 readings with px>50 clustered at 0.23–0.28 mm/px (reasonable for a mid-distance label photo), giving ~19% spread — slightly above the 15% "reliable" threshold, likely due to angle variation. With a minimum-pixel-width gate, consistency improves.
 **Consequences:** CAL-01 will use pyzbar as primary detector (requires the zbar DLL to be bundled in the Docker image / Render deploy). The px>50 gate and the "Uncalibrated" fallback flag are hard requirements for CAL-03, not optional. The font-height rule (RULE-03) must always check calibration status before asserting a mm measurement.
 
 
-### ADR-006 Amendment â€” zxing-cpp confirmed as barcode detector (replaces pyzbar recommendation)
+### ADR-006 Amendment — zxing-cpp confirmed as barcode detector (replaces pyzbar recommendation)
 **Date:** 2026-09-02
 **Status:** Accepted (amends ADR-006)
-**Decision:** Use zxing-cpp (PyPI: zxing-cpp) instead of pyzbar for barcode detection. Tested on 8 photos: 6/8 EAN-13 barcodes detected and decoded correctly with real product data (e.g. 8904063231765). Zero DLL dependencies â€” works out of the box on Windows and Linux without bundling libzbar. Pixel width calculated via Euclidean distance (top_left to top_right corner) using .position. The px>50 gate from ADR-006 remains in force. Spread across photos (73.9%) is expected and correct â€” it reflects different shooting distances, not measurement error; each photo gets its own per-photo calibration from the barcode visible in that same frame.
+**Decision:** Use zxing-cpp (PyPI: zxing-cpp) instead of pyzbar for barcode detection. Tested on 8 photos: 6/8 EAN-13 barcodes detected and decoded correctly with real product data (e.g. 8904063231765). Zero DLL dependencies — works out of the box on Windows and Linux without bundling libzbar. Pixel width calculated via Euclidean distance (top_left to top_right corner) using .position. The px>50 gate from ADR-006 remains in force. Spread across photos (73.9%) is expected and correct — it reflects different shooting distances, not measurement error; each photo gets its own per-photo calibration from the barcode visible in that same frame.
 
+### ADR-007 — Visual Evidence Mapping Coordinate Normalization & Stitch Alignment
+**Date:** 2026-09-03
+**Status:** Accepted
+**Context:** EVID-01 and EVID-03 required binding OCR extracted declarations and legal violations to visual bounding boxes across dynamic client screen viewports and resolutions.
+**Decision:** Store raw pixel bounding boxes `{x, y, w, h}` in the backend database, but compute and expose normalized percentage coordinates `{left_pct, top_pct, width_pct, height_pct}` in `GET /inspections/{id}/evidence`. Frontend overlay positions bounding boxes via percentage styles matching the Stitch specification (`aadbc3ef68594817a4d6c6cde22383c1`), rendering accurately across mobile, tablet, and desktop viewports without requiring client-side canvas recalculation.
+**Alternatives considered:** Raw pixel coordinates only (forces client to fetch full image dimensions and calculate scaling dynamically on resize); SVG polygon normalized coordinates (higher complexity for simple rectangular bounding box rendering).
+**Consequences:** Seamless alignment with Google Stitch design system tokens; simplifies touch-target interaction and active focus zooming on mobile field devices.
+
+### ADR-008 — Human Review Confidence Routing, Override Semantics & Append-Only Audit Logging
+**Date:** 2026-09-03
+**Status:** Accepted
+**Context:** REV-01, REV-02, and REV-03 implement the human-in-the-loop decision-support layer. The system must never assert legal finality on ambiguous or low-confidence extractions, must provide clean override actions for field officers, and must guarantee an evidentiary audit trail for legal accountability.
+**Decision:**
+1. **Confidence Threshold Routing:** Set a baseline threshold of 85% (`REVIEW_CONFIDENCE_THRESHOLD = 0.85`). Any mandatory declaration whose extraction confidence falls below 0.85 or whose syntax is ambiguous is flagged with `verdict="needs_review"` and routed to `GET /inspections/{id}/review-queue`.
+2. **Review Action Triad:** Officers can act on queued declarations via `PATCH /inspections/{id}/fields/{field_id}` with three explicit actions:
+   - `confirm`: Officer verifies the parsed text is correct on the physical label (`reviewed_by_officer=True`, `verdict="pass"`).
+   - `correct`: Officer supplies the verified value in `officer_override_value` (`reviewed_by_officer=True`, `verdict="pass"`).
+   - `mark_not_applicable`: Officer marks the declaration exempt/not applicable for this package type (`reviewed_by_officer=True`, `verdict="not_applicable"`), preventing false violations.
+3. **Automated Re-Evaluation:** Applying any review action automatically re-evaluates the inspection's rules against its frozen rule pack version, updating the `violations` table and transitioning the inspection status to `completed` once all queued reviews are cleared.
+4. **Append-Only Immutability:** Every review action writes to `audit_logs` capturing `actor_user_id`, `action`, `entity_type="extracted_field"`, `entity_id`, full `before_value`, and full `after_value`. No `UPDATE` or `DELETE` API route exists for `audit_logs`.
+**Alternatives considered:** Soft overrides without audit logging (rejected; destroys evidentiary credibility in court proceedings); silent auto-acceptance of all OCR output (rejected; violates Guardrail 6 and Decision-Support core value proposition).
+**Consequences:** Fully transparent chain of custody; officers retain ultimate enforcement authority while system automates tedious manual cross-referencing.
+
+### ADR-009 — Dual-Engine PDF Generation (WeasyPrint Primary + Zero-Dependency FPDF2 Fallback) & Un-omittable Statutory Disclaimer
+**Date:** 2026-09-03
+**Status:** Accepted
+**Context:** RPT-01 through RPT-04 require generating print-ready Legal Metrology compliance reports in PDF and editable formats. The Tech Spec (§2) designated WeasyPrint as primary and FPDF2 as zero-dependency fallback. On Windows development hosts, WeasyPrint fails with `OSError: cannot load library 'libgobject-2.0-0'` due to missing native C GTK/Cairo/Pango libraries. Furthermore, PRD US-07 and Master Content §10.9/§14.2 strictly mandate that every generated report contain a non-bypassable statutory disclaimer stating that the findings are AI decision-support rather than a judicial ruling.
+**Decision:**
+1. **Dual-Engine PDF Generator (`ReportService`):** Implement a unified `ReportService` that renders an official Government of India compliance report. It attempts WeasyPrint first (ideal for Linux container environments with system Cairo/Pango), and if native libraries are missing, seamlessly falls back to pure-Python `fpdf2` without failing or crashing. Both engines generate an official A4 document featuring the departmental header, inspection metadata, per-declaration compliance table, calibrated font-height measurements, statutory violations with exact citations, officer audit trail, signature block, and mandatory disclaimer.
+2. **Un-omittable Statutory Disclaimer Architecture (RPT-02):** Define the mandatory statutory disclaimer in a single, centralized module (`app.services.reporting.disclaimer`) and shared template partial (`templates/reports/_legal_disclaimer.html`). The disclaimer is injected unconditionally into both PDF engines and editable JSON exports (`RPT-04`). Callers cannot disable or omit the disclaimer via query flags or API parameters.
+3. **Storage & Serving Strategy (RPT-03):** Support Cloudflare R2 object storage via `boto3` for production deployments, while providing seamless local filesystem storage in `./uploads/{inspection_id}/reports/` with direct download streaming (`GET /inspections/{id}/reports/{report_id}/file`) for offline/local development.
+**Alternatives considered:** Requiring GTK3 runtime installation on all developer machines (rejected; violates frictionless developer experience and free-tier portable deployment); PDF-only export (rejected; PRD US-07 explicitly requires editable format export for officer administrative workflows).
+**Consequences:** 100% reliable PDF generation across all environments (Windows dev, Docker, Render, Cloud Run); guaranteed compliance with regulatory risk mitigation invariants.
+
+### ADR-010 — Cloudflare R2 Time-Limited Signed URLs, Neon Serverless Connection Pooling & Offline Device Storage Quota Safeguards
+**Date:** 2026-09-03
+**Status:** Accepted
+**Context:** STOR-01 through STOR-03 address persistence and synchronization across Cloudflare R2, Neon PostgreSQL, and local device storage. Cloudflare R2 stores commercial label evidence and legal reports that must not be permanently exposed over public URLs. Neon PostgreSQL is a serverless database that scales to zero and terminates idle connections after 5 minutes. On officer client devices, IndexedDB offline queues risk browser data eviction if storage is exhausted (Master Content §14.1).
+**Decision:**
+1. **Time-Limited Signed URLs (STOR-01):** Implement S3-compatible signed URL generation (`generate_presigned_download_url` and `generate_presigned_upload_url`) using boto3. Default read access is granted for 1 hour (3600s), and direct client upload access for 15 minutes (900s). Evidentiary inspection and review queue endpoints dynamically resolve storage URLs to time-limited signed links when serving R2 assets, preserving privacy and chain of custody.
+2. **Neon Serverless Engine Wiring (STOR-02):** In `backend/app/db/session.py`, implement URL normalization and pooling tailored for Neon serverless PostgreSQL:
+   - Normalize connection string schemes (`postgres://` and `postgresql://` -> `postgresql+asyncpg://`).
+   - Configure `pool_pre_ping=True`: Ensures SQLAlchemy verifies connection liveness with a lightweight ping (`SELECT 1`), reconnecting automatically if Neon's compute endpoint has scaled to zero or dropped the idle socket.
+   - Configure `pool_recycle=300`: Periodically recycles connections every 5 minutes to stay ahead of Neon's idle drop timeout.
+   - Retain lightweight SQLite path with `connect_args={"check_same_thread": False}` for local development and offline field servers.
+3. **Device Storage Quota & Queue Cap (STOR-03):**
+   - Enforce `MAX_OFFLINE_QUEUE_DEPTH = 50` packages in IndexedDB. Once 50 packages are queued, further package capture is blocked until an online sync is completed, preventing device memory overflow.
+   - Implement real-time device storage monitoring via `navigator.storage.estimate()`. If available storage drops below 50 MB or quota usage exceeds 90%, the client emits a high-visibility warning banner (`StorageWarningBanner`) instructing the officer to synchronize immediately.
+**Alternatives considered:** Using permanent public R2 buckets (rejected; exposes commercial product labels and officer inspection evidence to unauthenticated scraping); ignoring Neon connection drops (rejected; causes intermittent 500 errors upon idle wakeups).
+**Consequences:** Secure time-limited media delivery, robust database reconnections on serverless free tiers, and zero data loss on field devices.
+
+### ADR-011 — Multi-Parameter Inspection Search, Compound Filtering Engine & Role-Scoped Visibility
+**Date:** 2026-09-03
+**Status:** Accepted
+**Context:** SRCH-01 requires a high-performance inspection search and history endpoint (`GET /api/v1/inspections`) supporting multi-parameter filtering across enforcement officers, date ranges, regions, commodity categories, inspection statuses, statutory violation existence/types, and product text search across extracted fields. Legal metrology compliance investigations require strict evidentiary privacy and jurisdictional data fencing.
+**Decision:**
+1. **Multi-Parameter Compound Filtering:** Implement unified SQL filtering on `Inspection` with correlated subqueries across `Violation`, `ExtractedField`, and `User`:
+   - `officer_name`: Case-insensitive substring match via `Inspection.officer.has(User.full_name.ilike(...))`.
+   - `date_from` and `date_to`: ISO datetime range boundaries on `Inspection.created_at`.
+   - `region` and `commodity_category`: Regional and product category matching.
+   - `status`: Filter by lifecycle state (`completed`, `needs_review`, `draft`, `sync_pending`).
+   - `has_violations`: Boolean existence filter using `Inspection.violations.any()`.
+   - `violation_type`: Substring match on violation `rule_id`, `description`, or legal `citation`.
+   - `product_query`: Text search across `raw_text`, `parsed_value`, and `officer_override_value` in extracted declarations.
+2. **Role-Scoped Visibility (RBAC):**
+   - Field officers (`role="officer"`) are strictly locked to their own inspections (`Inspection.officer_id == current_user.id`), preventing cross-officer data leakage.
+   - Supervisors and administrators (`role in ("supervisor", "admin")`) have jurisdictional authority to search across all officers or scope by specific `officer_id`.
+3. **Optimized Pagination & Thumbnail Signed URLs:** Return paginated summary models (`InspectionSummaryRead`) with total counts, violation counts, field counts, overall verdicts, and front-panel PDP thumbnail URLs dynamically resolved via Cloudflare R2 presigned URLs.
+**Alternatives considered:** Client-side filtering of all inspections (rejected; fails scalability, wastes officer mobile bandwidth, and leaks unauthorized inspection data); full-text search engine like Elasticsearch (rejected; introduces heavy non-free or paid infrastructure dependency violating Rule 1).
+**Consequences:** Sub-second server-side filtering on free PostgreSQL/SQLite, strict role separation, and clean API contract for the upcoming Search/History UI.

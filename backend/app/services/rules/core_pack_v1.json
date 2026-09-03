@@ -1,0 +1,140 @@
+{
+  "rule_pack_version": "2026.02.01",
+  "effective_from": "2026-02-01",
+  "effective_to": null,
+  "source_citation": "Legal Metrology (Packaged Commodities) Rules, 2011 & Second Amendment Rules, 2025 (G.S.R. 881(E))",
+  "rules": [
+    {
+      "rule_id": "declaration-present-mrp",
+      "applies_to": ["all"],
+      "type": "field_required",
+      "field": "mrp",
+      "citation": "Rule 6 — [VERIFY exact sub-clause before shipping to production, see 10_OPEN_QUESTIONS.md]",
+      "severity": "critical",
+      "note": "Mandatory Maximum Retail Price (MRP) inclusive of all taxes"
+    },
+    {
+      "rule_id": "declaration-present-net-quantity",
+      "applies_to": ["all"],
+      "type": "field_required",
+      "field": "net_quantity",
+      "citation": "Rule 6(1)(c) — [VERIFY]",
+      "severity": "critical",
+      "note": "Mandatory net quantity declaration in standard metric units"
+    },
+    {
+      "rule_id": "declaration-present-manufacturer-address",
+      "applies_to": ["all"],
+      "type": "field_required",
+      "field": "manufacturer_address",
+      "citation": "Rule 6(1)(a) — [VERIFY]",
+      "severity": "major",
+      "note": "Name and complete address of manufacturer, packer, or importer"
+    },
+    {
+      "rule_id": "declaration-present-mfg-date",
+      "applies_to": ["all"],
+      "type": "field_required",
+      "field": "mfg_date",
+      "citation": "Rule 6(1)(d) — [VERIFY]",
+      "severity": "major",
+      "note": "Month and year of manufacture or packing"
+    },
+    {
+      "rule_id": "declaration-present-consumer-care",
+      "applies_to": ["all"],
+      "type": "field_required",
+      "field": "consumer_care",
+      "citation": "Rule 6(1)(g) — [VERIFY]",
+      "severity": "major",
+      "note": "Name, address, telephone number, and email of consumer care cell"
+    },
+    {
+      "rule_id": "declaration-present-country-of-origin",
+      "applies_to": ["all"],
+      "type": "field_required",
+      "field": "country_of_origin",
+      "citation": "Rule 6(1)(e) — [VERIFY]",
+      "severity": "major",
+      "note": "Country of origin declaration for packaged goods"
+    },
+    {
+      "rule_id": "declaration-present-commodity-name",
+      "applies_to": ["all"],
+      "type": "field_required",
+      "field": "commodity_name",
+      "citation": "Rule 6(1)(b) — [VERIFY]",
+      "severity": "minor",
+      "note": "Generic name or common name of the packaged commodity"
+    },
+    {
+      "rule_id": "font-size-pdp-net-quantity",
+      "applies_to": ["all"],
+      "type": "font_height_by_pdp_area",
+      "field": "net_quantity",
+      "thresholds_mm": {
+        "50": 1.0,
+        "100": 1.5,
+        "500": 2.0,
+        "2500": 4.0,
+        "gt_2500": 6.0
+      },
+      "citation": "LM(PC) Rules 2011, Rule 7(1) Table 1",
+      "severity": "major",
+      "requires_calibration": true,
+      "note": "Minimum numeral font height according to Principal Display Panel (PDP) area for Net Quantity"
+    },
+    {
+      "rule_id": "font-size-pdp-mrp",
+      "applies_to": ["all"],
+      "type": "font_height_by_pdp_area",
+      "field": "mrp",
+      "thresholds_mm": {
+        "50": 1.0,
+        "100": 1.5,
+        "500": 2.0,
+        "2500": 4.0,
+        "gt_2500": 6.0
+      },
+      "citation": "LM(PC) Rules 2011, Rule 7(1) Table 1",
+      "severity": "major",
+      "requires_calibration": true,
+      "note": "Minimum numeral font height according to Principal Display Panel (PDP) area for MRP"
+    },
+    {
+      "rule_id": "font-size-blown-embossed",
+      "applies_to": ["blown_glass", "moulded_plastic", "embossed_can"],
+      "type": "font_height_blown_embossed",
+      "field": "net_quantity",
+      "thresholds_mm": {
+        "50": 2.0,
+        "100": 3.0,
+        "500": 4.0,
+        "2500": 6.0,
+        "gt_2500": 8.0
+      },
+      "citation": "LM(PC) Rules 2011, Rule 7(1) Proviso (Blown/Formed/Embossed Containers)",
+      "severity": "major",
+      "requires_calibration": true,
+      "note": "Elevated minimum font height for declarations blown, moulded, or embossed directly onto container walls"
+    },
+    {
+      "rule_id": "legibility-prominence-contrast",
+      "applies_to": ["all"],
+      "type": "legibility_contrast",
+      "field": "mrp",
+      "citation": "LM(PC) Rules 2011, Rule 9(1)",
+      "severity": "major",
+      "note": "Declarations must be conspicuous, legible, and maintain adequate background contrast"
+    },
+    {
+      "rule_id": "pan-masala-rsp",
+      "applies_to": ["pan_masala"],
+      "type": "field_required",
+      "field": "retail_sale_price",
+      "note": "Small-pack exemption withdrawn as of 2026-02-01 (G.S.R. 881(E))",
+      "citation": "LM(PC) Second Amendment Rules, 2025",
+      "severity": "critical"
+    }
+  ]
+}

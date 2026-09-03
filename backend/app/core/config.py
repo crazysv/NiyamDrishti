@@ -61,9 +61,10 @@ class Settings(BaseSettings):
     OCR_MODEL_CACHE_DIR: str = "./ocr_models"
 
     # ------------------------------------------------------------------
-    # Rule engine
+    # Rule engine & Human Review (REV-01)
     # ------------------------------------------------------------------
     ACTIVE_RULE_PACK_VERSION: str = ""  # set after RULE-02 seeds initial pack
+    REVIEW_CONFIDENCE_THRESHOLD: float = 0.85  # baseline 85% confidence threshold for review queue routing
 
     # ------------------------------------------------------------------
     # CORS  (comma-separated origins)

@@ -1,4 +1,4 @@
-﻿# 10_OPEN_QUESTIONS â€” Unresolved Ambiguities & Conflicts
+# 10_OPEN_QUESTIONS â€” Unresolved Ambiguities & Conflicts
 
 Every genuine ambiguity, conflicting source, or unverified fact gets logged here the moment it's found â€” during research, during planning, or during implementation. **Do not silently resolve an ambiguity by picking one interpretation and moving on without a log entry** (`AGENTS.md` rule 5). Logging takes thirty seconds; an unlogged silent guess is exactly the kind of small drift that compounds into the project being "not what was intended" weeks later.
 
@@ -45,12 +45,15 @@ Every genuine ambiguity, conflicting source, or unverified fact gets logged here
 **Current working assumption:** Prototype both in `07_IMPLEMENTATION_PLAN.md` task `SPIKE-01` before committing; do not build the full extraction pipeline against one option until that spike has a written outcome in `09_DECISIONS.md`.
 **Resolution:** Server-side OCR (PaddleOCR 2.9.1) chosen as Phase 1 primary. 46 photos tested, 0 errors, 87.9% avg confidence, 2420ms avg latency. Client-side deferred to Phase 2+. See ADR-005.
 
-### OQ-04 â€” Exact font-height-by-PDP-area figures, independent verification
-**Status:** Open
+### OQ-04 — Exact font-height-by-PDP-area figures, independent verification
+**Status:** Resolved — 2026-09-03
 **Raised:** 2026-09-02 (research)
-**The ambiguity:** The threshold table in `MASTER_CONTENT.md` Â§4.3 comes from the single most detailed source in the research set and was internally consistent, but was not cross-checked against a second independent primary source in this session.
+**The ambiguity:** The threshold table in `MASTER_CONTENT.md` §4.3 comes from the single most detailed source in the research set and was internally consistent, but was not cross-checked against a second independent primary source in this session.
 **Current working assumption:** Table is used as-is for Phase 1 prototyping (SPIKE-02) and Phase 1 rule-pack authoring (`RULE-03`), clearly marked `[VERIFY]` in the rule pack's `citation` field.
-**Resolution:** *(pending â€” verify against the bare act/gazette text before Phase 2 `E2-02` "full font/legibility rule set" ships)*
+**Resolution:** Resolved and verified against primary statutory text: Legal Metrology (Packaged Commodities) Rules, 2011, Rule 7(1) Table 1 and Rule 7(1) Proviso.
+- Standard printed packaging: ≤50 cm²: 1.0mm; ≤100 cm²: 1.5mm; ≤500 cm²: 2.0mm; ≤2500 cm²: 4.0mm; >2500 cm²: 6.0mm.
+- Blown, formed, moulded, embossed or perforated on containers: ≤50 cm²: 2.0mm; ≤100 cm²: 3.0mm; ≤500 cm²: 4.0mm; ≤2500 cm²: 6.0mm; >2500 cm²: 8.0mm.
+- Implemented in `core_pack_v1.json`, `schemas.py`, and `RuleEngine` in `E2-02` with 4 dedicated unit tests.
 
 ### OQ-05 â€” DGQA association with this domain
 **Status:** Resolved

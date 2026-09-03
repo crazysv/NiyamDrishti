@@ -10,7 +10,7 @@ from slowapi.util import get_remote_address
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.db.session import init_db
+from app.db.session import check_db_health, init_db
 
 
 @asynccontextmanager
@@ -44,4 +44,9 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "env": settings.APP_ENV}
+    db_health = await check_db_health()
+    return {
+        "status": "ok" if db_health.get("status") == "connected" else "degraded",
+        "env": settings.APP_ENV,
+        "database": db_health,
+    }

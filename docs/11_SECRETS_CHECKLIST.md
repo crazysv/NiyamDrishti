@@ -26,6 +26,7 @@
 | `SMTP_APP_PASSWORD` | ✅ MVP | Gmail App Password (not the account password) | Google Account → Security → App Passwords (requires 2FA enabled on the account) | Never use the real account password here |
 | `OCR_MODEL_CACHE_DIR` | ✅ MVP | Local path PaddleOCR/Tesseract cache to | Set directly, not a secret | On constrained hosts (e.g. Hugging Face Spaces), must point to a writable path like `/tmp` — see `MASTER_CONTENT.md` §11.2/§11.3 caveats |
 | `ACTIVE_RULE_PACK_VERSION` | ✅ MVP | Which rule pack the engine uses by default | Set after `RULE-02` seeds the initial rule pack | Not a secret, but must be explicit, never silently "latest" without an admin action (`06_SCHEMA.md` `rule_packs.is_active`) |
+| `REVIEW_CONFIDENCE_THRESHOLD` | ✅ MVP | Confidence threshold below which declarations route to review queue (REV-01) | Set directly (baseline 0.85), tune per pilot data | Defaults to 0.85 per `MASTER_CONTENT.md` §10.8 |
 | `CORS_ALLOWED_ORIGINS` | ✅ MVP | Which frontend origin(s) may call the API | Set directly (Cloudflare Pages URL, local dev URL) | |
 | `BREVO_API_KEY` | 🔜 Future (email scale-up) | Alternative email provider if Gmail SMTP limits are hit | brevo.com free-tier signup | Only provision if/when actually needed |
 | `BHASHINI_API_KEY` / `BHASHINI_USER_ID` | 🔜 Phase 3 (`E3-04`) | Bhashini ULCA API access | Sign up at bhashini.gov.in (ULCA portal) | Confirm current sign-up/approval process at the time (`OQ-07`, `E3-03`) — do not block Phase 1/2 on this |

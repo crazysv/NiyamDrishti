@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: niyamdrishti-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://niyamdrishti.pages.dev,http://localhost:3000
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: niyamdrishti-media
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: OCR_MODEL_CACHE_DIR
+        value: /tmp/ocr_cache
+      - key: REVIEW_CONFIDENCE_THRESHOLD
+        value: "0.85"
+      - key: RATE_LIMIT_AUTH
+        value: 10/minute

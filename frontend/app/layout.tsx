@@ -1,20 +1,24 @@
-﻿import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import ColdStartBanner from "@/app/components/common/ColdStartBanner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "NiyamDrishti",
-  description: "Automated Legal Metrology Compliance Inspection Platform",
+  title: "NiyamDrishti — Legal Metrology Compliance Platform",
+  description:
+    "Automated, evidence-backed inspection system for Legal Metrology (Packaged Commodities) Rules, 2011",
 };
 
 export default function RootLayout({
@@ -25,9 +29,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#F9F7F2] text-[#1A1C1E]">
+        <ColdStartBanner />
+        {children}
+      </body>
     </html>
   );
 }

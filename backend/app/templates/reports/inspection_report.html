@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Legal Metrology Inspection Report — {{ inspection.id }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 15mm 20mm 15mm;
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #75777d;
+      }
+      @bottom-left {
+        content: "NiyamDrishti — Official Decision-Support Record";
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #75777d;
+      }
+    }
+
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.4;
+      color: #1a1c1e;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Header Styling */
+    .report-header {
+      border-bottom: 2px solid #333e50;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .gov-title {
+      font-size: 13pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #111c2c;
+      margin: 0 0 2px 0;
+    }
+
+    .gov-subtitle {
+      font-size: 9pt;
+      color: #566155;
+      margin: 0 0 1px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .report-title {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #333e50;
+      margin: 4px 0 0 0;
+      text-transform: uppercase;
+    }
+
+    .meta-box {
+      background-color: #f3f3f6;
+      border: 1px solid #e2e2e5;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      display: table;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .meta-row {
+      display: table-row;
+    }
+
+    .meta-cell {
+      display: table-cell;
+      padding: 2px 8px;
+      font-size: 8.5pt;
+    }
+
+    .meta-label {
+      font-weight: bold;
+      color: #566155;
+      text-transform: uppercase;
+      font-size: 7.5pt;
+    }
+
+    .meta-val {
+      color: #1a1c1e;
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    /* Verdict Banner */
+    .verdict-banner {
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-bottom: 14px;
+      font-weight: bold;
+      font-size: 10pt;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .banner-pass {
+      background-color: #d6e3d3;
+      color: #131e14;
+      border-left: 4px solid #2e7d32;
+    }
+
+    .banner-fail {
+      background-color: #ffdad6;
+      color: #93000a;
+      border-left: 4px solid #ba1a1a;
+    }
+
+    .banner-review {
+      background-color: #dfc6a0;
+      color: #4b3b1f;
+      border-left: 4px solid #645234;
+    }
+
+    /* Section Headers */
+    h2.section-header {
+      font-size: 10pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #333e50;
+      border-bottom: 1px solid #c5c6cd;
+      padding-bottom: 3px;
+      margin-top: 14px;
+      margin-bottom: 6px;
+    }
+
+    /* Tables */
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      font-size: 8pt;
+    }
+
+    table.data-table th {
+      background-color: #333e50;
+      color: #ffffff;
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 7.5pt;
+      padding: 5px 6px;
+      text-align: left;
+      border: 1px solid #333e50;
+    }
+
+    table.data-table td {
+      padding: 4px 6px;
+      border: 1px solid #e2e2e5;
+      vertical-align: top;
+    }
+
+    table.data-table tr:nth-child(even) {
+      background-color: #f9f9fc;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-weight: bold;
+      font-size: 7pt;
+      text-transform: uppercase;
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    .badge-pass { background-color: #d6e3d3; color: #131e14; }
+    .badge-fail { background-color: #ffdad6; color: #93000a; }
+    .badge-review { background-color: #dfc6a0; color: #4b3b1f; }
+    .badge-exempt { background-color: #eeeef0; color: #566155; }
+
+    /* Evidence Thumbnails */
+    .evidence-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .evidence-card {
+      border: 1px solid #c5c6cd;
+      border-radius: 4px;
+      padding: 6px;
+      background: #f9f9fc;
+      width: 48%;
+      box-sizing: border-box;
+      page-break-inside: avoid;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+
+    .evidence-thumb-container {
+      position: relative;
+      width: 100%;
+      height: 140px;
+      background-color: #2f3133;
+      border-radius: 2px;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .evidence-thumb {
+      max-width: 100%;
+      max-height: 140px;
+      object-fit: contain;
+    }
+
+    .evidence-caption {
+      margin-top: 4px;
+      font-size: 7.5pt;
+      color: #333e50;
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    /* Violations List */
+    .violation-card {
+      background-color: #fff8f7;
+      border-left: 3px solid #ba1a1a;
+      border-top: 1px solid #ffdad6;
+      border-right: 1px solid #ffdad6;
+      border-bottom: 1px solid #ffdad6;
+      padding: 6px 10px;
+      margin-bottom: 6px;
+      page-break-inside: avoid;
+    }
+
+    .violation-title {
+      font-weight: bold;
+      color: #ba1a1a;
+      font-size: 8.5pt;
+    }
+
+    .violation-desc {
+      font-size: 8pt;
+      color: #1a1c1e;
+      margin: 2px 0;
+    }
+
+    .violation-citation {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 7.5pt;
+      color: #566155;
+    }
+
+    /* Signature Section */
+    .signature-section {
+      margin-top: 20px;
+      margin-bottom: 14px;
+      display: table;
+      width: 100%;
+      page-break-inside: avoid;
+    }
+
+    .signature-col {
+      display: table-cell;
+      width: 50%;
+      vertical-align: bottom;
+      padding: 0 10px;
+    }
+
+    .signature-line {
+      border-bottom: 1px solid #1a1c1e;
+      width: 85%;
+      height: 35px;
+      margin-bottom: 4px;
+    }
+
+    .signature-label {
+      font-size: 7.5pt;
+      color: #566155;
+      text-transform: uppercase;
+    }
+
+    /* Legal Disclaimer Box (RPT-02) */
+    .legal-disclaimer-box {
+      border: 1.5px solid #333e50;
+      background-color: #f3f3f6;
+      padding: 8px 12px;
+      margin-top: 16px;
+      border-radius: 3px;
+      page-break-inside: avoid;
+    }
+
+    .legal-disclaimer-header {
+      font-weight: bold;
+      font-size: 8pt;
+      text-transform: uppercase;
+      color: #111c2c;
+      letter-spacing: 0.05em;
+      margin-bottom: 3px;
+    }
+
+    .gavel-symbol {
+      font-size: 9pt;
+      margin-right: 3px;
+    }
+
+    .legal-disclaimer-content {
+      font-size: 7.5pt;
+      line-height: 1.35;
+      color: #44474c;
+      margin: 0;
+      text-align: justify;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Official Header -->
+  <div class="report-header">
+    <div>
+      <div class="gov-title">Government of India</div>
+      <div class="gov-subtitle">Department of Consumer Affairs · Legal Metrology Division</div>
+      <div class="report-title">Legal Metrology (Packaged Commodities) Compliance Report</div>
+    </div>
+    <div style="text-align: right; font-family: 'Courier New', Courier, monospace; font-size: 8pt;">
+      <div><strong>REF:</strong> {{ (inspection.id | string)[:8] | upper }}</div>
+      <div><strong>DATE:</strong> {{ generated_at_str }}</div>
+      <div><strong>PACK:</strong> v{{ inspection.rule_pack_version }}</div>
+    </div>
+  </div>
+
+  <!-- Overall Status Banner -->
+  {% if violations | length > 0 %}
+    <div class="verdict-banner banner-fail">
+      <span>NON-COMPLIANT — STATUTORY VIOLATIONS DETECTED</span>
+      <span>{{ violations | length }} DEFICIENCY{% if violations | length > 1 %}S{% endif %}</span>
+    </div>
+  {% elif inspection.status == 'needs_review' %}
+    <div class="verdict-banner banner-review">
+      <span>PROVISIONAL — PENDING OFFICER REVIEW</span>
+      <span>OFFICER VERIFICATION REQUIRED</span>
+    </div>
+  {% else %}
+    <div class="verdict-banner banner-pass">
+      <span>COMPLIANT — ALL MANDATORY DECLARATIONS VERIFIED</span>
+      <span>PASSED (100%)</span>
+    </div>
+  {% endif %}
+
+  <!-- Metadata Table -->
+  <div class="meta-box">
+    <div class="meta-row">
+      <div class="meta-cell">
+        <span class="meta-label">Commodity Category:</span><br>
+        <span class="meta-val">{{ (inspection.commodity_category or "general") | replace("_", " ") | title }}</span>
+      </div>
+      <div class="meta-cell">
+        <span class="meta-label">Inspection ID:</span><br>
+        <span class="meta-val">{{ inspection.id }}</span>
+      </div>
+      <div class="meta-cell">
+        <span class="meta-label">Inspection Status:</span><br>
+        <span class="meta-val">{{ inspection.status | upper }}</span>
+      </div>
+    </div>
+    <div class="meta-row">
+      <div class="meta-cell">
+        <span class="meta-label">Inspecting Officer:</span><br>
+        <span class="meta-val">{{ officer.full_name }} ({{ officer.email }})</span>
+      </div>
+      <div class="meta-cell">
+        <span class="meta-label">Enforcement Region:</span><br>
+        <span class="meta-val">{{ officer.region or "Central Division" }}</span>
+      </div>
+      <div class="meta-cell">
+        <span class="meta-label">Rule Pack Citation:</span><br>
+        <span class="meta-val">LM(PC) Rules, 2011 (v{{ inspection.rule_pack_version }})</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 1: Detailed Declaration Findings Table -->
+  <h2 class="section-header">1. Mandatory Declaration Compliance Findings</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 22%;">Declaration Field</th>
+        <th style="width: 32%;">Extracted / Verified Value</th>
+        <th style="width: 14%;">Confidence</th>
+        <th style="width: 14%;">Measurement</th>
+        <th style="width: 9%;">Verdict</th>
+        <th style="width: 9%;">Rule Citation</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for field in fields %}
+      <tr>
+        <td>
+          <strong>{{ field.field_type | replace("_", " ") | title }}</strong>
+          {% if field.reviewed_by_officer %}
+            <br><span style="font-size: 6.5pt; color: #2e7d32; font-family: 'Courier New', Courier, monospace;">[OFFICER VERIFIED]</span>
+          {% endif %}
+        </td>
+        <td>
+          <span style="font-family: 'Courier New', Courier, monospace;">
+            {{ field.officer_override_value or field.parsed_value or field.raw_text or "—" }}
+          </span>
+          {% if field.officer_override_value and field.raw_text and field.officer_override_value != field.raw_text %}
+            <br><span style="font-size: 6.5pt; color: #75777d; text-decoration: line-through;">Raw: {{ field.raw_text }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {{ (field.confidence * 100) | round | int }}%
+          {% if field.confidence < 0.85 and not field.reviewed_by_officer %}
+            <span style="color: #b76e00; font-size: 7pt;">(!</span>)
+          {% endif %}
+        </td>
+        <td>
+          {% if field.bounding_box and field.bounding_box.h %}
+            {% set img = images | selectattr("id", "equalto", field.source_image_id) | first %}
+            {% if img and img.calibration_scale_mm_per_px %}
+              {{ (field.bounding_box.h * img.calibration_scale_mm_per_px) | round(1) }} mm
+              <br><span style="font-size: 6.5pt; color: #2e7d32;">[CALIBRATED]</span>
+            {% else %}
+              Est. ~{{ field.bounding_box.h }}px
+              <br><span style="font-size: 6.5pt; color: #75777d;">[UNCALIBRATED]</span>
+            {% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          {% if field.verdict == 'pass' %}
+            <span class="badge badge-pass">PASS</span>
+          {% elif field.verdict == 'fail' %}
+            <span class="badge badge-fail">FAIL</span>
+          {% elif field.verdict == 'needs_review' %}
+            <span class="badge badge-review">REVIEW</span>
+          {% else %}
+            <span class="badge badge-exempt">EXEMPT</span>
+          {% endif %}
+        </td>
+        <td style="font-family: 'Courier New', Courier, monospace; font-size: 7pt;">
+          Rule 6/7
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" style="text-align: center; color: #75777d;">No extracted declarations recorded.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Section 2: Statutory Violations List -->
+  {% if violations | length > 0 %}
+  <h2 class="section-header">2. Detected Statutory Violations & Non-Compliance</h2>
+  {% for v in violations %}
+  <div class="violation-card">
+    <div class="violation-title">
+      [{{ v.severity | upper }}] {{ v.rule_id }}
+    </div>
+    <div class="violation-desc">{{ v.description }}</div>
+    <div class="violation-citation">Statutory Citation: {{ v.citation or "Legal Metrology (Packaged Commodities) Rules, 2011" }}</div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- Section 3: Officer Human Review & Audit Trail -->
+  {% if audit_logs | length > 0 %}
+  <h2 class="section-header">3. Officer Review & Decision Audit Trail</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width: 25%;">Timestamp</th>
+        <th style="width: 20%;">Action</th>
+        <th style="width: 25%;">Target Field</th>
+        <th style="width: 30%;">Recorded Override State</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in audit_logs %}
+      <tr>
+        <td style="font-family: 'Courier New', Courier, monospace; font-size: 7pt;">{{ log.created_at }}</td>
+        <td><span class="badge badge-review">{{ log.action }}</span></td>
+        <td style="font-family: 'Courier New', Courier, monospace; font-size: 7.5pt;">{{ log.entity_type }} ({{ (log.entity_id | string)[:8] }})</td>
+        <td style="font-family: 'Courier New', Courier, monospace; font-size: 7pt;">
+          {% if log.after_value %}
+            {{ log.after_value.officer_override_value or log.after_value.verdict or "—" }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <!-- Section 4: Officer Attestation & Signature -->
+  <div class="signature-section">
+    <div class="signature-col">
+      <div class="signature-line"></div>
+      <div class="signature-label">Signature of Inspecting Officer</div>
+      <div style="font-size: 8pt; font-weight: bold; margin-top: 2px;">{{ officer.full_name }}</div>
+      <div style="font-size: 7.5pt; color: #566155;">Legal Metrology Officer · {{ officer.region or "Delhi" }}</div>
+    </div>
+    <div class="signature-col" style="text-align: right;">
+      <div style="display: inline-block; text-align: left; width: 85%;">
+        <div class="signature-line" style="width: 100%;"></div>
+        <div class="signature-label">Official Seal / Counter-Signature</div>
+        <div style="font-size: 8pt; color: #75777d; margin-top: 2px;">Date: {{ generated_at_str }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mandatory Shared Legal Disclaimer (RPT-02) -->
+  {% include "reports/_legal_disclaimer.html" %}
+
+</body>
+</html>
