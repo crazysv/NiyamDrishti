@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from app.core.config import get_field_confidence_threshold, settings
 from app.models.base import ExtractedField
 from app.services.extraction.base import BaseFieldExtractor
 from app.services.extraction.commodity_name_extractor import CommodityNameExtractor
@@ -101,7 +101,6 @@ class DeclarationExtractionService:
             await db.execute(delete(ExtractedField).where(ExtractedField.inspection_id == inspection_id))
 
         persisted_fields: list[ExtractedField] = []
-        conf_threshold = getattr(settings, "REVIEW_CONFIDENCE_THRESHOLD", 0.85)
 
         for decl in declarations:
             try:
@@ -110,9 +109,10 @@ class DeclarationExtractionService:
                 # If source_image_id is not a valid UUID, generate one for test consistency
                 source_img_uuid = uuid.uuid4()
 
-            # Confidence-threshold routing: if below baseline threshold (85%), route to needs_review
+            # Confidence-threshold routing: if below tuned field threshold, route to needs_review (E2-08, ADR-012)
+            field_threshold = get_field_confidence_threshold(decl.field_type)
             field_verdict = decl.verdict
-            if decl.confidence < conf_threshold and field_verdict == "pass":
+            if decl.confidence < field_threshold and field_verdict == "pass":
                 field_verdict = "needs_review"
 
             field_record = ExtractedField(

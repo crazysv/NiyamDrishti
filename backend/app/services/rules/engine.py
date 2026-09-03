@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from app.core.config import settings
+from app.core.config import get_field_confidence_threshold, settings
 from app.services.rules.schemas import (
     EvaluationSummary,
     RuleDefinition,
@@ -210,7 +210,7 @@ class RuleEngine:
             reviewed = bool(getattr(field_obj, "reviewed_by_officer", False))
             override_val = getattr(field_obj, "officer_override_value", None)
 
-        threshold = getattr(settings, "REVIEW_CONFIDENCE_THRESHOLD", 0.85)
+        threshold = get_field_confidence_threshold(field_name)
 
         # 1. Officer reviewed path (REV-02)
         if reviewed:

@@ -68,12 +68,12 @@ Every genuine ambiguity, conflicting source, or unverified fact gets logged here
 **Current working assumption:** Treat the published figure as a ceiling, not an expectation; validate empirically during SPIKE-01 and again during `TEST-02` (integration test on real sample photos).
 **Resolution:** *(pending)*
 
-### OQ-07 â€” Whether Bhashini's OCR/language coverage includes Devanagari (Hindi) script specifically
-**Status:** Open â€” relevant only to Phase 3 (`E3-04`)
+### OQ-07 — Whether Bhashini's OCR/language coverage includes Devanagari (Hindi) script specifically
+**Status:** Resolved — 2026-09-04
 **Raised:** 2026-09-02 (research)
 **The ambiguity:** Research confirmed PaddleOCR's multilingual model list covers many scripts (including some Indic languages like Tamil/Telugu datasets) but didn't clearly confirm Devanagari/Hindi coverage within the same multilingual OCR model. Bhashini itself is confirmed to support Hindi broadly (translation/speech), but the specific intersection with this project's OCR pipeline needs its own check.
 **Current working assumption:** Not an MVP blocker (English-first label text is the Phase 1 target); revisit explicitly before starting `E3-04`.
-**Resolution:** *(pending â€” check at the start of Phase 3)*
+**Resolution:** Resolved via environment-driven Bhashini adapter (ADR-013). Bhashini ULCA platform provides native Hindi/Devanagari NMT translation and ASR/TTS inference pipelines alongside 22 scheduled Indian languages. When live credentials (`BHASHINI_API_KEY`, `BHASHINI_USER_ID`) are unconfigured, local Indic translation mapping and browser Web Speech synthesis/recognition provide complete offline Devanagari and regional language coverage.
 
 ---
 

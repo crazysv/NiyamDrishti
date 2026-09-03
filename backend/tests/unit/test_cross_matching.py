@@ -116,3 +116,120 @@ def test_cross_match_net_quantity_mismatch():
     assert report.discrepancies[0].severity == "major"
     assert "500 g" in report.discrepancies[0].description
     assert "450 g" in report.discrepancies[0].description
+
+
+def test_cross_match_ecommerce_net_quantity_mismatch():
+    """Verify physical package (450g) vs e-commerce listing (500g) flags critical mismatch (E3-02, Rule 6(10))."""
+    service = MultiImageCrossMatchingService()
+    insp_id = uuid.uuid4()
+
+    img_physical = make_image(insp_id, "front_pdp")
+    img_ecom = make_image(insp_id, "ecommerce_listing")
+
+    fields = [
+        make_field(insp_id, img_physical.id, "net_quantity", "Net Wt: 450 g", "450 g"),
+        make_field(insp_id, img_ecom.id, "net_quantity", "Pack of 1 (500 g)", "500 g"),
+    ]
+
+    report = service.analyze_cross_image_consistency(
+        inspection_id=insp_id,
+        images=[img_physical, img_ecom],
+        fields=fields,
+    )
+
+    assert report.is_consistent is False
+    assert len(report.discrepancies) == 1
+    disc = report.discrepancies[0]
+    assert disc.discrepancy_type == "ecommerce_net_quantity_mismatch"
+    assert disc.severity == "critical"
+    assert "Rule 6(10)" in disc.citation
+    assert "450 g" in disc.description and "500 g" in disc.description
+
+    # Verify violation generation
+    violations = service.to_violations(insp_id, "2026.02.01", report.discrepancies)
+    assert len(violations) == 1
+    assert violations[0].rule_id == "cross-match-ecommerce-net-quantity-mismatch"
+    assert violations[0].severity == "critical"
+
+
+def test_cross_match_ecommerce_mrp_overcharging():
+    """Verify e-commerce listed price exceeding physical package printed MRP flags critical violation (E3-02, Rule 18(2))."""
+    service = MultiImageCrossMatchingService()
+    insp_id = uuid.uuid4()
+
+    img_physical = make_image(insp_id, "front_pdp")
+    img_ecom = make_image(insp_id, "ecommerce_listing")
+
+    fields = [
+        make_field(insp_id, img_physical.id, "mrp", "MRP Rs. 150.00", "Rs. 150.00"),
+        make_field(insp_id, img_ecom.id, "mrp", "Price: Rs. 185.00", "Rs. 185.00"),
+    ]
+
+    report = service.analyze_cross_image_consistency(
+        inspection_id=insp_id,
+        images=[img_physical, img_ecom],
+        fields=fields,
+    )
+
+    assert report.is_consistent is False
+    assert len(report.discrepancies) == 1
+    disc = report.discrepancies[0]
+    assert disc.discrepancy_type == "ecommerce_mrp_inflation"
+    assert disc.severity == "critical"
+    assert "Rule 18(2)" in disc.citation
+    assert "185.00" in disc.description and "150.00" in disc.description
+
+
+def test_cross_match_ecommerce_origin_mismatch():
+    """Verify e-commerce listing claiming India when physical package declares China (E3-02, Rule 6(10) & 6(1)(n))."""
+    service = MultiImageCrossMatchingService()
+    insp_id = uuid.uuid4()
+
+    img_physical = make_image(insp_id, "back_panel")
+    img_ecom = make_image(insp_id, "ecommerce_listing")
+
+    fields = [
+        make_field(insp_id, img_physical.id, "country_of_origin", "Made in China", "China"),
+        make_field(insp_id, img_ecom.id, "country_of_origin", "Country of Origin: India", "India"),
+    ]
+
+    report = service.analyze_cross_image_consistency(
+        inspection_id=insp_id,
+        images=[img_physical, img_ecom],
+        fields=fields,
+    )
+
+    assert report.is_consistent is False
+    assert len(report.discrepancies) == 1
+    disc = report.discrepancies[0]
+    assert disc.discrepancy_type == "ecommerce_origin_mismatch"
+    assert disc.severity == "major"
+    assert "China" in disc.description and "India" in disc.description
+
+
+def test_cross_match_ecommerce_consistent():
+    """Verify physical package matching e-commerce listing cleanly passes with 0 discrepancies."""
+    service = MultiImageCrossMatchingService()
+    insp_id = uuid.uuid4()
+
+    img_physical = make_image(insp_id, "front_pdp")
+    img_ecom = make_image(insp_id, "ecommerce_listing")
+
+    fields = [
+        make_field(insp_id, img_physical.id, "net_quantity", "Net Wt: 1 kg", "1 kg"),
+        make_field(insp_id, img_ecom.id, "net_quantity", "Quantity: 1 kg", "1 kg"),
+        make_field(insp_id, img_physical.id, "mrp", "MRP Rs. 299.00", "Rs. 299.00"),
+        make_field(insp_id, img_ecom.id, "mrp", "MRP: Rs. 299.00", "Rs. 299.00"),
+    ]
+
+    report = service.analyze_cross_image_consistency(
+        inspection_id=insp_id,
+        images=[img_physical, img_ecom],
+        fields=fields,
+    )
+
+    assert report.is_consistent is True
+    assert len(report.discrepancies) == 0
+    assert "net_quantity" in report.consistent_fields
+    assert "mrp" in report.consistent_fields
+

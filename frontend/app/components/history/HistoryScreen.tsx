@@ -16,6 +16,7 @@ import {
   WifiOff,
   CloudUpload,
   ChevronRight,
+  BarChart3,
 } from "lucide-react";
 import { searchInspections } from "../../services/inspectionService";
 import { InspectionSummary, InspectionSearchParams } from "../../types/inspection";
@@ -486,6 +487,14 @@ export default function HistoryScreen() {
         >
           <HistoryIcon className="w-5 h-5" />
           <span className="font-mono text-[10px] tracking-wider uppercase">History</span>
+        </Link>
+
+        <Link
+          href="/dashboard"
+          className="flex flex-col items-center gap-1 text-[#75777D] hover:text-[#333E50] transition"
+        >
+          <BarChart3 className="w-5 h-5" />
+          <span className="font-mono text-[10px] tracking-wider uppercase">Analytics</span>
         </Link>
 
         <button

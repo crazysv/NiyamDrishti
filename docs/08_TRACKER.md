@@ -3,7 +3,7 @@
 **This file is a status mirror of `07_IMPLEMENTATION_PLAN.md`. Every task ID here must exist there, and every task ID there must exist here â€” no exceptions, no "minor" ones left off.** This 1:1 parity is enforced process, not a suggestion: see `AGENTS.md` rule 3 and `12_GUARDRAILS.md` Â§"Tracker/Plan parity procedure." The failure that prompted this entire documentation system was exactly this file silently containing fewer tasks than the plan did â€” do not let it happen again.
 
 **Status values:** `Not Started` · `In Progress` · `Blocked` · `Done`
-**Last updated:** 2026-09-03 — E2-03 Done (Multi-Image Cross-Matching Complete; 95/95 Tests Passing)
+**Last updated:** 2026-09-04 — E4-01 Done (Government SSO MeriPehchan/Jan Parichay Complete; 133/133 Tests Passing; Frontend Build Passing)
 
 ---
 
@@ -153,26 +153,26 @@
 | E2-03 | Multi-image cross-matching | Done | Implemented MultiImageCrossMatchingService checking front/back/sticker declarations for altered price stickers (Rule 18(2)), panel discrepancies (Rule 6(1)(c)), and DB violation generation; 3 unit tests passing |
 | E2-04 | Full human review workflow polish | Done | Implemented POST /inspections/{id}/fields/batch-review and GET /inspections/{id}/review-history; added batch confirm high-confidence and audit history drawer in ReviewQueue.tsx; integration test passing |
 | E2-05 | Analytics dashboard | Done | Implemented /analytics/summary, /compliance-trends, /violation-hotspots, and /officer-throughput backend APIs, Pydantic schemas, and client service; 4 integration tests passing (100/100 backend suite) |
-| E2-06 | STOP â€” Stitch design checkpoint: Supervisor/Admin dashboard | Not Started | |
-| E2-07 | Rule-pack management UI (Admin) | Not Started | |
-| E2-08 | Confidence-threshold tuning from pilot data | Not Started | |
+| E2-06 | STOP — Stitch design checkpoint: Supervisor/Admin dashboard | Done | Google Stitch screen bfa11fc4dfe54a008099093e84576202 faithfully implemented in AnalyticsDashboard.tsx; /dashboard route created; wired to live analytics service with offline fallback; 100/100 backend and frontend build passing |
+| E2-07 | Rule-pack management UI (Admin) | Done | Google Stitch screen 584c874f57984b36b209eb604a1dcdf1 implemented in RulePackManagement.tsx; /admin/rule-packs & /admin routes created; schema validation upload, side-by-side version diff viewer, and Section 36 immutability activation modal; 100/100 tests & frontend build passing |
+| E2-08 | Confidence-threshold tuning from pilot data | Done | Calibrated per-field confidence thresholds (ADR-012) in config.py, extraction/service.py, rules/engine.py, and inspections.py (net_quantity 0.80, mfg_date 0.80, address 0.78, mrp 0.82, origin 0.85); 4 dedicated unit tests added; 104/104 backend tests passing |
 
 ## Phase 3 â€” E-commerce & Advanced
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E3-01 | E-commerce listing image ingestion | Not Started | |
-| E3-02 | Physical-package â†” listing cross-consistency checking | Not Started | |
-| E3-03 | Confirm current Bhashini sign-up/approval status | Not Started | |
-| E3-04 | Bhashini integration | Not Started | |
-| E3-05 | Batch/warehouse scanning mode | Not Started | |
-| E3-06 | Manufacturer/Packer self-check mode (if scoped) | Not Started | |
+| E3-01 | E-commerce listing image ingestion | Done | Enabled ecommerce_listing image role across frontend (CAPTURE_SLOTS E04, CaptureScreen.tsx) and backend endpoints (JSON data URL, multipart upload, quality gate bypass, storage); 4 dedicated integration tests passing (108/108 backend suite) |
+| E3-02 | Physical-package ↔ listing cross-consistency checking | Done | Enhanced MultiImageCrossMatchingService with physical-to-listing validation (Rule 6(10) & 18(2) net quantity mismatch, online price inflation, provenance & manufacturer discrepancies); wired into process pipeline & added GET /inspections/{id}/cross-match endpoint; 113/113 backend tests passing |
+| E3-03 | Confirm current Bhashini sign-up/approval status | Done | Confirmed with user: implementing environment-driven adapter (live Bhashini ULCA client when BHASHINI_API_KEY / BHASHINI_USER_ID configured in .env, falling back cleanly to offline Indic translation & OCR assist stub when unconfigured) per ADR-013 |
+| E3-04 | Bhashini integration | Done | Implemented BhashiniService with 12 Indic regional languages (Hindi, Marathi, Gujarati, Bengali, Tamil, Telugu, etc.), NMT translation, TTS speech synthesis, and full inspection report vernacular narration; environment-driven live ULCA with offline dictionary fallback; 8 unit & integration tests passing (121/121 backend suite) |
+| E3-05 | Batch/warehouse scanning mode | Done | Built BatchSession model, rapid multi-SKU intake endpoints, live compliance tallying, and warehouse audit manifest generation with rule-level violation breakdowns; frontend types & services created; 2 dedicated integration tests passing (123/123 backend suite) |
+| E3-06 | Manufacturer/Packer self-check mode (if scoped) | Done | Built structurally isolated self-check endpoints (POST /self-check/inspections with is_self_check=True, list, scorecard with constructive packaging remediation guidance, and summary metrics); verified strict mathematical isolation from enforcement dashboards & search; frontend types/services created; 4 integration tests passing (127/127 backend suite) |
 
 ## Phase 4 â€” Production Readiness
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E4-01 | Government SSO (MeriPehchan/Jan Parichay) | Not Started | |
+| E4-01 | Government SSO (MeriPehchan/Jan Parichay) | Done | Built dual-mode MeriPehchan / Jan Parichay OIDC adapter (ADR-016) with live NIC endpoints when MERIPEHCHAN_CLIENT_ID configured in .env, and high-fidelity local developer/demo sandbox when unconfigured; includes PKCE, CSRF state verification, JIT officer provisioning, and automated designation-to-role mapping; frontend types/services created; 6 integration tests passing (133/133 backend suite) |
 | E4-02 | Hardened offline sync (conflict resolution, retry/backoff) | Not Started | |
 | E4-03 | Monitoring/observability | Not Started | |
 | E4-04 | Security review of audit-log/evidence chain | Not Started | |

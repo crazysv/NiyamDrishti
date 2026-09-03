@@ -30,7 +30,7 @@
 | `CORS_ALLOWED_ORIGINS` | ✅ MVP | Which frontend origin(s) may call the API | Set directly (Cloudflare Pages URL, local dev URL) | |
 | `BREVO_API_KEY` | 🔜 Future (email scale-up) | Alternative email provider if Gmail SMTP limits are hit | brevo.com free-tier signup | Only provision if/when actually needed |
 | `BHASHINI_API_KEY` / `BHASHINI_USER_ID` | 🔜 Phase 3 (`E3-04`) | Bhashini ULCA API access | Sign up at bhashini.gov.in (ULCA portal) | Confirm current sign-up/approval process at the time (`OQ-07`, `E3-03`) — do not block Phase 1/2 on this |
-| Government SSO credentials (MeriPehchan/Jan Parichay) | 🔜 Phase 4 (`E4-01`) | Officer identity via government SSO | Requires a formal integration process | Not provisioned until Phase 4 planning begins |
+| `MERIPEHCHAN_CLIENT_ID` / `MERIPEHCHAN_CLIENT_SECRET` | ✅ Phase 4 (`E4-01`) | Government SSO identity via MeriPehchan / Jan Parichay | Formally applied through NIC / DoCA (janparichay.nic.in); built-in sandbox activates automatically when unconfigured | Dual-mode adapter allows 100% offline & local testing without credentials (ADR-016) |
 | eMaap API credentials | 🔜 Phase 4 (`E4-05`) | Aspirational adapter | Unconfirmed whether a public integration point exists (`OQ-01`) | Do not provision speculatively |
 
 ---

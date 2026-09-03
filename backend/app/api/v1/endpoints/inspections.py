@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_active_user, get_db
-from app.core.config import settings
+from app.core.config import get_field_confidence_threshold, settings
 from app.models.base import AuditLog, ExtractedField, Inspection, InspectionImage, Report, RulePack, User, Violation
 from app.schemas.inspection import (
     AuditLogRead,
@@ -40,6 +40,8 @@ from app.services.extraction import (
     ExtractedDeclaration,
     list_categories,
 )
+from app.services.cross_matching import MultiImageCrossMatchingService
+from app.services.cross_matching.schemas import CrossMatchReport
 from app.services.ocr import OCRService
 from app.services.reporting.service import ReportService
 from app.services.rules import RuleEngine
@@ -123,6 +125,9 @@ async def list_inspections(
     product_query: str | None = Query(
         None, description="Search by product, brand, or manufacturer text in extracted fields"
     ),
+    is_self_check: bool | None = Query(
+        False, description="Filter self-checks vs official enforcement inspections (default: False)"
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -133,6 +138,9 @@ async def list_inspections(
     regions, violation types, and product text search (SRCH-01).
     """
     filters = []
+
+    if is_self_check is not None:
+        filters.append(Inspection.is_self_check == is_self_check)
 
     # RBAC Enforcement: Regular officers can only access their own inspections
     if current_user.role == "officer":
@@ -238,6 +246,7 @@ async def list_inspections(
                 status=insp.status,
                 commodity_category=insp.commodity_category,
                 rule_pack_version=insp.rule_pack_version,
+                is_self_check=insp.is_self_check,
                 region=insp.region,
                 captured_offline=insp.captured_offline,
                 created_at=insp.created_at,
@@ -525,10 +534,70 @@ async def extract_inspection_declarations(
         )
         db.add(violation)
 
-    inspection.status = "completed" if summary.overall_status == "pass" else "needs_review"
+    # Multi-Image & E-Commerce Cross-Consistency Checking (E2-03, E3-02)
+    cross_matching_service = MultiImageCrossMatchingService()
+    cross_report = cross_matching_service.analyze_cross_image_consistency(
+        inspection_id=inspection.id,
+        images=inspection.images,
+        fields=persisted,
+    )
+    if cross_report.discrepancies:
+        cross_violations = cross_matching_service.to_violations(
+            inspection_id=inspection.id,
+            rule_pack_version=inspection.rule_pack_version,
+            discrepancies=cross_report.discrepancies,
+        )
+        for cv in cross_violations:
+            db.add(cv)
+
+    has_cross_match_failure = not cross_report.is_consistent
+    inspection.status = "completed" if (summary.overall_status == "pass" and not has_cross_match_failure) else "needs_review"
     await db.commit()
 
     return persisted
+
+
+@router.get("/{inspection_id}/cross-match", response_model=CrossMatchReport)
+async def get_inspection_cross_matching_report(
+    inspection_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> CrossMatchReport:
+    """
+    Analyzes cross-image and physical-to-listing declaration consistency (E2-03, E3-02).
+    Cross-references front PDP, back panel, sticker, and e-commerce listing images for:
+    - Altered MRP stickers (Rule 18(2))
+    - E-commerce listing price inflation / overcharging (Rule 6(10) & Rule 18(2))
+    - Physical package vs e-commerce listing net quantity mismatches (Rule 6(10))
+    - Conflicting country of origin or manufacturer declarations across physical/digital channels
+    """
+    stmt = (
+        select(Inspection)
+        .where(Inspection.id == inspection_id)
+        .options(selectinload(Inspection.images), selectinload(Inspection.fields))
+    )
+    res = await db.execute(stmt)
+    inspection = res.scalar_one_or_none()
+
+    if inspection is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Inspection {inspection_id} not found",
+        )
+
+    if inspection.officer_id != current_user.id and current_user.role not in ["supervisor", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to view this inspection",
+        )
+
+    service = MultiImageCrossMatchingService()
+    report = service.analyze_cross_image_consistency(
+        inspection_id=inspection.id,
+        images=inspection.images,
+        fields=inspection.fields,
+    )
+    return report
 
 
 @router.get("/{inspection_id}/fields", response_model=list[ExtractedFieldRead])
@@ -968,22 +1037,22 @@ async def get_inspection_review_queue(
                 )
             )
 
-    threshold = getattr(settings, "REVIEW_CONFIDENCE_THRESHOLD", 0.85)
     review_items: list[ReviewQueueItemRead] = []
     pending_count = 0
     completed_count = 0
 
     for f in inspection.fields:
+        field_thresh = get_field_confidence_threshold(f.field_type)
         is_reviewed = bool(f.reviewed_by_officer)
         if is_reviewed:
             completed_count += 1
-        elif f.verdict == "needs_review" or float(f.confidence) < threshold:
+        elif f.verdict == "needs_review" or float(f.confidence) < field_thresh:
             pending_count += 1
 
         # Determine flag reason
         flag_reason = None
-        if float(f.confidence) < threshold:
-            flag_reason = f"Low extraction confidence ({float(f.confidence):.0%} < {threshold:.0%})"
+        if float(f.confidence) < field_thresh:
+            flag_reason = f"Low extraction confidence ({float(f.confidence):.0%} < {field_thresh:.0%})"
         elif f.verdict == "needs_review":
             flag_reason = "Format or statutory qualifier ambiguity"
         elif is_reviewed:
@@ -1169,9 +1238,9 @@ async def review_and_override_field(
         db.add(violation)
 
     # Determine overall inspection status: if any unreviewed fields still need review, stays needs_review
-    threshold = getattr(settings, "REVIEW_CONFIDENCE_THRESHOLD", 0.85)
     has_unreviewed_pending = any(
-        not f.reviewed_by_officer and (f.verdict == "needs_review" or float(f.confidence) < threshold)
+        not f.reviewed_by_officer
+        and (f.verdict == "needs_review" or float(f.confidence) < get_field_confidence_threshold(f.field_type))
         for f in inspection.fields
     )
 
@@ -1350,9 +1419,9 @@ async def batch_review_fields(
         db.add(violation)
 
     # Recalculate status
-    threshold = getattr(settings, "REVIEW_CONFIDENCE_THRESHOLD", 0.85)
     has_unreviewed_pending = any(
-        not f.reviewed_by_officer and (f.verdict == "needs_review" or float(f.confidence) < threshold)
+        not f.reviewed_by_officer
+        and (f.verdict == "needs_review" or float(f.confidence) < get_field_confidence_threshold(f.field_type))
         for f in inspection.fields
     )
 

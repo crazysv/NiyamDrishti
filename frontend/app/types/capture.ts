@@ -1,6 +1,6 @@
 import { QualityAssessment } from "@/app/utils/qualityGate";
 
-export type ImageRole = "front_pdp" | "back_panel" | "side_panel" | "sticker";
+export type ImageRole = "front_pdp" | "back_panel" | "side_panel" | "sticker" | "ecommerce_listing";
 
 export type CommodityCategory =
   | "general"
@@ -51,5 +51,12 @@ export const CAPTURE_SLOTS: SlotConfig[] = [
     label: "MRP STICKER",
     isRequired: false,
     hint: "Secondary sticker or price alteration tag (if applicable)",
+  },
+  {
+    role: "ecommerce_listing",
+    slotCode: "E04",
+    label: "E-COM LISTING",
+    isRequired: false,
+    hint: "Digital marketplace listing screenshot (Blinkit, Zepto, Amazon, Flipkart)",
   },
 ];

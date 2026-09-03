@@ -13,6 +13,8 @@ class InspectionCreate(BaseModel):
     captured_offline: bool = Field(default=False)
     created_at: datetime | None = None
     is_self_check: bool = Field(default=False)
+    region: str | None = None
+    rule_pack_version: str | None = None
 
 
 class InspectionImageCreate(BaseModel):
@@ -96,6 +98,7 @@ class InspectionSummaryRead(BaseModel):
     status: str
     commodity_category: str | None = None
     rule_pack_version: str
+    is_self_check: bool = False
     region: str | None = None
     captured_offline: bool = False
     created_at: datetime

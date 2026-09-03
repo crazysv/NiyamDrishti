@@ -101,18 +101,21 @@ async def get_db():
 
 
 async def check_db_health() -> dict[str, Any]:
-    """Checks database connection liveness (STOR-02)."""
-    try:
-        async with AsyncSessionLocal() as session:
-            await session.execute(text("SELECT 1"))
-        return {
-            "status": "connected",
-            "dialect": engine.dialect.name,
-            "is_serverless_ready": True,
-        }
-    except Exception as exc:
-        return {
-            "status": "error",
-            "dialect": engine.dialect.name,
-            "error": str(exc),
-        }
+    """Checks database connection liveness with retry for serverless wake-up (STOR-02)."""
+    last_exc = None
+    for _ in range(2):
+        try:
+            async with AsyncSessionLocal() as session:
+                await session.execute(text("SELECT 1"))
+            return {
+                "status": "connected",
+                "dialect": engine.dialect.name,
+                "is_serverless_ready": True,
+            }
+        except Exception as exc:
+            last_exc = exc
+    return {
+        "status": "error",
+        "dialect": engine.dialect.name,
+        "error": str(last_exc),
+    }

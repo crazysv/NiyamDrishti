@@ -62,10 +62,22 @@ class Settings(BaseSettings):
     OCR_MODEL_CACHE_DIR: str = "./ocr_models"
 
     # ------------------------------------------------------------------
-    # Rule engine & Human Review (REV-01)
+    # Rule engine & Human Review (REV-01, E2-08)
     # ------------------------------------------------------------------
     ACTIVE_RULE_PACK_VERSION: str = ""  # set after RULE-02 seeds initial pack
-    REVIEW_CONFIDENCE_THRESHOLD: float = 0.85  # baseline 85% confidence threshold for review queue routing
+    REVIEW_CONFIDENCE_THRESHOLD: float = 0.85  # default fallback threshold
+    # Field-specific tuned confidence thresholds from Phase 1 pilot data (E2-08, ADR-012)
+    FIELD_CONFIDENCE_THRESHOLDS: dict[str, float] = {
+        "mrp": 0.82,
+        "net_quantity": 0.80,
+        "date_of_manufacture": 0.80,
+        "manufacturer_address": 0.78,
+        "consumer_care": 0.80,
+        "country_of_origin": 0.85,
+        "dimensions_and_count": 0.80,
+        "importer_packer": 0.78,
+        "retail_sale_price": 0.85,
+    }
 
     # ------------------------------------------------------------------
     # CORS  (comma-separated or JSON list of origins)
@@ -76,6 +88,26 @@ class Settings(BaseSettings):
     # Rate limiting
     # ------------------------------------------------------------------
     RATE_LIMIT_AUTH: str = "5/minute"
+
+    # ------------------------------------------------------------------
+    # Bhashini ULCA Multilingual Integration (E3-04, ADR-013)
+    # ------------------------------------------------------------------
+    BHASHINI_API_KEY: str = ""
+    BHASHINI_USER_ID: str = ""
+    BHASHINI_PIPELINE_ID: str = ""
+    BHASHINI_INFERENCE_ENDPOINT: str = "https://dhruva-api.bhashini.gov.in/services/inference/pipeline"
+
+    # ------------------------------------------------------------------
+    # Government SSO (MeriPehchan / Jan Parichay) (E4-01, ADR-016)
+    # ------------------------------------------------------------------
+    MERIPEHCHAN_CLIENT_ID: str = ""
+    MERIPEHCHAN_CLIENT_SECRET: str = ""
+    MERIPEHCHAN_DISCOVERY_URL: str = "https://janparichay.nic.in/v1/.well-known/openid-configuration"
+    MERIPEHCHAN_AUTHORIZE_URL: str = "https://janparichay.nic.in/v1/auth"
+    MERIPEHCHAN_TOKEN_URL: str = "https://janparichay.nic.in/v1/token"
+    MERIPEHCHAN_USERINFO_URL: str = "https://janparichay.nic.in/v1/userinfo"
+    MERIPEHCHAN_REDIRECT_URI: str = "http://localhost:3000/api/auth/sso/callback"
+    MERIPEHCHAN_SANDBOX_ENABLED: bool = True
 
     @field_validator("CORS_ALLOWED_ORIGINS", mode="after")
     @classmethod
@@ -104,3 +136,15 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def get_field_confidence_threshold(field_type: str | None) -> float:
+    """
+    Returns the tuned confidence threshold for a given declaration field (E2-08, ADR-012).
+    Calibrated against Phase 1 pilot datasets (Basmati rice, tea, cosmetics, pan masala).
+    """
+    if not field_type:
+        return settings.REVIEW_CONFIDENCE_THRESHOLD
+    clean_field = field_type.lower().strip().replace("-", "_")
+    return settings.FIELD_CONFIDENCE_THRESHOLDS.get(clean_field, settings.REVIEW_CONFIDENCE_THRESHOLD)
+

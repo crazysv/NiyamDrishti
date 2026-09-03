@@ -34,8 +34,12 @@ async def get_analytics_summary(
     if current_user.role == "officer":
         base_insp_query = base_insp_query.where(Inspection.officer_id == current_user.id)
 
-    # 1. Inspection status counts
-    status_stmt = select(Inspection.status, func.count(Inspection.id)).group_by(Inspection.status)
+    # 1. Inspection status counts (strictly enforcement inspections, excluding self-checks per 06_SCHEMA.md)
+    status_stmt = (
+        select(Inspection.status, func.count(Inspection.id))
+        .where(Inspection.is_self_check == False)
+        .group_by(Inspection.status)
+    )
     if current_user.role == "officer":
         status_stmt = status_stmt.where(Inspection.officer_id == current_user.id)
 
@@ -51,7 +55,7 @@ async def get_analytics_summary(
     insp_violation_stmt = (
         select(Inspection.id, func.count(Violation.id))
         .outerjoin(Violation, Inspection.id == Violation.inspection_id)
-        .where(Inspection.status == "completed")
+        .where(Inspection.status == "completed", Inspection.is_self_check == False)
         .group_by(Inspection.id)
     )
     if current_user.role == "officer":
@@ -66,11 +70,14 @@ async def get_analytics_summary(
     compliance_rate = round((compliant_count / len(completed_rows)) * 100, 2) if completed_rows else 100.0
 
     # 3. Violation severity breakdown
-    viol_stmt = select(Violation.severity, func.count(Violation.id)).group_by(Violation.severity)
+    viol_stmt = (
+        select(Violation.severity, func.count(Violation.id))
+        .join(Inspection, Violation.inspection_id == Inspection.id)
+        .where(Inspection.is_self_check == False)
+        .group_by(Violation.severity)
+    )
     if current_user.role == "officer":
-        viol_stmt = viol_stmt.join(Inspection, Violation.inspection_id == Inspection.id).where(
-            Inspection.officer_id == current_user.id
-        )
+        viol_stmt = viol_stmt.where(Inspection.officer_id == current_user.id)
 
     viol_res = await db.execute(viol_stmt)
     sev_counts: dict[str, int] = {str(r[0]): int(r[1]) for r in viol_res.all()}
@@ -88,7 +95,7 @@ async def get_analytics_summary(
     total_audit_overrides = audit_res.scalar() or 0
 
     # 5. Active officers
-    officer_stmt = select(func.count(distinct(Inspection.officer_id)))
+    officer_stmt = select(func.count(distinct(Inspection.officer_id))).where(Inspection.is_self_check == False)
     officer_res = await db.execute(officer_stmt)
     active_officers_count = officer_res.scalar() or 0
 
@@ -128,6 +135,7 @@ async def get_compliance_trends(
             func.count(Violation.id).label("violation_count"),
         )
         .outerjoin(Violation, Inspection.id == Violation.inspection_id)
+        .where(Inspection.is_self_check == False)
         .group_by(func.date(Inspection.created_at), Inspection.id)
         .order_by(func.date(Inspection.created_at).asc())
     )
@@ -192,7 +200,7 @@ async def get_violation_hotspots(
     """
     Identify violation hotspots by Rule, Commodity Category, and Region (E2-05).
     """
-    # 1. Hotspots by Rule
+    # 1. Hotspots by Rule (enforcement only, excluding self-checks)
     rule_stmt = (
         select(
             Violation.rule_id,
@@ -201,6 +209,8 @@ async def get_violation_hotspots(
             func.min(Violation.severity).label("severity"),
             func.count(Violation.id).label("v_count"),
         )
+        .join(Inspection, Violation.inspection_id == Inspection.id)
+        .where(Inspection.is_self_check == False)
         .group_by(Violation.rule_id)
         .order_by(func.count(Violation.id).desc())
         .limit(limit)
@@ -217,7 +227,7 @@ async def get_violation_hotspots(
         for r in rule_res.all()
     ]
 
-    # 2. Hotspots by Commodity Category
+    # 2. Hotspots by Commodity Category (enforcement only, excluding self-checks)
     cat_stmt = (
         select(
             Inspection.commodity_category,
@@ -225,6 +235,7 @@ async def get_violation_hotspots(
             func.count(Violation.id).label("violations_count"),
         )
         .outerjoin(Violation, Inspection.id == Violation.inspection_id)
+        .where(Inspection.is_self_check == False)
         .group_by(Inspection.commodity_category)
         .order_by(func.count(Violation.id).desc())
     )
@@ -243,7 +254,7 @@ async def get_violation_hotspots(
             )
         )
 
-    # 3. Hotspots by Region
+    # 3. Hotspots by Region (enforcement only, excluding self-checks)
     reg_stmt = (
         select(
             User.region,
@@ -252,6 +263,7 @@ async def get_violation_hotspots(
         )
         .join(Inspection, User.id == Inspection.officer_id)
         .outerjoin(Violation, Inspection.id == Violation.inspection_id)
+        .where(Inspection.is_self_check == False)
         .group_by(User.region)
         .order_by(func.count(Violation.id).desc())
     )
@@ -294,14 +306,14 @@ async def get_officer_throughput(
     throughput_items: list[OfficerThroughputItem] = []
 
     for off in officers:
-        # Inspections by this officer
+        # Inspections by this officer (strictly enforcement inspections, excluding self-checks)
         insp_stmt = (
             select(
                 Inspection.status,
                 func.count(Inspection.id),
                 func.max(Inspection.created_at),
             )
-            .where(Inspection.officer_id == off.id)
+            .where(Inspection.officer_id == off.id, Inspection.is_self_check == False)
             .group_by(Inspection.status)
         )
         insp_res = await db.execute(insp_stmt)

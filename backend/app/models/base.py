@@ -66,6 +66,35 @@ class User(Base):
     __table_args__ = (CheckConstraint("role IN ('officer', 'supervisor', 'admin')", name="ck_users_role"),)
 
     inspections: Mapped[list["Inspection"]] = relationship(back_populates="officer")
+    batch_sessions: Mapped[list["BatchSession"]] = relationship(back_populates="officer")
+
+
+# ---------------------------------------------------------------------------
+# batch_sessions (E3-05)
+# ---------------------------------------------------------------------------
+class BatchSession(Base):
+    __tablename__ = "batch_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
+    officer_id: Mapped[uuid.UUID] = mapped_column(UUID, ForeignKey("users.id"), nullable=False)
+    session_name: Mapped[str] = mapped_column(Text, nullable=False)
+    premises_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    premises_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    region: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="active")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'completed', 'archived')", name="ck_batch_sessions_status"),
+        Index("idx_batch_sessions_officer", "officer_id"),
+        Index("idx_batch_sessions_status", "status"),
+        Index("idx_batch_sessions_created", "created_at"),
+    )
+
+    officer: Mapped["User"] = relationship(back_populates="batch_sessions")
+    inspections: Mapped[list["Inspection"]] = relationship(back_populates="batch")
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +105,7 @@ class Inspection(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
     officer_id: Mapped[uuid.UUID] = mapped_column(UUID, ForeignKey("users.id"), nullable=False)
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID, ForeignKey("batch_sessions.id"), nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
     commodity_category: Mapped[str | None] = mapped_column(Text, nullable=True)
     rule_pack_version: Mapped[str] = mapped_column(Text, nullable=False)  # frozen at creation
@@ -93,11 +123,13 @@ class Inspection(Base):
             "status IN ('draft','processing','needs_review','completed','sync_pending')", name="ck_inspections_status"
         ),
         Index("idx_inspections_officer", "officer_id"),
+        Index("idx_inspections_batch", "batch_id"),
         Index("idx_inspections_status", "status"),
         Index("idx_inspections_created", "created_at"),
     )
 
     officer: Mapped["User"] = relationship(back_populates="inspections")
+    batch: Mapped["BatchSession | None"] = relationship(back_populates="inspections")
     images: Mapped[list["InspectionImage"]] = relationship(back_populates="inspection", cascade="all, delete-orphan")
     fields: Mapped[list["ExtractedField"]] = relationship(back_populates="inspection", cascade="all, delete-orphan")
     violations: Mapped[list["Violation"]] = relationship(back_populates="inspection", cascade="all, delete-orphan")

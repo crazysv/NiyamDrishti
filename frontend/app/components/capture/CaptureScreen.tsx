@@ -60,6 +60,7 @@ export default function CaptureScreen() {
     back_panel: null,
     side_panel: null,
     sticker: null,
+    ecommerce_listing: null,
   });
 
   const [activeSlot, setActiveSlot] = useState<ImageRole>("front_pdp");
@@ -223,6 +224,13 @@ export default function CaptureScreen() {
         qualityAssessment: images.sticker.qualityAssessment,
       });
     }
+    if (images.ecommerce_listing) {
+      validImages.push({
+        role: "ecommerce_listing",
+        dataUrl: images.ecommerce_listing.dataUrl,
+        qualityAssessment: images.ecommerce_listing.qualityAssessment,
+      });
+    }
 
     if (validImages.length === 0) return;
 
@@ -254,6 +262,7 @@ export default function CaptureScreen() {
         back_panel: null,
         side_panel: null,
         sticker: null,
+        ecommerce_listing: null,
       });
       setActiveSlot("front_pdp");
     } catch (err: unknown) {

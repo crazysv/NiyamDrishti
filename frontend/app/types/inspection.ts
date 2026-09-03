@@ -37,3 +37,17 @@ export interface InspectionSearchParams {
   skip?: number;
   limit?: number;
 }
+
+export interface InspectionRead {
+  id: string;
+  officer_id: string;
+  status: string;
+  commodity_category?: string | null;
+  rule_pack_version: string;
+  is_self_check: boolean;
+  region?: string | null;
+  captured_offline: boolean;
+  created_at: string;
+  updated_at: string;
+  synced_at?: string | null;
+}

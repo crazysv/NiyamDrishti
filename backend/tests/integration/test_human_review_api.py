@@ -188,7 +188,7 @@ async def test_review_queue_routing_and_retrieval(test_review_db):
         assert f2_item["field_type"] == "net_quantity"
         assert f2_item["confidence"] == 0.75
         assert "75%" in f2_item["flag_reason"]
-        assert "85%" in f2_item["flag_reason"]
+        assert "80%" in f2_item["flag_reason"]
 
         f3_item = next(i for i in items if i["field_id"] == str(test_review_db["f3_id"]))
         assert f3_item["field_type"] == "commodity_name"
