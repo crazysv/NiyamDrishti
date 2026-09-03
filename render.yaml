@@ -20,7 +20,7 @@ services:
       - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
         value: "1440"
       - key: CORS_ALLOWED_ORIGINS
-        value: https://niyamdrishti.pages.dev,http://localhost:3000
+        value: https://niyamdrishti.pages.dev,https://niyamdrishti.vercel.app,http://localhost:3000
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
@@ -28,7 +28,7 @@ services:
       - key: R2_SECRET_ACCESS_KEY
         sync: false
       - key: R2_BUCKET_NAME
-        value: niyamdrishti-media
+        value: niyamdrishti-storage
       - key: R2_ENDPOINT_URL
         sync: false
       - key: OCR_MODEL_CACHE_DIR
