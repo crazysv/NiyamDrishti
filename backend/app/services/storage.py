@@ -200,6 +200,14 @@ def delete_file(storage_url_or_key: str) -> bool:
             return False
 
     # Local delete
+    path_obj = Path(storage_url_or_key)
+    if path_obj.is_absolute() and path_obj.exists() and path_obj.is_file():
+        try:
+            path_obj.unlink()
+            return True
+        except Exception:
+            return False
+
     rel_path = storage_url_or_key.lstrip("/")
     local_path = Path(".") / rel_path
     if local_path.exists() and local_path.is_file():
@@ -208,4 +216,14 @@ def delete_file(storage_url_or_key: str) -> bool:
             return True
         except Exception:
             return False
+
+    clean_upload_key = storage_url_or_key.replace("/uploads/", "").lstrip("/")
+    upload_path = Path("uploads") / clean_upload_key
+    if upload_path.exists() and upload_path.is_file():
+        try:
+            upload_path.unlink()
+            return True
+        except Exception:
+            return False
+
     return False
