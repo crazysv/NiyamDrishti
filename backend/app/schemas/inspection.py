@@ -15,6 +15,7 @@ class InspectionCreate(BaseModel):
     is_self_check: bool = Field(default=False)
     region: str | None = None
     rule_pack_version: str | None = None
+    client_id: str | None = None
 
 
 class InspectionImageCreate(BaseModel):
@@ -24,6 +25,7 @@ class InspectionImageCreate(BaseModel):
     quality_check_passed: bool = True
     width_px: int | None = None
     height_px: int | None = None
+    client_id: str | None = None
 
 
 class InspectionImageRead(BaseModel):
@@ -37,6 +39,8 @@ class InspectionImageRead(BaseModel):
     quality_check_passed: bool
     captured_at: datetime
     uploaded_at: datetime
+    client_id: str | None = None
+    sha256_hash: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -84,6 +88,7 @@ class InspectionRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     synced_at: datetime | None = None
+    client_id: str | None = None
     images: list[InspectionImageRead] = []
     fields: list[ExtractedFieldRead] = []
     violations: list[ViolationRead] = []
@@ -103,6 +108,7 @@ class InspectionSummaryRead(BaseModel):
     captured_offline: bool = False
     created_at: datetime
     updated_at: datetime
+    client_id: str | None = None
     violations_count: int = 0
     fields_count: int = 0
     images_count: int = 0
@@ -181,6 +187,8 @@ class AuditLogRead(BaseModel):
     entity_id: str
     before_value: dict | None = None
     after_value: dict | None = None
+    prev_hash: str | None = None
+    entry_hash: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

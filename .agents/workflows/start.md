@@ -27,12 +27,3 @@ You are starting a **new session** on the SIH26034 Legal Metrology Label Complia
 Do not proceed on the assumption everything is fine. Switch to the full recovery protocol: `docs/13_RECOVERY.md`.
 
 ---
-
-## Where to put this file (so it works as a real slash command)
-
-Drop this file into whichever slash-command folder your IDE/agent tool uses, for example:
-- **Claude Code:** `.claude/commands/session-start.md`
-- **Cursor:** `.cursor/commands/session-start.md` (or your configured commands directory)
-- **Windsurf:** the equivalent `workflows`/`commands` folder for your Windsurf version
-
-Check your specific tool's current docs for the exact folder name if these have changed — the content of this file itself doesn't depend on where it lives.

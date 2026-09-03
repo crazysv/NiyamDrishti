@@ -109,6 +109,15 @@ class Settings(BaseSettings):
     MERIPEHCHAN_REDIRECT_URI: str = "http://localhost:3000/api/auth/sso/callback"
     MERIPEHCHAN_SANDBOX_ENABLED: bool = True
 
+    # ------------------------------------------------------------------
+    # eMaap (National Legal Metrology Portal) Adapter (E4-05, ADR-020)
+    # ------------------------------------------------------------------
+    EMAAP_API_URL: str = ""
+    EMAAP_API_KEY: str = ""
+    EMAAP_CLIENT_ID: str = ""
+    EMAAP_TIMEOUT_SECONDS: float = 10.0
+    EMAAP_SANDBOX_ENABLED: bool = True
+
     @field_validator("CORS_ALLOWED_ORIGINS", mode="after")
     @classmethod
     def parse_cors(cls, v: list[str] | str) -> list[str]:

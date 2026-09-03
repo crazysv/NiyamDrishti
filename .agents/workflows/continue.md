@@ -20,11 +20,3 @@ Skim-verify that the task you're about to resume actually looks like it's in the
 
 ---
 
-## Where to put this file (so it works as a real slash command)
-
-Drop this file into whichever slash-command folder your IDE/agent tool uses, for example:
-- **Claude Code:** `.claude/commands/session-continue.md`
-- **Cursor:** `.cursor/commands/session-continue.md` (or your configured commands directory)
-- **Windsurf:** the equivalent `workflows`/`commands` folder for your Windsurf version
-
-Check your specific tool's current docs for the exact folder name if these have changed — the content of this file itself doesn't depend on where it lives.

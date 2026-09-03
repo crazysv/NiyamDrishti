@@ -4,10 +4,12 @@ UUID primary keys use server_default=text("gen_random_uuid()") for Postgres
 and a Python-side default (uuid4) for SQLite compatibility.
 """
 
+import hashlib
+import json
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, Text, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, Text, event, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import CHAR, TypeDecorator
@@ -37,7 +39,9 @@ class UUID(TypeDecorator):
     def process_result_value(self, value, dialect):
         if value is None:
             return None
-        return uuid.UUID(value)
+        if isinstance(value, uuid.UUID):
+            return value
+        return uuid.UUID(str(value))
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +121,7 @@ class Inspection(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    client_id: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -126,6 +131,7 @@ class Inspection(Base):
         Index("idx_inspections_batch", "batch_id"),
         Index("idx_inspections_status", "status"),
         Index("idx_inspections_created", "created_at"),
+        Index("idx_inspections_client_id", "client_id"),
     )
 
     officer: Mapped["User"] = relationship(back_populates="inspections")
@@ -154,12 +160,16 @@ class InspectionImage(Base):
     quality_check_passed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    client_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sha256_hash: Mapped[str | None] = mapped_column(Text, nullable=True)  # Section 65B/BSA 63 digital integrity
 
     __table_args__ = (
         CheckConstraint(
             "image_role IN ('front_pdp','back_panel','side_panel','sticker','ecommerce_listing')", name="ck_images_role"
         ),
         Index("idx_images_inspection", "inspection_id"),
+        Index("idx_images_client_id", "client_id"),
+        Index("idx_images_sha256", "sha256_hash"),
     )
 
     inspection: Mapped["Inspection"] = relationship(back_populates="images")
@@ -274,9 +284,46 @@ class AuditLog(Base):
     entity_id: Mapped[str] = mapped_column(Text, nullable=False)
     before_value: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     after_value: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    prev_hash: Mapped[str | None] = mapped_column(Text, nullable=True)  # Cryptographic chaining
+    entry_hash: Mapped[str | None] = mapped_column(Text, nullable=True)  # Tamper-evident hash
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         Index("idx_audit_entity", "entity_type", "entity_id"),
         Index("idx_audit_actor", "actor_user_id"),
+        Index("idx_audit_entry_hash", "entry_hash"),
     )
+
+
+# ---------------------------------------------------------------------------
+# Evidentiary Immutability & Tamper-Evident Hash Chain Enforcement (E4-04)
+# ---------------------------------------------------------------------------
+@event.listens_for(AuditLog, "before_insert")
+def compute_audit_log_hash(mapper, connection, target: AuditLog):
+    """Automatically compute tamper-evident SHA-256 hash for each audit record."""
+    if not target.entry_hash:
+        before_str = json.dumps(target.before_value, sort_keys=True) if target.before_value else ""
+        after_str = json.dumps(target.after_value, sort_keys=True) if target.after_value else ""
+        payload = (
+            f"{target.prev_hash or 'GENESIS'}:"
+            f"{target.actor_user_id}:"
+            f"{target.action}:"
+            f"{target.entity_type}:"
+            f"{target.entity_id}:"
+            f"{before_str}:"
+            f"{after_str}"
+        )
+        target.entry_hash = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+@event.listens_for(AuditLog, "before_update")
+def prevent_audit_log_update(mapper, connection, target: AuditLog):
+    """Statutory non-repudiation: reject any attempt to mutate audit records."""
+    raise PermissionError("AuditLog records are append-only and legally immutable. UPDATE is strictly forbidden.")
+
+
+@event.listens_for(AuditLog, "before_delete")
+def prevent_audit_log_delete(mapper, connection, target: AuditLog):
+    """Statutory non-repudiation: reject any attempt to purge audit records."""
+    raise PermissionError("AuditLog records are append-only and legally immutable. DELETE is strictly forbidden.")
+

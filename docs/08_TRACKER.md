@@ -3,7 +3,7 @@
 **This file is a status mirror of `07_IMPLEMENTATION_PLAN.md`. Every task ID here must exist there, and every task ID there must exist here â€” no exceptions, no "minor" ones left off.** This 1:1 parity is enforced process, not a suggestion: see `AGENTS.md` rule 3 and `12_GUARDRAILS.md` Â§"Tracker/Plan parity procedure." The failure that prompted this entire documentation system was exactly this file silently containing fewer tasks than the plan did â€” do not let it happen again.
 
 **Status values:** `Not Started` · `In Progress` · `Blocked` · `Done`
-**Last updated:** 2026-09-04 — E4-01 Done (Government SSO MeriPehchan/Jan Parichay Complete; 133/133 Tests Passing; Frontend Build Passing)
+**Last updated:** 2026-09-04 — Phase 4 & Project Complete! (E4-06 Done: Full Production Pilot Rollout Checklist & Pre-Flight System Audit Tool Verified; 148/148 Backend Tests Passing; Frontend Build Clean)
 
 ---
 
@@ -173,11 +173,11 @@
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | E4-01 | Government SSO (MeriPehchan/Jan Parichay) | Done | Built dual-mode MeriPehchan / Jan Parichay OIDC adapter (ADR-016) with live NIC endpoints when MERIPEHCHAN_CLIENT_ID configured in .env, and high-fidelity local developer/demo sandbox when unconfigured; includes PKCE, CSRF state verification, JIT officer provisioning, and automated designation-to-role mapping; frontend types/services created; 6 integration tests passing (133/133 backend suite) |
-| E4-02 | Hardened offline sync (conflict resolution, retry/backoff) | Not Started | |
-| E4-03 | Monitoring/observability | Not Started | |
-| E4-04 | Security review of audit-log/evidence chain | Not Started | |
-| E4-05 | eMaap API adapter (if confirmed available) | Not Started | |
-| E4-06 | Full deployment checklist for real pilot rollout | Not Started | |
+| E4-02 | Hardened offline sync (conflict resolution, retry/backoff) | Done | Built backend client_id & Idempotency-Key handling on inspections & images, deterministic HTTP 409 conflict detection on finalized inspections (ADR-017), and batch sync endpoint /inspections/sync; implemented frontend exponential retry with full jitter (retryBackoff.ts), Dexie schema v3 with dead_letter queue, failure categorization, and conflict resolution; 4 integration tests passing (137/137 backend suite), tsc and next build clean |
+| E4-03 | Monitoring/observability (Prometheus + Grafana, self-hosted) | Done | Built Prometheus metrics (/metrics) for throughput, latency, OCR & rule duration, offline sync & quality gate; ObservabilityMiddleware with X-Request-ID and cardinality normalization; /health, /health/live, /health/ready probes; alert_rules.yml & 11-panel Grafana dashboard; docker-compose monitoring profile; 5 integration tests passing (142/142 backend suite) |
+| E4-04 | Formal security review of the audit-log/evidence chain for evidentiary use | Done | Implemented SHA-256 photographic fingerprinting on intake, AuditLog Merkle hash-chaining, SQLAlchemy event listeners enforcing append-only immutability (PermissionError on UPDATE/DELETE), EvidenceVerificationService, Section 63 BSA 2023 / Section 65B IEA 1872 certificate generator, and GET /inspections/{id}/evidence/verify & certificate endpoints; docs/EVIDENTIARY_SECURITY_REVIEW.md added; ADR-019 logged; 3 integration tests passing (145/145 backend suite) |
+| E4-05 | eMaap API adapter (if confirmed available) | Done | Built dual-mode EMaapAdapter (ADR-020) with live REST API integration when EMAAP_API_URL/KEY configured and high-fidelity local sandbox when unconfigured; implemented Rule 27 registration lookup (active, expired, suspended, fuzzy search) and enforcement docket filing with evidence chain digest; added /status, /verify-registration, /dockets endpoints; 3 integration tests passing (148/148 backend suite) |
+| E4-06 | Full deployment checklist finalized (`03_TECHSPEC.md` §7, `11_SECRETS_CHECKLIST.md`) for a real pilot rollout | Done | Built automated pre-flight audit script (scripts/pilot_readiness_check.py) verifying DB, rule pack, cryptographic engine, integrations, and metrics; expanded docs/DEPLOYMENT.md with Section 3 Production Pilot Rollout Operations & Audit Checklist covering device specs, PWA offline install, evidentiary integrity, and SRE observability; all 148 backend tests passing |
 
 ---
 

@@ -2,13 +2,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   getPendingSyncCount,
+  getDeadLetterCount,
+  getFailedSyncCount,
   queueInspectionForSync,
   getStorageQuota,
+  resolveInspectionConflict,
+  discardOfflineInspection,
   OfflineInspection,
 } from "@/app/db/dexie";
 import { ImageRole, CommodityCategory } from "@/app/types/capture";
 import { QualityAssessment } from "@/app/utils/qualityGate";
-import { syncAllQueuedInspections } from "@/app/services/syncService";
+import { syncAllQueuedInspections, retryAllFailedInspections } from "@/app/services/syncService";
 import {
   checkStorageHealth,
   StorageHealthStatus,
@@ -17,6 +21,8 @@ import {
 
 export function useOfflineQueue() {
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [deadLetterCount, setDeadLetterCount] = useState<number>(0);
+  const [failedCount, setFailedCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number }>({
     current: 0,
@@ -43,16 +49,21 @@ export function useOfflineQueue() {
 
   const isSyncingRef = useRef(false);
 
-  // Refresh pending count & storage estimate
+  // Refresh pending count, dead letters, failed count & storage estimate
   const refreshQueueState = useCallback(async () => {
     try {
-      const count = await getPendingSyncCount();
-      setPendingCount(count);
+      const [pending, deadLetters, failed, quota, health] = await Promise.all([
+        getPendingSyncCount(),
+        getDeadLetterCount(),
+        getFailedSyncCount(),
+        getStorageQuota(),
+        checkStorageHealth(),
+      ]);
 
-      const quota = await getStorageQuota();
+      setPendingCount(pending);
+      setDeadLetterCount(deadLetters);
+      setFailedCount(failed);
       setStorageInfo(quota);
-
-      const health = await checkStorageHealth();
       setStorageHealth(health);
     } catch {
       // Ignore initial render errors if IndexedDB is not yet open
@@ -78,18 +89,58 @@ export function useOfflineQueue() {
     }
   }, [refreshQueueState]);
 
+  // Retry all failed and dead-letter inspections
+  const retryFailed = useCallback(async () => {
+    if (isSyncingRef.current) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    isSyncingRef.current = true;
+    setIsSyncing(true);
+    try {
+      await retryAllFailedInspections();
+    } finally {
+      await refreshQueueState();
+      setIsSyncing(false);
+      isSyncingRef.current = false;
+    }
+  }, [refreshQueueState]);
+
+  // Resolve conflict on inspection
+  const resolveConflict = useCallback(
+    async (inspectionId: string, strategy: "server_authoritative" | "discard") => {
+      await resolveInspectionConflict(inspectionId, strategy);
+      await refreshQueueState();
+    },
+    [refreshQueueState]
+  );
+
+  // Discard inspection from offline queue
+  const discardInspection = useCallback(
+    async (inspectionId: string) => {
+      await discardOfflineInspection(inspectionId);
+      await refreshQueueState();
+    },
+    [refreshQueueState]
+  );
+
   // Load initial queue state asynchronously
   useEffect(() => {
     let isMounted = true;
-    Promise.all([getPendingSyncCount(), getStorageQuota(), checkStorageHealth()]).then(
-      ([count, quota, health]) => {
-        if (isMounted) {
-          setPendingCount(count);
-          setStorageInfo(quota);
-          setStorageHealth(health);
-        }
+    Promise.all([
+      getPendingSyncCount(),
+      getDeadLetterCount(),
+      getFailedSyncCount(),
+      getStorageQuota(),
+      checkStorageHealth(),
+    ]).then(([pending, deadLetters, failed, quota, health]) => {
+      if (isMounted) {
+        setPendingCount(pending);
+        setDeadLetterCount(deadLetters);
+        setFailedCount(failed);
+        setStorageInfo(quota);
+        setStorageHealth(health);
       }
-    );
+    });
     return () => {
       isMounted = false;
     };
@@ -134,12 +185,17 @@ export function useOfflineQueue() {
 
   return {
     pendingCount,
+    deadLetterCount,
+    failedCount,
     isSyncing,
     syncProgress,
     storageInfo,
     storageHealth,
     refreshQueueState,
     syncNow,
+    retryFailed,
+    resolveConflict,
+    discardInspection,
     queueInspection,
   };
 }

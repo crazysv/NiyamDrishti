@@ -1,6 +1,5 @@
 import { RulePackSummary, RulePackDetail } from "../types/rulePack";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE } from "../utils/apiConfig";
 
 export async function fetchRulePacks(token?: string): Promise<RulePackSummary[]> {
   const headers: Record<string, string> = {};

@@ -8,6 +8,121 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
+### 2026-09-04 — E4-06 complete (Production Pilot Rollout & Operational Deployment Verification Checklist)
+- **E4-06 (Full Deployment Checklist per `03_TECHSPEC.md` §7, `11_SECRETS_CHECKLIST.md`, `07_IMPLEMENTATION_PLAN.md`):**
+  - **Automated Pre-Flight System Audit Tool (`backend/scripts/pilot_readiness_check.py`):**
+    - Built comprehensive pre-flight verification script auditing database connectivity, ORM table mappings (8 statutory tables), active rule pack loading, cryptographic engine (SHA-256 and immutability), storage paths, government adapters (MeriPehchan, eMaap, Bhashini), and Prometheus metrics text exposition.
+    - Verified clean passing run against live database and core services.
+  - **Production Pilot Operations Guide (`docs/DEPLOYMENT.md`):**
+    - Expanded `docs/DEPLOYMENT.md` with Section 3: "Production Pilot Rollout Operations & Audit Checklist".
+    - Established field officer device and PWA installation guidelines (Android 11+, Chrome 110+, storage capacity checks, quality gates).
+    - Established digital chain of custody and courtroom admissibility procedures (Section 63 BSA / 65B IEA certificates, mandatory statutory disclaimers).
+    - Defined SRE, observability, and incident response runbook (Prometheus scrapers, Grafana dashboards, alerting rules, database scale-to-zero connection resilience).
+  - **Phase 4 & Project Implementation Complete:**
+    - All 148 backend tests passing.
+    - Frontend TypeScript check clean.
+    - All tasks across Phase 0, Phase 1 (MVP), Phase 2, Phase 3, and Phase 4 verified and marked Done with exact tracker/plan parity.
+
+### 2026-09-04 — E4-05 complete (eMaap National Portal Adapter: Dual-Mode Live/Sandbox Contract, LMPC Registration Verification & Enforcement Docket Submission)
+- **E4-05 (eMaap API Adapter per `MASTER_CONTENT.md` §3.4, §5, `01_PRD.md` NG1/NG6, `07_IMPLEMENTATION_PLAN.md`):**
+  - **Dual-Mode Adapter Architecture (`backend/app/services/integrations/emaap.py`, ADR-020):**
+    - Built `EMaapAdapter` with environment-driven live REST execution when `EMAAP_API_URL` and `EMAAP_API_KEY` are provided in `.env`, falling back cleanly to high-fidelity sandbox simulation when unconfigured.
+    - Added config variables in `backend/app/core/config.py` (`EMAAP_API_URL`, `EMAAP_API_KEY`, `EMAAP_CLIENT_ID`, `EMAAP_TIMEOUT_SECONDS`, `EMAAP_SANDBOX_ENABLED`).
+  - **LMPC Registration Verification (`backend/app/schemas/emaap.py`):**
+    - Built `verify_packer_registration(registration_number, company_name)` supporting exact registration lookup and company name fallback matching.
+    - Embedded sandbox registry covering active, expired, and suspended LMPC registrations across major commodity categories.
+  - **Statutory Enforcement Docket Filing:**
+    - Built `submit_enforcement_docket(inspection, officer, verification_result, officer_notes, priority)`.
+    - Bundles digital evidence chain hash (`evidence_chain_hash`), photographic fingerprints (SHA-256), extracted declarations, and statutory penalty citations under Legal Metrology Act, 2009 Section 36 into a structured judicial dossier.
+    - Automatically records an append-only `AuditLog` entry (`action="emaap_docket_submitted"`).
+  - **Adapter Endpoints & Router (`backend/app/api/v1/endpoints/emaap.py`, `backend/app/api/v1/router.py`):**
+    - `GET /api/v1/integrations/emaap/status`: Capability discovery and live/sandbox mode.
+    - `POST /api/v1/integrations/emaap/verify-registration`: Registration verification.
+    - `POST /api/v1/integrations/emaap/dockets/{inspection_id}`: Enforcement docket submission.
+  - **Verification:**
+    - Created 3 integration tests in `backend/tests/integration/test_emaap_adapter_api.py` testing adapter status, registration resolution across active/expired/unknown/fuzzy lookups, and docket submission.
+    - Logged `ADR-020` in `docs/09_DECISIONS.md`.
+
+### 2026-09-04 — E4-04 complete (Security Review of Audit-Log / Evidence Chain: Section 63 BSA 2023 / Section 65B IEA 1872 Cryptographic Certification, Immutability Hooks)
+- **E4-04 (Security Review of Audit-Log/Evidence Chain per `MASTER_CONTENT.md` §14.2, `REV-03`, `EVID-01`, `07_IMPLEMENTATION_PLAN.md`):**
+  - **Photographic Evidence Fingerprinting (`backend/app/models/base.py`, ADR-019):**
+    - Added `sha256_hash` string column and index (`idx_images_sha256`) to `InspectionImage` model.
+    - Updated `InspectionImageRead` Pydantic schema with `sha256_hash`.
+    - Instrumented image upload (`POST /api/v1/inspections/{id}/images`) and batch offline sync (`POST /api/v1/inspections/sync`) to calculate cryptographic SHA-256 hash immediately upon file intake.
+  - **Audit Trail Cryptographic Chaining & Database Immutability (`backend/app/models/base.py`):**
+    - Added `prev_hash` and `entry_hash` string columns and index (`idx_audit_entry_hash`) to `AuditLog` model.
+    - Updated `AuditLogRead` Pydantic schema with `prev_hash` and `entry_hash`.
+    - Added SQLAlchemy event listeners (`before_insert`, `before_update`, `before_delete`) to enforce legal append-only immutability:
+      - `before_insert`: Automatically calculates SHA-256 `entry_hash` linking prior hash, actor, action, entity, and values.
+      - `before_update`: Raises `PermissionError` rejecting any mutation of audit log records.
+      - `before_delete`: Raises `PermissionError` rejecting any deletion of audit log records.
+  - **Evidence Chain Verification & Section 65B / BSA 63 Certification Service (`backend/app/services/evidence/verification.py`, `backend/app/schemas/evidence_verification.py`):**
+    - Built `EvidenceVerificationService` performing end-to-end cryptographic verification of all captured package photographs against physical disk binaries and validating audit log hash chain continuity.
+    - Built case-level master cryptographic evidence digest calculation (`evidence_chain_hash`).
+    - Implemented statutory Electronic Evidence Certificate generator pursuant to Section 63 of Bharatiya Sakshya Adhiniyam, 2023 / Section 65B of Indian Evidence Act, 1872 including photographic schedule, chain of custody log, system environment disclosure, and legal attestation under oath.
+  - **Evidence Audit Endpoints (`backend/app/api/v1/endpoints/inspections.py`):**
+    - `GET /api/v1/inspections/{id}/evidence/verify`: Returns real-time cryptographic audit result (`overall_status`, `is_tamper_free`, `evidence_chain_hash`, verified/compromised tallies).
+    - `GET /api/v1/inspections/{id}/evidence/certificate`: Generates and exports formal statutory certificate.
+  - **Documentation & Tests:**
+    - Documented comprehensive security review and threat analysis in `docs/EVIDENTIARY_SECURITY_REVIEW.md`.
+    - Logged `ADR-019` in `docs/09_DECISIONS.md`.
+    - Added 3 integration tests in `backend/tests/integration/test_evidence_security_review.py` testing immutability enforcement (`PermissionError` on UPDATE/DELETE), automatic hash generation, end-to-end verification, certificate output, and tamper detection.
+    - All **145 / 145 backend tests passing** in 45.78s. Frontend TypeScript check (`npx tsc --noEmit`) clean.
+
+### 2026-09-04 — E4-03 complete (Monitoring / Observability: Self-Hosted Prometheus, Grafana, Low-Cardinality Metrics, Correlation IDs)
+- **E4-03 (Monitoring / Observability per `MASTER_CONTENT.md` §11.9, `03_TECHSPEC.md`, `07_IMPLEMENTATION_PLAN.md`):**
+  - **Prometheus Metrics Instrumentation (`backend/app/core/metrics.py`, ADR-018):**
+    - Implemented metric registry exposing `niyamdrishti_http_requests_total` (method, endpoint, status_code), `niyamdrishti_http_request_duration_seconds` (method, endpoint), and `niyamdrishti_active_requests`.
+    - Implemented Legal Metrology domain metrics: `niyamdrishti_inspections_total` (overall_verdict, commodity_category, is_self_check), `niyamdrishti_ocr_processing_duration_seconds` (engine, status), `niyamdrishti_rule_evaluation_duration_seconds` (rule_pack_version), `niyamdrishti_offline_sync_operations_total` (entity_type, status), and `niyamdrishti_quality_gate_checks_total` (result, role).
+    - Added helper functions (`record_ocr_duration`, `record_rule_evaluation_duration`, `record_inspection_completed`, `record_offline_sync`).
+  - **Observability Middleware & Correlation ID Tracing (`backend/app/core/middleware.py`):**
+    - Built `ObservabilityMiddleware` injecting/propagating `X-Request-ID` across all requests and structured log context.
+    - Implemented parameterized route normalization (FastAPI scope route template matching and fallback regex masking) to prevent high-cardinality explosions in Prometheus.
+    - Added `GET /metrics` text exposition endpoint in `backend/app/main.py`.
+    - Added tiered health check probes: `GET /health` (comprehensive), `GET /health/live` (liveness), and `GET /health/ready` (readiness with 503 on database disconnection).
+  - **Domain Instrumentation (`backend/app/api/v1/endpoints/inspections.py`):**
+    - Instrumented OCR image processing duration tracking in `extract_inspection_declarations`.
+    - Instrumented statutory rule evaluation duration tracking in `RuleEngine`.
+    - Instrumented inspection completion and compliance verdict distribution counters.
+    - Instrumented batch offline sync operations (synced, conflict, skipped, failed).
+  - **Self-Hosted Prometheus & Grafana Configuration (`monitoring/`, `docker/`):**
+    - `monitoring/prometheus/prometheus.yml`: 15s scrape interval targeting backend API.
+    - `monitoring/prometheus/alert_rules.yml`: Pre-configured alerting rules for API downtime, high HTTP 5xx error rates (> 5%), elevated P95 latency (> 3s), and high sync conflict rates (> 15%).
+    - `monitoring/grafana/provisioning/datasources/prometheus.yml`: Auto-provisioned Prometheus datasource (`http://prometheus:9090`).
+    - `monitoring/grafana/provisioning/dashboards/dashboards.yml`: Auto-loaded dashboard provider.
+    - `monitoring/grafana/dashboards/niyamdrishti_overview.json`: Complete 11-panel Grafana dashboard covering active requests, request throughput, 5xx error rates, P50/P95/P99 latency curves, compliance verdicts, OCR & rule evaluation latency, offline sync status, and quality gate outcomes.
+    - `docker/docker-compose.monitoring.yml` and `docker/docker-compose.yml`: Integrated `prometheus` (v2.53.0) and `grafana` (v11.0.0) under `profiles: ["monitoring"]`.
+    - Created `docs/MONITORING.md` operator guide.
+  - **Verification:**
+    - Added 5 integration tests in `backend/tests/integration/test_monitoring_metrics.py` covering `/metrics` exposition, `X-Request-ID` generation & echo, route template normalization, health probes (`/health`, `/health/live`, `/health/ready`), and domain metrics recorders.
+    - All **142 / 142 backend tests passing** (`py -3.10 -m pytest tests/`).
+    - Frontend TypeScript check clean (`npx tsc --noEmit`).
+
+### 2026-09-04 — E4-02 complete (Hardened Offline Sync: Idempotency Keys, Retry Backoff with Jitter, Deterministic HTTP 409 Conflict Resolution)
+- **E4-02 (Hardened Offline Sync per `MASTER_CONTENT.md` §10.14, `01_PRD.md`, `07_IMPLEMENTATION_PLAN.md`):**
+  - **Backend Idempotency & Database Indexing (`backend/app/models/base.py`, `backend/app/schemas/inspection.py`, ADR-017):**
+    - Added `client_id` string column and index (`idx_inspections_client_id`) on `Inspection` model.
+    - Added `client_id` string column and index (`idx_images_client_id`) on `InspectionImage` model.
+    - Updated Pydantic schemas (`InspectionCreate`, `InspectionImageCreate`, `InspectionImageRead`, `InspectionRead`, `InspectionSummaryRead`) with `client_id: str | None`.
+    - Enhanced `POST /api/v1/inspections`: checks `Idempotency-Key` header and payload `client_id`, idempotently returning the existing inspection record if already created by that officer.
+    - Enhanced `POST /api/v1/inspections/{id}/images`:
+      - Validates inspection state and rejects uploads to finalized inspections (`status == 'completed'`) with HTTP 409 Conflict (`code="INSPECTION_FINALIZED"`, `suggested_resolution="server_authoritative"`).
+      - Checks `client_id` / `Idempotency-Key` and idempotently returns the existing image if already uploaded.
+  - **Consolidated Batch Offline Sync Endpoint (`backend/app/schemas/sync.py`, `backend/app/api/v1/endpoints/inspections.py`):**
+    - Added Pydantic schemas for `BatchOfflineSyncRequest`, `BatchOfflineSyncResponse`, `OfflineSyncResult`, and `OfflineConflictDetail`.
+    - Implemented `POST /api/v1/inspections/sync` batch sync endpoint: processes batches of offline inspections and images in a single atomic request, returning granular per-item statuses (`synced`, `conflict`, `skipped`, `failed`) without dropping or corrupting non-conflicting items.
+  - **Frontend Utilities & Full Jitter Retry (`frontend/app/utils/retryBackoff.ts`):**
+    - Implemented `calculateBackoffWithJitter(attempt, baseDelayMs, maxDelayMs)` with randomized jitter (`0.5 + Math.random() * 0.5`) to eliminate thundering herd synchronization spikes upon reconnect.
+    - Built `fetchWithRetry` utility classifying errors into `SyncTransientError` (retried with exponential backoff up to 5 attempts), `SyncPermanentError` (non-retryable client errors), and `SyncConflictError` (HTTP 409 conflict detection).
+  - **IndexedDB Schema Version 3 & Dead-Letter Queue (`frontend/app/db/dexie.ts`, `frontend/app/hooks/useOfflineQueue.ts`):**
+    - Upgraded Dexie schema to version 3, adding `SyncStatus` `"dead_letter"`, `retryCount`, `lastAttemptAt`, `nextRetryAt`, `failureCategory`, and `conflictDetails`.
+    - Implemented `markInspectionDeadLetter`, `resetFailedInspectionForRetry`, `resolveInspectionConflict`, and `discardOfflineInspection`.
+    - Extended `useOfflineQueue` hook with `deadLetterCount`, `failedCount`, `retryFailed`, `resolveConflict`, and `discardInspection`.
+  - **Verification & Tests:**
+    - Created comprehensive integration test suite in `backend/tests/integration/test_offline_sync_api.py` (4 tests: idempotent inspection creation, idempotent image upload, 409 conflict rejection on finalized inspection, and batch offline sync endpoint).
+    - All **137 / 137 backend tests passing** cleanly in 36s.
+    - Frontend TypeScript check clean (`npx tsc --noEmit`) and production Next.js build passing (`npm run build`).
+
 ### 2026-09-04 — E4-01 complete (Government SSO: MeriPehchan / Jan Parichay OIDC Dual-Mode Adapter)
 - **E4-01 (Government SSO — MeriPehchan / Jan Parichay per `MASTER_CONTENT.md` §5, `01_PRD.md`, `07_IMPLEMENTATION_PLAN.md`):**
   - **Dual-Mode Adapter Architecture (`backend/app/services/auth/sso.py`, ADR-016):**

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
 import Webcam from "react-webcam";
 import {
   Camera,
@@ -23,6 +24,9 @@ import {
   CheckCheck,
   CloudUpload,
   HardDrive,
+  ShieldCheck,
+  X,
+  ExternalLink,
 } from "lucide-react";
 import {
   CAPTURE_SLOTS,
@@ -36,6 +40,10 @@ import {
 } from "@/app/utils/qualityGate";
 import { useOfflineQueue } from "@/app/hooks/useOfflineQueue";
 import { StorageWarningBanner } from "../storage/StorageWarningBanner";
+import {
+  authorizeSandboxPersona,
+  handleSSOCallback,
+} from "@/app/services/ssoService";
 
 // Subscribe to online/offline status using React's useSyncExternalStore
 function useOnlineStatus() {
@@ -73,6 +81,58 @@ export default function CaptureScreen() {
   const [isAssessing, setIsAssessing] = useState<boolean>(false);
   const [isQueueing, setIsQueueing] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<{
+    id?: string;
+    full_name?: string;
+    email?: string;
+    role?: string;
+    region?: string | null;
+  } | null>(null);
+  const [isSwitchingPersona, setIsSwitchingPersona] = useState<boolean>(false);
+
+  // Auto-login default sandbox officer on mount if unauthenticated
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("access_token");
+    if (storedUser && storedToken) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+        return;
+      } catch {
+        // Fall through to auto-login
+      }
+    }
+    const autoLogin = async () => {
+      try {
+        const authRes = await authorizeSandboxPersona("officer_suresh", "auto_init_" + Date.now());
+        const tokenRes = await handleSSOCallback(authRes.code, authRes.state);
+        setCurrentUser(tokenRes.user);
+      } catch (err) {
+        console.warn("[SSO] Auto-provisioning sandbox persona:", err);
+      }
+    };
+    autoLogin();
+  }, []);
+
+  const handleSwitchPersona = async (personaId: string) => {
+    setIsSwitchingPersona(true);
+    try {
+      const authRes = await authorizeSandboxPersona(personaId, "switch_state_" + Date.now());
+      const tokenRes = await handleSSOCallback(authRes.code, authRes.state);
+      setCurrentUser(tokenRes.user);
+      setToastMessage(`Switched persona to ${tokenRes.user.full_name} (${tokenRes.user.role.toUpperCase()})`);
+      setIsProfileOpen(false);
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to switch persona";
+      setToastMessage(msg);
+      setTimeout(() => setToastMessage(null), 3500);
+    } finally {
+      setIsSwitchingPersona(false);
+    }
+  };
 
   const {
     pendingCount,
@@ -398,10 +458,12 @@ export default function CaptureScreen() {
           </div>
 
           <button
+            onClick={() => setIsProfileOpen(true)}
             aria-label="Officer Profile"
-            className="w-8 h-8 rounded-full bg-[#333E50] flex items-center justify-center text-white shadow-sm hover:opacity-90 active:scale-95"
+            className="w-8 h-8 rounded-full bg-[#333E50] flex items-center justify-center text-white shadow-sm hover:opacity-90 active:scale-95 relative"
           >
             <User className="w-4 h-4 text-white" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white" />
           </button>
         </div>
       </header>
@@ -826,7 +888,10 @@ export default function CaptureScreen() {
           </span>
         </button>
 
-        <button className="flex flex-col items-center gap-1 text-[#75777D] hover:text-[#333E50] transition-colors relative">
+        <Link
+          href="/history"
+          className="flex flex-col items-center gap-1 text-[#75777D] hover:text-[#333E50] transition-colors relative"
+        >
           <History className="w-5 h-5" />
           <span className="font-mono-data text-[10px] tracking-wider uppercase">
             History
@@ -836,15 +901,149 @@ export default function CaptureScreen() {
               {pendingCount}
             </span>
           )}
-        </button>
+        </Link>
 
-        <button className="flex flex-col items-center gap-1 text-[#75777D] hover:text-[#333E50] transition-colors">
+        <button
+          onClick={() => setIsProfileOpen(true)}
+          className="flex flex-col items-center gap-1 text-[#75777D] hover:text-[#333E50] transition-colors"
+        >
           <Settings className="w-5 h-5" />
           <span className="font-mono-data text-[10px] tracking-wider uppercase">
             Settings
           </span>
         </button>
       </nav>
+
+      {/* Officer Profile & Sandbox Persona Modal (E4-01 Government SSO) */}
+      {isProfileOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#F9F7F2] rounded-xl border border-[#D1CDC2] shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95">
+            {/* Modal Header */}
+            <div className="bg-[#333E50] text-white px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="text-sm font-semibold leading-tight">MeriPehchan SSO</h3>
+                  <p className="text-[10px] text-white/70 font-mono-data">National Single Sign-On (NSSO)</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsProfileOpen(false)}
+                className="text-white/70 hover:text-white p-1 rounded-md"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Current Officer Status */}
+            <div className="p-4 border-b border-[#D1CDC2] bg-white">
+              <span className="text-[10px] font-mono-data text-[#75777D] uppercase tracking-wider block mb-1">
+                Active Officer Session
+              </span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold text-sm text-[#1A1C1E]">
+                    {currentUser?.full_name || "Suresh Sharma (Default)"}
+                  </div>
+                  <div className="text-xs text-[#566155] font-mono-data">
+                    {currentUser?.email || "suresh.sharma@gov.in"}
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono-data font-bold uppercase bg-[#D6E3D3] text-[#3E4A3E]">
+                  {currentUser?.role || "OFFICER"}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Navigation Links */}
+            <div className="p-4 space-y-2 border-b border-[#D1CDC2] bg-[#F5F2EA]">
+              <span className="text-[10px] font-mono-data text-[#75777D] uppercase tracking-wider block mb-1">
+                Portals & Dashboards
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/history"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center justify-between px-3 py-2 bg-white border border-[#D1CDC2] rounded-lg text-xs font-mono-data text-[#333E50] hover:bg-[#EAE7DC] transition-all"
+                >
+                  <span>History Feed</span>
+                  <ExternalLink className="w-3 h-3 text-[#75777D]" />
+                </Link>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center justify-between px-3 py-2 bg-white border border-[#D1CDC2] rounded-lg text-xs font-mono-data text-[#333E50] hover:bg-[#EAE7DC] transition-all"
+                >
+                  <span>Analytics</span>
+                  <ExternalLink className="w-3 h-3 text-[#75777D]" />
+                </Link>
+                <Link
+                  href="/admin/rule-packs"
+                  onClick={() => setIsProfileOpen(false)}
+                  className="col-span-2 flex items-center justify-between px-3 py-2 bg-white border border-[#D1CDC2] rounded-lg text-xs font-mono-data text-[#333E50] hover:bg-[#EAE7DC] transition-all"
+                >
+                  <span>Rule-Pack Management (Admin)</span>
+                  <ExternalLink className="w-3 h-3 text-[#75777D]" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Persona Switcher */}
+            <div className="p-4 space-y-2.5">
+              <span className="text-[10px] font-mono-data text-[#75777D] uppercase tracking-wider block">
+                Switch Sandbox Persona (1-Click)
+              </span>
+              <div className="space-y-1.5">
+                {[
+                  {
+                    id: "officer_suresh",
+                    name: "Suresh Sharma",
+                    role: "Field Officer (Delhi NCT)",
+                    badge: "OFFICER",
+                  },
+                  {
+                    id: "supervisor_priya",
+                    name: "Priya Verma",
+                    role: "Deputy Controller (Maharashtra)",
+                    badge: "SUPERVISOR",
+                  },
+                  {
+                    id: "admin_rajesh",
+                    name: "Rajesh Gupta",
+                    role: "Director & National Admin",
+                    badge: "ADMIN",
+                  },
+                ].map((persona) => (
+                  <button
+                    key={persona.id}
+                    disabled={isSwitchingPersona}
+                    onClick={() => handleSwitchPersona(persona.id)}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#D1CDC2] bg-white hover:bg-[#EAE7DC] active:scale-[0.99] transition-all text-left"
+                  >
+                    <div>
+                      <div className="text-xs font-semibold text-[#1A1C1E]">{persona.name}</div>
+                      <div className="text-[10px] text-[#75777D] font-mono-data">{persona.role}</div>
+                    </div>
+                    <span className="text-[9px] font-mono-data font-bold px-1.5 py-0.5 rounded bg-[#EAE7DC] text-[#4A5568]">
+                      {persona.badge}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Close Button */}
+            <div className="p-3 bg-[#EAE7DC] border-t border-[#D1CDC2] flex justify-end">
+              <button
+                onClick={() => setIsProfileOpen(false)}
+                className="px-4 py-1.5 bg-[#4A5568] hover:bg-[#333E50] text-white rounded-lg text-xs font-mono-data font-bold transition-all"
+              >
+                CLOSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,13 +1,12 @@
 import { ReportFormat, ReportItem } from "../types/report";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { API_BASE } from "../utils/apiConfig";
 
 export async function generateReport(
   inspectionId: string,
   format: ReportFormat = "pdf",
   token?: string
 ): Promise<ReportItem> {
-  const url = `${API_BASE_URL}/api/v1/inspections/${inspectionId}/report?format=${format}`;
+  const url = `${API_BASE}/inspections/${inspectionId}/report?format=${format}`;
   const headers: HeadersInit = {
     "Content-Type": "application/json",
   };
@@ -32,7 +31,7 @@ export async function listReports(
   inspectionId: string,
   token?: string
 ): Promise<ReportItem[]> {
-  const url = `${API_BASE_URL}/api/v1/inspections/${inspectionId}/reports`;
+  const url = `${API_BASE}/inspections/${inspectionId}/reports`;
   const headers: HeadersInit = {};
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -48,5 +47,5 @@ export async function listReports(
 }
 
 export function getReportDownloadUrl(inspectionId: string, reportId: string): string {
-  return `${API_BASE_URL}/api/v1/inspections/${inspectionId}/reports/${reportId}/file`;
+  return `${API_BASE}/inspections/${inspectionId}/reports/${reportId}/download`;
 }

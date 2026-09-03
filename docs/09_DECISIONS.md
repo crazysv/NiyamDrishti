@@ -242,3 +242,109 @@ Implement an environment-driven Bhashini adapter pattern (`BhashiniService` / `B
 3. Implemented Just-In-Time (JIT) provisioning in `sync_or_create_user`, automatically creating or updating officer profiles in PostgreSQL/SQLite and mapping official designations to application RBAC roles.
 4. Preserved existing `/auth/login` endpoint to guarantee 100% backward compatibility for automated tests and standalone environments.
 **Consequences:** 100% testable without internet or government approvals; full live-ready drop-in compatibility when NIC credentials are provided; realistic evaluator demo workflow.
+
+### ADR-017 — Hardened Offline Sync Architecture (Idempotency Keys, Full Jitter Exponential Backoff, Deterministic HTTP 409 Conflict Resolution)
+**Date:** 2026-09-04
+**Status:** Accepted
+**Context:** In Phase 4 (`E4-02`, `MASTER_CONTENT.md` §10.14, `01_PRD.md` offline-first mandate, `03_TECHSPEC.md`), Legal Metrology officers operate in remote mandis, wholesale agricultural yards, and rural distribution centers with intermittent, lossy, or zero cellular connectivity:
+1. When connection drops or flickers mid-upload, naive retries without idempotency cause duplicate inspection records, orphaned images, and inconsistent database states.
+2. In mass-reconnect scenarios (e.g. dozens of field officers returning to an urban depot or hotel WiFi simultaneously), naive retries trigger thundering-herd server spikes.
+3. If an inspection was finalized/completed on the server (e.g. by supervisor review or peer verification), an offline device attempting to sync cached stale edits could corrupt the official legal audit trail unless conflicts are resolved deterministically without silent data loss.
+4. Permanent client errors (HTTP 400, 401, 403, 422) or repeatedly failed transient retries must not block the sync pipeline or be retried indefinitely.
+**Decision:**
+1. **Client-Side Nonce & Server Idempotency Keys:**
+   - Added `client_id` column with index on `Inspection` and `InspectionImage` in backend database models.
+   - Client sends both `Idempotency-Key` HTTP header and `client_id` payload field derived from local IndexedDB unique IDs (`insp_${timestamp}_${nonce}`, `img_${timestamp}_${nonce}`).
+   - Backend inspection and image creation endpoints perform idempotent lookups: if an inspection or image with the same `client_id` was already created by that officer, it returns HTTP 200/201 with the existing record rather than creating duplicate DB rows.
+2. **Deterministic HTTP 409 Conflict Resolution (`server_authoritative`):**
+   - Backend `POST /api/v1/inspections/{id}/images` rejects attempts to modify finalized inspections (`status == 'completed'`) with HTTP 409 Conflict (`code: "INSPECTION_FINALIZED"`, `suggested_resolution: "server_authoritative"`).
+   - Client-side sync engine deterministically marks the local inspection as `synced` and logs `conflictDetails` with `resolutionStrategy: "server_authoritative"`, preserving the legal audit trail on the server while clearing the offline backlog.
+3. **Full Jitter Exponential Backoff:**
+   - Implemented `calculateBackoffWithJitter(attempt, baseDelayMs, maxDelayMs)` in `frontend/app/utils/retryBackoff.ts` with jitter factor `0.5 + Math.random() * 0.5` to eliminate thundering herd synchronization spikes.
+   - Categorized errors into:
+     - `SyncTransientError` (network failure, HTTP 408, 429, 500, 502, 503, 504) -> retried with backoff up to `MAX_AUTO_RETRIES = 5`.
+     - `SyncPermanentError` (HTTP 400, 401, 403, 422) -> moved directly to `dead_letter` queue.
+     - `SyncConflictError` (HTTP 409) -> resolved via `server_authoritative` or routed to `dead_letter` for officer review.
+4. **IndexedDB Dexie Schema Version 3 & Dead-Letter Queue:**
+   - Upgraded Dexie database schema to version 3, adding `SyncStatus` `"dead_letter"`, `retryCount`, `lastAttemptAt`, `nextRetryAt`, `failureCategory`, and `conflictDetails`.
+   - Provided officer actions to review dead-letter items, retry failed inspections with reset counters, or safely discard stale drafts.
+5. **Consolidated Batch Offline Sync Endpoint:**
+   - Added `POST /api/v1/inspections/sync` accepting multiple offline inspections and images in a single atomic payload, processing each record with per-item idempotency and conflict reporting without failing non-conflicting items.
+**Consequences:** Guaranteed zero duplicate records on lossy connections; safe, automated recovery from connection drops; preservation of finalized legal audit trails; complete officer visibility over transient vs. dead-letter synchronization states.
+
+### ADR-018 — Self-Hosted Observability Architecture (Prometheus, Grafana, Low-Cardinality Labeling, Correlation IDs)
+**Date:** 2026-09-04
+**Status:** Accepted
+**Context:** In Phase 4 (`E4-03`, `MASTER_CONTENT.md` §11.9, `03_TECHSPEC.md`), NiyamDrishti requires a production-grade observability and alerting system to monitor API throughput, latencies, failure rates, and domain metrics (OCR duration, rule engine latency, offline sync conflicts):
+1. Proprietary cloud APM vendors (Datadog, New Relic, Dynatrace) have restrictive free trial limits that expire after 14–30 days or require credit card commitments, which would directly violate the project's strict non-negotiable Rule 1 (free-tier with zero external paid traps).
+2. Unbounded Prometheus metric labels (e.g. recording raw UUIDs or client nonces in endpoint paths) cause high-cardinality explosions, consuming excessive RAM and crashing the TSDB.
+3. Distributed troubleshooting across mobile PWA clients and backend servers requires end-to-end request correlation without adding heavy tracing infrastructure.
+**Decision:**
+1. **Free & Self-Hostable Core:** Use Prometheus (v2.53.0) and Grafana (v11.0.0) as the primary observability stack, fully containerized via `docker compose --profile monitoring up` and `docker/docker-compose.monitoring.yml`.
+2. **FastAPI Metrics Exposition (`/metrics`):**
+   - Standard text-format Prometheus exposition endpoint at `GET /metrics` using `prometheus-client`.
+   - Metrics catalog: `niyamdrishti_http_requests_total`, `niyamdrishti_http_request_duration_seconds`, `niyamdrishti_active_requests`, `niyamdrishti_inspections_total`, `niyamdrishti_ocr_processing_duration_seconds`, `niyamdrishti_rule_evaluation_duration_seconds`, `niyamdrishti_offline_sync_operations_total`, `niyamdrishti_quality_gate_checks_total`.
+3. **Cardinality Protection & Parameterized Normalization:**
+   - Engineered `ObservabilityMiddleware` to inspect matched FastAPI route templates (`request.scope.get("route").path`) and apply fallback regex masking for dynamic UUIDs and entity IDs (`{id}`).
+   - Prohibits raw identifiers in label dimensions, bounding memory usage.
+4. **End-to-End Correlation ID Tracing (`X-Request-ID`):**
+   - Middleware reads incoming `X-Request-ID` or generates a UUID4, attaching it to `request.state.request_id` and injecting it into HTTP response headers.
+5. **Pre-Configured Grafana Dashboard & Prometheus Alerts:**
+   - Auto-provisioned Grafana datasource and dashboard (`monitoring/grafana/dashboards/niyamdrishti_overview.json`) with real-time gauges, request rates, latency curves, and Legal Metrology domain charts.
+   - Alert rules for API downtime, high HTTP 5xx error rates (> 5%), elevated P95 latency (> 3s), and high sync conflict rates (> 15%).
+6. **Tiered Health Probes:**
+   - `GET /health`: Comprehensive status, uptime, version, and database connectivity.
+   - `GET /health/live`: Lightweight liveness check for container engines.
+   - `GET /health/ready`: Readiness check with HTTP 503 response if the database is disconnected.
+**Consequences:** 100% free and self-hostable in Docker/Kubernetes/Render; zero vendor lock-in; complete visibility into system and Legal Metrology compliance workloads.
+
+### ADR-019 — Cryptographic Evidence Chain of Custody & Statutory Electronic Evidence Certification (Section 63 BSA 2023 / Section 65B IEA 1872)
+**Date:** 2026-09-04
+**Status:** Accepted
+**Context:** In Phase 4 (`E4-04`, `MASTER_CONTENT.md` §14.2, `01_PRD.md`, `06_SCHEMA.md`), digital inspection records must be legally admissible in judicial proceedings under the Legal Metrology Act, 2009 (Sections 36 & 49) and the Bharatiya Sakshya Adhiniyam, 2023 (Section 63 / erstwhile Section 65B of Indian Evidence Act, 1872):
+1. Raw label photographs could be challenged in court unless their cryptographic integrity from the point of field capture is incontrovertibly proven.
+2. An adversary could allege that human review overrides (changing bounding boxes, corrected values, or updated statuses) were modified retroactively without authorization.
+3. Courts require a formal Section 63 BSA / 65B IEA certificate signed by the responsible officer certifying device health, non-tampering, and cryptographic hash verification.
+**Decision:**
+1. **Intake Photographic Fingerprinting:**
+   - Added `sha256_hash` to `InspectionImage` (`inspection_images` table with index `idx_images_sha256`).
+   - Every uploaded image (multipart form or batch offline sync) is hashed at the byte level with SHA-256 upon intake and permanently persisted.
+2. **Audit Log Cryptographic Chaining & Database-Enforced Immutability:**
+   - Added `prev_hash` and `entry_hash` to `AuditLog` (`audit_logs` table with index `idx_audit_entry_hash`).
+   - Implemented SQLAlchemy event listeners (`before_insert`, `before_update`, `before_delete`):
+     - `before_insert`: Automatically calculates `entry_hash = SHA256(prev_hash + actor + action + entity + before + after)`.
+     - `before_update`: Raises `PermissionError("AuditLog records are append-only and legally immutable. UPDATE is strictly forbidden.")`.
+     - `before_delete`: Raises `PermissionError("AuditLog records are append-only and legally immutable. DELETE is strictly forbidden.")`.
+   - Guaranteed non-repudiation: database modifications outside the sequential append-only chain break the hash sequence.
+3. **Master Case Evidence Digest:**
+   - Developed `EvidenceVerificationService` computing `evidence_chain_hash = SHA256(inspection_id + rule_pack_version + image_hashes + field_digests + violation_ids)`.
+4. **Statutory Certification & Verification Endpoints:**
+   - `GET /api/v1/inspections/{id}/evidence/verify`: Executes on-disk SHA-256 re-verification against stored image fingerprints and validates the audit log hash chain.
+   - `GET /api/v1/inspections/{id}/evidence/certificate`: Generates a formal Certificate of Electronic Evidence pursuant to Section 63 BSA / 65B IEA with photographic schedule, chain of custody log, system environment disclosure, and statutory officer attestation.
+### ADR-020 — eMaap Integration Adapter (Dual-Mode Live/Sandbox Contract)
+**Date:** 2026-09-04
+**Status:** Accepted
+**Context:** In Phase 4 (`E4-05`, `MASTER_CONTENT.md` §3.4, §5, `01_PRD.md` NG1/NG6, `10_OPEN_QUESTIONS.md` OQ-01), NiyamDrishti serves as the missing image-evidence and inspection-intelligence layer for the Department of Consumer Affairs' National Legal Metrology portal (**eMaap**). eMaap manages manufacturer/packer/importer licensing and registration under Rule 27 of the LMPC Rules, 2011, but lacks automated packaging OCR, visual evidence mapping, and pixel-traceable violation detection. However, eMaap does not currently expose public REST API documentation or developer sandbox credentials outside NIC's internal intranet.
+**Decision:**
+1. **Dual-Mode Adapter Architecture (`backend/app/services/integrations/emaap.py`):**
+   - Followed the proven architecture established for Bhashini (`ADR-013`) and MeriPehchan (`ADR-016`).
+   - If `EMAAP_API_URL` and `EMAAP_API_KEY` are provided in `.env`, `EMaapAdapter` connects live via HTTP bearer token to national eMaap endpoints.
+   - If unconfigured or in offline/development mode, it seamlessly operates in high-fidelity sandbox mode without throwing errors or breaking the inspection workflow.
+2. **Registration Verification:**
+   - Implemented `verify_packer_registration(registration_number, company_name)` allowing field officers to verify LMPC Rule 27 registrations, validity dates, authorized commodity categories, and registered factory addresses.
+   - Embedded a realistic sandbox catalog of active, expired, and suspended LMPC registrations (Hindustan Unilever, ITC, Parle Products, etc.) to support automated cross-matching and manual review verification.
+3. **Statutory Enforcement Docket Submission:**
+   - Implemented `submit_enforcement_docket(inspection, officer, verification_result, officer_notes, priority)`.
+   - Compiles a complete regulatory enforcement docket containing the officer's credentials, digital evidence chain hash (`evidence_chain_hash`), photographic fingerprints (SHA-256), extracted declarations, and statutory penalty citations under Legal Metrology Act, 2009 Section 36.
+   - Returns a structured docket reference (`EMAAP-ENF-{REGION}-{YYYYMM}-{INSP_ID}`) with portal tracking URL.
+4. **Audit Trail Logging:**
+   - Every eMaap docket filing automatically emits an immutable `AuditLog` event (`action="emaap_docket_submitted"`).
+5. **Endpoints:**
+   - `GET /api/v1/integrations/emaap/status`: Operational mode and capability discovery.
+   - `POST /api/v1/integrations/emaap/verify-registration`: LMPC registration lookup.
+   - `POST /api/v1/integrations/emaap/dockets/{inspection_id}`: Docket submission endpoint.
+**Consequences:** Establishes a clean, production-ready interface to eMaap that works immediately in demonstrations, offline pilots, and real deployments without waiting on external NIC approval timelines; 100% compliant with free-tier and independence guardrails.
+
+
+
+

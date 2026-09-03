@@ -1,8 +1,9 @@
 """NiyamDrishti FastAPI application entry point."""
 
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -10,7 +11,11 @@ from slowapi.util import get_remote_address
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.metrics import get_latest_metrics
+from app.core.middleware import ObservabilityMiddleware
 from app.db.session import check_db_health, init_db
+
+APP_START_TIME = time.time()
 
 
 @asynccontextmanager
@@ -31,6 +36,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
 
+app.add_middleware(ObservabilityMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ALLOWED_ORIGINS,
@@ -42,11 +48,40 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api/v1")
 
 
-@app.get("/health")
+@app.get("/metrics", include_in_schema=False)
+async def prometheus_metrics():
+    """Prometheus exposition endpoint for scraping system and domain metrics."""
+    content, content_type = get_latest_metrics()
+    return Response(content=content, media_type=content_type)
+
+
+@app.get("/health", tags=["Monitoring"])
 async def health():
+    """Comprehensive health check probe."""
     db_health = await check_db_health()
+    uptime_seconds = round(time.time() - APP_START_TIME, 1)
+    is_ok = db_health.get("status") == "connected"
     return {
-        "status": "ok" if db_health.get("status") == "connected" else "degraded",
+        "status": "ok" if is_ok else "degraded",
         "env": settings.APP_ENV,
+        "version": "0.1.0",
+        "uptime_seconds": uptime_seconds,
         "database": db_health,
     }
+
+
+@app.get("/health/live", tags=["Monitoring"])
+async def liveness():
+    """Liveness probe: returns HTTP 200 if process is running."""
+    return {"status": "alive"}
+
+
+@app.get("/health/ready", tags=["Monitoring"])
+async def readiness(response: Response):
+    """Readiness probe: checks database and returns HTTP 503 if disconnected."""
+    db_health = await check_db_health()
+    if db_health.get("status") != "connected":
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "not_ready", "database": db_health}
+    return {"status": "ready", "database": db_health}
+

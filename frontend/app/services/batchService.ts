@@ -5,8 +5,7 @@ import {
   BatchSessionRead,
 } from "../types/batch";
 import { InspectionRead } from "../types/inspection";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE } from "../utils/apiConfig";
 
 function getAuthHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = {

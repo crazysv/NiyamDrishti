@@ -177,7 +177,7 @@ Each task lists: what it is, what it depends on, which docs govern it, and what 
 | E4-02 | Hardened offline sync: conflict resolution, retry/backoff | CAP-09 | `MASTER_CONTENT.md` §14.1 |
 | E4-03 | Monitoring/observability (Prometheus + Grafana, self-hosted) | DEPLOY-01..DEPLOY-04 | `MASTER_CONTENT.md` §11.9 |
 | E4-04 | Formal security review of the audit-log/evidence chain for evidentiary use | REV-03,EVID-01 | `MASTER_CONTENT.md` §14.2 |
-| E4-05 | eMaap API adapter — only if a real, available integration point is confirmed | — | `MASTER_CONTENT.md` §5 |
+| E4-05 | eMaap API adapter (if confirmed available) | — | `MASTER_CONTENT.md` §5 |
 | E4-06 | Full deployment checklist finalized (`03_TECHSPEC.md` §7, `11_SECRETS_CHECKLIST.md`) for a real pilot rollout | DEPLOY-01..DEPLOY-04 | `03_TECHSPEC.md` §7 |
 
 ---

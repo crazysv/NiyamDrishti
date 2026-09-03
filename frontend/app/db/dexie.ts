@@ -2,7 +2,16 @@ import Dexie, { type EntityTable } from "dexie";
 import { ImageRole, CommodityCategory } from "@/app/types/capture";
 import { QualityAssessment } from "@/app/utils/qualityGate";
 
-export type SyncStatus = "draft" | "sync_pending" | "syncing" | "synced" | "failed";
+export type SyncStatus = "draft" | "sync_pending" | "syncing" | "synced" | "failed" | "dead_letter";
+
+export interface OfflineConflictDetails {
+  code: string;
+  message: string;
+  serverStatus?: string;
+  suggestedResolution?: string;
+  resolvedAt?: string;
+  resolutionStrategy?: string;
+}
 
 export interface OfflineInspection {
   id: string;
@@ -15,6 +24,11 @@ export interface OfflineInspection {
   updatedAt: string;
   syncedAt?: string;
   syncError?: string;
+  retryCount?: number;
+  lastAttemptAt?: string;
+  nextRetryAt?: string;
+  failureCategory?: "transient" | "conflict" | "permanent";
+  conflictDetails?: OfflineConflictDetails;
 }
 
 export interface OfflineImage {
@@ -27,6 +41,8 @@ export interface OfflineImage {
   backendImageId?: string;
   syncError?: string;
   createdAt: string;
+  clientId?: string;
+  retryCount?: number;
 }
 
 // Dexie Database schema
@@ -43,6 +59,10 @@ class NiyamDrishtiDatabase extends Dexie {
     this.version(2).stores({
       inspections: "id, backendId, status, commodityCategory, createdAt, capturedOffline",
       inspectionImages: "id, inspectionId, imageRole, isSynced, createdAt",
+    });
+    this.version(3).stores({
+      inspections: "id, backendId, status, commodityCategory, createdAt, capturedOffline, failureCategory",
+      inspectionImages: "id, inspectionId, imageRole, isSynced, createdAt, clientId",
     });
   }
 }
@@ -162,3 +182,109 @@ export async function getStorageQuota(): Promise<{
   }
   return { usageMb: 0, quotaMb: 0, percentUsed: 0, isLowSpace: false };
 }
+
+/**
+ * Returns count of items currently in dead_letter state (requiring officer review/conflict resolution)
+ */
+export async function getDeadLetterCount(): Promise<number> {
+  return await db.inspections.where("status").equals("dead_letter").count();
+}
+
+/**
+ * Returns count of items in transient failed state
+ */
+export async function getFailedSyncCount(): Promise<number> {
+  return await db.inspections.where("status").equals("failed").count();
+}
+
+/**
+ * Retrieves all inspections currently in dead_letter state
+ */
+export async function getDeadLetterInspections(): Promise<
+  { inspection: OfflineInspection; images: OfflineImage[] }[]
+> {
+  const deadLetters = await db.inspections.where("status").equals("dead_letter").toArray();
+  const results = [];
+
+  for (const item of deadLetters) {
+    const images = await db.inspectionImages.where("inspectionId").equals(item.id).toArray();
+    results.push({ inspection: item, images });
+  }
+
+  return results;
+}
+
+/**
+ * Marks an inspection as dead_letter with categorized failure details
+ */
+export async function markInspectionDeadLetter(
+  inspectionId: string,
+  failureCategory: "transient" | "conflict" | "permanent",
+  errorMsg: string,
+  conflictDetails?: OfflineConflictDetails
+): Promise<void> {
+  await db.inspections.update(inspectionId, {
+    status: "dead_letter",
+    failureCategory,
+    syncError: errorMsg,
+    conflictDetails,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Resets a failed or dead-letter inspection back to sync_pending with retryCount=0
+ */
+export async function resetFailedInspectionForRetry(inspectionId: string): Promise<void> {
+  await db.inspections.update(inspectionId, {
+    status: "sync_pending",
+    retryCount: 0,
+    syncError: undefined,
+    failureCategory: undefined,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Resolves a conflict on an offline inspection:
+ * - 'server_authoritative': marks local inspection as synced with resolved conflict metadata
+ * - 'discard': deletes the local inspection draft
+ */
+export async function resolveInspectionConflict(
+  inspectionId: string,
+  strategy: "server_authoritative" | "discard"
+): Promise<void> {
+  if (strategy === "discard") {
+    await discardOfflineInspection(inspectionId);
+    return;
+  }
+
+  const existing = await db.inspections.get(inspectionId);
+  const updatedDetails: OfflineConflictDetails | undefined = existing?.conflictDetails
+    ? {
+        ...existing.conflictDetails,
+        resolvedAt: new Date().toISOString(),
+        resolutionStrategy: "server_authoritative",
+      }
+    : undefined;
+
+  await db.inspections.update(inspectionId, {
+    status: "synced",
+    syncedAt: new Date().toISOString(),
+    syncError: undefined,
+    failureCategory: undefined,
+    conflictDetails: updatedDetails,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Permanently discards an offline inspection and its attached images from IndexedDB
+ */
+export async function discardOfflineInspection(inspectionId: string): Promise<void> {
+  await db.transaction("rw", db.inspections, db.inspectionImages, async () => {
+    await db.inspectionImages.where("inspectionId").equals(inspectionId).delete();
+    await db.inspections.delete(inspectionId);
+  });
+}
+

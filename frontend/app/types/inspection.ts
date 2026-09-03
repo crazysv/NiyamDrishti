@@ -2,7 +2,7 @@ export interface InspectionSummary {
   id: string;
   officer_id: string;
   officer_name?: string | null;
-  status: "draft" | "sync_pending" | "needs_review" | "completed" | "syncing" | "synced" | "failed";
+  status: "draft" | "sync_pending" | "needs_review" | "completed" | "syncing" | "synced" | "failed" | "dead_letter";
   commodity_category?: string | null;
   rule_pack_version: string;
   region?: string | null;

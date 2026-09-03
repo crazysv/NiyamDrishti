@@ -2,7 +2,17 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import analytics, auth, batches, bhashini, inspections, rule_packs, self_check, sso
+from app.api.v1.endpoints import (
+    analytics,
+    auth,
+    batches,
+    bhashini,
+    emaap,
+    inspections,
+    rule_packs,
+    self_check,
+    sso,
+)
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -13,3 +23,4 @@ api_router.include_router(analytics.router, prefix="/analytics", tags=["analytic
 api_router.include_router(bhashini.router, prefix="/bhashini", tags=["bhashini"])
 api_router.include_router(batches.router, prefix="/batches", tags=["batches"])
 api_router.include_router(self_check.router, prefix="/self-check", tags=["self-check"])
+api_router.include_router(emaap.router, prefix="/integrations/emaap", tags=["emaap"])

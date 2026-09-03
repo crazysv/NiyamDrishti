@@ -86,3 +86,41 @@ Before launching the service:
 - [x] `JWT_SECRET_KEY` generated cryptographically (`openssl rand -hex 32`).
 - [x] Neon database URL uses `postgresql+asyncpg://` schema with SSL enabled.
 - [x] Cloudflare R2 bucket configured with 100% private access (all client downloads use signed URLs expiring in 900s).
+
+---
+
+## 3. Production Pilot Rollout Operations & Audit Checklist (`E4-06`)
+
+This checklist must be executed and confirmed prior to deploying NiyamDrishti into a live regulatory field trial or district pilot.
+
+### 3.1 Automated Pre-Flight System Audit
+Execute the automated pre-flight audit tool from the backend container/environment:
+```bash
+python scripts/pilot_readiness_check.py
+```
+**Verification Gates:**
+- [x] Database connectivity & 8 statutory tables mapped in ORM (`users`, `inspections`, `inspection_images`, `extracted_fields`, `violations`, `rule_packs`, `audit_logs`, `reports`).
+- [x] Statutory Legal Metrology rule pack loaded (`core_pack_v1.json`, 12 active rules matching LMPC Rules 2011).
+- [x] Evidentiary immutability engine active (FIPS PUB 180-4 SHA-256 and SQLAlchemy `PermissionError` on UPDATE/DELETE).
+- [x] Object storage configured (Cloudflare R2 for production, local filesystem fallback for development).
+- [x] Dual-mode government integration adapters operational (MeriPehchan SSO, eMaap National Portal, Bhashini ULCA).
+- [x] Observability text exposition verified (`GET /metrics`).
+
+### 3.2 Field Officer Device & PWA Readiness
+- [ ] **Device Specs:** Mid-range Android smartphone (Android 11+, Chrome 110+, camera autofocus).
+- [ ] **PWA Installation:** Open `https://niyamdrishti.pages.dev` in Chrome, tap `"Add to Home Screen"`, and confirm standalone window launch.
+- [ ] **Offline Storage:** Verify device has at least 50MB free storage. Confirm `useStorageQuota` displays green status (capacity for 50 offline inspection packages).
+- [ ] **Quality Gates:** Verify blur, glare, and barcode scale calibration gates correctly warn on low-quality captures with specific retake guidance.
+
+### 3.3 Evidentiary & Courtroom Defensibility
+- [ ] **Digital Chain of Custody:** Verify every captured label photo receives a SHA-256 fingerprint on intake.
+- [ ] **Tamper-Evident Audit Trail:** Verify officer corrections are appended with sequential Merkle entry hashes.
+- [ ] **Statutory Certificate:** Verify `GET /api/v1/inspections/{id}/evidence/certificate` outputs a complete certificate under Section 63 of Bharatiya Sakshya Adhiniyam, 2023 / Section 65B of Indian Evidence Act, 1872.
+- [ ] **Legal Disclaimers:** Confirm generated PDF reports and JSON exports contain the mandatory, un-omittable statutory disclaimer (`_legal_disclaimer.html`).
+
+### 3.4 SRE, Observability & Incident Response
+- [ ] **Scraper Health:** Verify Prometheus targets are scraping `https://<API_HOST>/metrics` every 15s.
+- [ ] **Grafana Dashboard:** Verify `monitoring/grafana/dashboards/niyamdrishti_overview.json` displays active requests, P95 latencies, compliance verdict distributions, and offline sync counts.
+- [ ] **Alerting Rules:** Confirm alerts for API downtime (`NiyamDrishtiDown`), high 5xx error rate (`High5xxErrorRate` > 5%), and elevated P95 latency (`HighP95Latency` > 3s).
+- [ ] **Database Connection Resilience:** Verify Neon pool parameters (`pool_pre_ping=True`, `pool_recycle=300s`) recover automatically from serverless idle scale-to-zero.
+

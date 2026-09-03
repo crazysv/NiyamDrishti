@@ -4,8 +4,7 @@ import {
   SSOSandboxProfile,
   SSOStatusResponse,
 } from "../types/sso";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+import { API_BASE } from "../utils/apiConfig";
 
 /**
  * Checks the status and operating mode (live vs sandbox) of the Government SSO gateway.
