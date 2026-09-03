@@ -115,10 +115,14 @@ async def list_inspections(
     date_to: datetime | None = Query(None, description="Filter inspections created on or before"),
     region: str | None = Query(None, description="Filter by enforcement region"),
     commodity_category: str | None = Query(None, description="Filter by commodity category"),
-    status_filter: str | None = Query(None, alias="status", description="Filter by status (completed, needs_review, draft, sync_pending)"),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filter by status (completed, needs_review, draft, sync_pending)"
+    ),
     violation_type: str | None = Query(None, description="Filter by violation rule ID or description substring"),
     has_violations: bool | None = Query(None, description="Filter by presence of statutory violations"),
-    product_query: str | None = Query(None, description="Search by product, brand, or manufacturer text in extracted fields"),
+    product_query: str | None = Query(
+        None, description="Search by product, brand, or manufacturer text in extracted fields"
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -321,7 +325,7 @@ async def upload_inspection_image(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Missing image_role in form data",
             )
-        role = role_val
+        role = role_val  # type: ignore[assignment]
         upload_file = form.get("file")
         if not upload_file or not hasattr(upload_file, "read"):
             raise HTTPException(
@@ -331,8 +335,10 @@ async def upload_inspection_image(
         file_bytes = await upload_file.read()
         filename = getattr(upload_file, "filename", None) or f"{role}_{uuid.uuid4().hex[:8]}.jpg"
         quality_passed = str(form.get("quality_check_passed", "true")).lower() == "true"
-        width_px = int(form.get("width_px")) if form.get("width_px") else None
-        height_px = int(form.get("height_px")) if form.get("height_px") else None
+        w_val = form.get("width_px")
+        h_val = form.get("height_px")
+        width_px = int(str(w_val)) if w_val else None
+        height_px = int(str(h_val)) if h_val else None
         captured_at = datetime.now(timezone.utc)
     else:
         raise HTTPException(
@@ -424,7 +430,6 @@ async def get_inspection(
     return inspection
 
 
-
 @router.post("/{inspection_id}/process", response_model=list[ExtractedFieldRead])
 @router.post("/{inspection_id}/extract", response_model=list[ExtractedFieldRead])
 async def extract_inspection_declarations(
@@ -478,7 +483,7 @@ async def extract_inspection_declarations(
                 pass
 
         try:
-            ocr_res = ocr_service.process_image(full_path, source_image_id=str(img.id))
+            ocr_res = ocr_service.process_image(str(full_path), source_image_id=str(img.id))
             declarations = extraction_service.extract_from_ocr_result(ocr_res)
             all_declarations.extend(declarations)
         except Exception:
@@ -653,9 +658,7 @@ async def get_inspection_image_file(
 ) -> FileResponse:
     """Serve the raw image file for inspection evidence display."""
     stmt = (
-        select(InspectionImage)
-        .join(Inspection)
-        .where(InspectionImage.id == image_id, Inspection.id == inspection_id)
+        select(InspectionImage).join(Inspection).where(InspectionImage.id == image_id, Inspection.id == inspection_id)
     )
     res = await db.execute(stmt)
     img = res.scalar_one_or_none()
@@ -729,7 +732,9 @@ async def get_inspection_evidence(
 
     img_w = float(front_img.width_px or 1200) if front_img else 1200.0
     img_h = float(front_img.height_px or 1600) if front_img else 1600.0
-    calib_scale = float(front_img.calibration_scale_mm_per_px) if (front_img and front_img.calibration_scale_mm_per_px) else None
+    calib_scale = (
+        float(front_img.calibration_scale_mm_per_px) if (front_img and front_img.calibration_scale_mm_per_px) else None
+    )
 
     # Image lookup
     img_map = {img.id: img for img in inspection.images}
@@ -755,7 +760,15 @@ async def get_inspection_evidence(
             )
 
     items: list[EvidenceItemRead] = []
-    order_keys = ["mrp", "net_quantity", "mfg_date", "manufacturer_address", "consumer_care", "country_of_origin", "commodity_name"]
+    order_keys = [
+        "mrp",
+        "net_quantity",
+        "mfg_date",
+        "manufacturer_address",
+        "consumer_care",
+        "country_of_origin",
+        "commodity_name",
+    ]
     sorted_fields = sorted(
         inspection.fields,
         key=lambda f: order_keys.index(f.field_type) if f.field_type in order_keys else 99,
@@ -774,7 +787,11 @@ async def get_inspection_evidence(
         src_img = img_map.get(f.source_image_id, front_img)
         cur_w = float(src_img.width_px or img_w) if src_img else img_w
         cur_h = float(src_img.height_px or img_h) if src_img else img_h
-        cur_scale = float(src_img.calibration_scale_mm_per_px) if (src_img and src_img.calibration_scale_mm_per_px) else calib_scale
+        cur_scale = (
+            float(src_img.calibration_scale_mm_per_px)
+            if (src_img and src_img.calibration_scale_mm_per_px)
+            else calib_scale
+        )
 
         raw_box = f.bounding_box or {}
         x_px = float(raw_box.get("x", raw_box.get("left", 0.0)))
@@ -798,7 +815,7 @@ async def get_inspection_evidence(
             "height_pct": height_pct,
         }
 
-        measured_dim = None
+        measured_dim: dict[str, Any] | None = None
         if cur_scale is not None and cur_scale > 0:
             measured_dim = {
                 "height_mm": round(h_px * cur_scale, 2),
@@ -817,8 +834,7 @@ async def get_inspection_evidence(
 
         v_list = field_violations.get(f.id, [])
         has_fail_violation = any(
-            v.severity in ("critical", "major") and "review" not in v.description.lower()
-            for v in v_list
+            v.severity in ("critical", "major") and "review" not in v.description.lower() for v in v_list
         )
 
         if f.verdict == "fail" or has_fail_violation:
@@ -1061,7 +1077,9 @@ async def review_and_override_field(
             detail=f"Field {field_id} not found in inspection {inspection_id}",
         )
 
-    if payload.action == "correct" and (not payload.officer_override_value or not payload.officer_override_value.strip()):
+    if payload.action == "correct" and (
+        not payload.officer_override_value or not payload.officer_override_value.strip()
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="officer_override_value is required when action is 'correct'",
@@ -1085,7 +1103,9 @@ async def review_and_override_field(
     elif payload.action == "correct":
         target_field.verdict = "pass"
         target_field.officer_override_value = payload.officer_override_value.strip()
-        msg = f"Declaration '{target_field.field_type}' corrected by officer to '{target_field.officer_override_value}'."
+        msg = (
+            f"Declaration '{target_field.field_type}' corrected by officer to '{target_field.officer_override_value}'."
+        )
     elif payload.action == "mark_not_applicable":
         target_field.verdict = "not_applicable"
         target_field.officer_override_value = None
@@ -1183,11 +1203,7 @@ async def get_inspection_audit_logs(
     Retrieve the immutable audit trail for an inspection and its associated declarations (REV-03).
     Ensures complete chain-of-custody transparency for all human review overrides.
     """
-    stmt = (
-        select(Inspection)
-        .where(Inspection.id == inspection_id)
-        .options(selectinload(Inspection.fields))
-    )
+    stmt = select(Inspection).where(Inspection.id == inspection_id).options(selectinload(Inspection.fields))
     res = await db.execute(stmt)
     inspection = res.scalar_one_or_none()
 
@@ -1206,11 +1222,7 @@ async def get_inspection_audit_logs(
     field_id_strs = [str(f.id) for f in inspection.fields]
     entity_ids = [str(inspection.id)] + field_id_strs
 
-    audit_stmt = (
-        select(AuditLog)
-        .where(AuditLog.entity_id.in_(entity_ids))
-        .order_by(AuditLog.created_at.desc())
-    )
+    audit_stmt = select(AuditLog).where(AuditLog.entity_id.in_(entity_ids)).order_by(AuditLog.created_at.desc())
     audit_res = await db.execute(audit_stmt)
     return list(audit_res.scalars().all())
 
@@ -1270,9 +1282,6 @@ async def batch_review_fields(
         }
 
         target_field.reviewed_by_officer = True
-        target_field.reviewed_at = now
-        target_field.reviewed_by = current_user.id
-        target_field.officer_notes = item.officer_notes
 
         if item.action == "confirm":
             target_field.verdict = "pass"
@@ -1292,7 +1301,9 @@ async def batch_review_fields(
             "verdict": target_field.verdict,
             "reviewed_by_officer": target_field.reviewed_by_officer,
             "officer_override_value": target_field.officer_override_value,
-            "officer_notes": target_field.officer_notes,
+            "officer_notes": item.officer_notes,
+            "reviewed_at": now.isoformat(),
+            "reviewed_by": str(current_user.id),
         }
 
         audit_id = uuid.uuid4()
@@ -1373,11 +1384,7 @@ async def get_inspection_review_history(
     """
     Retrieve enriched review audit history for an inspection with officer details (E2-04).
     """
-    stmt = (
-        select(Inspection)
-        .where(Inspection.id == inspection_id)
-        .options(selectinload(Inspection.fields))
-    )
+    stmt = select(Inspection).where(Inspection.id == inspection_id).options(selectinload(Inspection.fields))
     res = await db.execute(stmt)
     inspection = res.scalar_one_or_none()
 
@@ -1409,19 +1416,21 @@ async def get_inspection_review_history(
     history = []
     for log, officer_name, officer_role in rows:
         field_type = field_map.get(log.entity_id, "inspection")
-        history.append({
-            "id": log.id,
-            "action": log.action,
-            "entity_type": log.entity_type,
-            "entity_id": log.entity_id,
-            "field_type": field_type,
-            "officer_id": log.actor_user_id,
-            "officer_name": officer_name,
-            "officer_role": officer_role,
-            "before_value": log.before_value,
-            "after_value": log.after_value,
-            "created_at": log.created_at,
-        })
+        history.append(
+            {
+                "id": log.id,
+                "action": log.action,
+                "entity_type": log.entity_type,
+                "entity_id": log.entity_id,
+                "field_type": field_type,
+                "officer_id": log.actor_user_id,
+                "officer_name": officer_name,
+                "officer_role": officer_role,
+                "before_value": log.before_value,
+                "after_value": log.after_value,
+                "created_at": log.created_at,
+            }
+        )
 
     return history
 
@@ -1474,11 +1483,7 @@ async def generate_inspection_report(
     # Fetch audit logs for the inspection
     field_id_strs = [str(f.id) for f in inspection.fields]
     entity_ids = [str(inspection.id)] + field_id_strs
-    audit_stmt = (
-        select(AuditLog)
-        .where(AuditLog.entity_id.in_(entity_ids))
-        .order_by(AuditLog.created_at.asc())
-    )
+    audit_stmt = select(AuditLog).where(AuditLog.entity_id.in_(entity_ids)).order_by(AuditLog.created_at.asc())
     audit_res = await db.execute(audit_stmt)
     audit_logs = list(audit_res.scalars().all())
 
@@ -1569,11 +1574,7 @@ async def list_inspection_reports(
     current_user: User = Depends(get_current_active_user),
 ) -> list[ReportRead]:
     """Lists all generated compliance reports for an inspection."""
-    stmt = (
-        select(Report)
-        .where(Report.inspection_id == inspection_id)
-        .order_by(Report.generated_at.desc())
-    )
+    stmt = select(Report).where(Report.inspection_id == inspection_id).order_by(Report.generated_at.desc())
     res = await db.execute(stmt)
     reports = res.scalars().all()
 

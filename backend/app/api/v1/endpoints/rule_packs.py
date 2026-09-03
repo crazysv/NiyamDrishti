@@ -64,9 +64,7 @@ async def get_active_rule_pack(
         # Fallback to default pack if DB is not seeded
         default_pack = load_default_rule_pack()
         now = datetime.now(timezone.utc)
-        effective_from = datetime.combine(
-            default_pack.effective_from, datetime.min.time(), tzinfo=timezone.utc
-        )
+        effective_from = datetime.combine(default_pack.effective_from, datetime.min.time(), tzinfo=timezone.utc)
         return RulePack(
             version=default_pack.rule_pack_version,
             effective_from=effective_from,

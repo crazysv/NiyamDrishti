@@ -1,5 +1,4 @@
 import re
-from typing import Any
 
 from app.services.extraction.base import BaseFieldExtractor
 from app.services.extraction.schemas import ExtractedDeclaration

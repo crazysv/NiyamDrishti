@@ -62,9 +62,7 @@ class ReportService:
             logger.info("Report successfully generated via WeasyPrint engine.")
             return pdf_bytes, "weasyprint"
         except (ImportError, OSError) as exc:
-            logger.warning(
-                f"WeasyPrint unavailable on this host ({exc}). Falling back to FPDF2 engine (Tech Spec §2)."
-            )
+            logger.warning(f"WeasyPrint unavailable on this host ({exc}). Falling back to FPDF2 engine (Tech Spec §2).")
 
         # 2. FPDF2 Fallback Engine
         pdf_bytes = self._generate_fpdf_report(context)
@@ -86,9 +84,7 @@ class ReportService:
         fields = context.get("fields", [])
         violations = context.get("violations", [])
         audit_logs = context.get("audit_logs", [])
-        generated_at_str = context.get(
-            "generated_at_str", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        )
+        generated_at_str = context.get("generated_at_str", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"))
 
         def _clean_latin1(val: Any) -> str:
             if val is None:
@@ -120,11 +116,15 @@ class ReportService:
 
         pdf.set_font("helvetica", "B", 10)
         pdf.set_text_color(86, 97, 85)
-        pdf.cell(0, 5, "DEPARTMENT OF CONSUMER AFFAIRS - LEGAL METROLOGY DIVISION", new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.cell(
+            0, 5, "DEPARTMENT OF CONSUMER AFFAIRS - LEGAL METROLOGY DIVISION", new_x="LMARGIN", new_y="NEXT", align="C"
+        )
 
         pdf.set_font("helvetica", "B", 11)
         pdf.set_text_color(51, 62, 80)
-        pdf.cell(0, 6, "LEGAL METROLOGY (PACKAGED COMMODITIES) COMPLIANCE REPORT", new_x="LMARGIN", new_y="NEXT", align="C")
+        pdf.cell(
+            0, 6, "LEGAL METROLOGY (PACKAGED COMMODITIES) COMPLIANCE REPORT", new_x="LMARGIN", new_y="NEXT", align="C"
+        )
         pdf.ln(3)
 
         # Divider line
@@ -155,8 +155,12 @@ class ReportService:
         pdf.set_font("helvetica", "", 8)
 
         insp_id_str = str(getattr(inspection, "id", None) or inspection.get("id", ""))
-        category = str(getattr(inspection, "commodity_category", None) or inspection.get("commodity_category", "general"))
-        pack_version = str(getattr(inspection, "rule_pack_version", None) or inspection.get("rule_pack_version", "2026.02.01"))
+        category = str(
+            getattr(inspection, "commodity_category", None) or inspection.get("commodity_category", "general")
+        )
+        pack_version = str(
+            getattr(inspection, "rule_pack_version", None) or inspection.get("rule_pack_version", "2026.02.01")
+        )
         officer_name = str(getattr(officer, "full_name", None) or officer.get("full_name", "Officer"))
         region = str(getattr(officer, "region", None) or officer.get("region", "Delhi"))
 
@@ -189,11 +193,31 @@ class ReportService:
         pdf.set_text_color(26, 28, 30)
 
         for f in fields:
-            ftype = str(getattr(f, "field_type", None) or (f.get("field_type") if isinstance(f, dict) else "")).replace("_", " ").title()
-            val = str(getattr(f, "officer_override_value", None) or getattr(f, "parsed_value", None) or getattr(f, "raw_text", None) or (f.get("officer_override_value") or f.get("parsed_value") or f.get("raw_text") if isinstance(f, dict) else "-"))
-            conf_val = float(getattr(f, "confidence", 1.0) or (f.get("confidence", 1.0) if isinstance(f, dict) else 1.0))
-            verdict = str(getattr(f, "verdict", "pass") or (f.get("verdict", "pass") if isinstance(f, dict) else "pass")).upper()
-            reviewed = bool(getattr(f, "reviewed_by_officer", False) or (f.get("reviewed_by_officer", False) if isinstance(f, dict) else False))
+            ftype = (
+                str(getattr(f, "field_type", None) or (f.get("field_type") if isinstance(f, dict) else ""))
+                .replace("_", " ")
+                .title()
+            )
+            val = str(
+                getattr(f, "officer_override_value", None)
+                or getattr(f, "parsed_value", None)
+                or getattr(f, "raw_text", None)
+                or (
+                    f.get("officer_override_value") or f.get("parsed_value") or f.get("raw_text")
+                    if isinstance(f, dict)
+                    else "-"
+                )
+            )
+            conf_val = float(
+                getattr(f, "confidence", 1.0) or (f.get("confidence", 1.0) if isinstance(f, dict) else 1.0)
+            )
+            verdict = str(
+                getattr(f, "verdict", "pass") or (f.get("verdict", "pass") if isinstance(f, dict) else "pass")
+            ).upper()
+            reviewed = bool(
+                getattr(f, "reviewed_by_officer", False)
+                or (f.get("reviewed_by_officer", False) if isinstance(f, dict) else False)
+            )
 
             if reviewed:
                 ftype += " *"
@@ -216,14 +240,20 @@ class ReportService:
             for v in violations:
                 rule_id = str(getattr(v, "rule_id", None) or (v.get("rule_id") if isinstance(v, dict) else ""))
                 desc = str(getattr(v, "description", None) or (v.get("description") if isinstance(v, dict) else ""))
-                citation = str(getattr(v, "citation", None) or (v.get("citation") if isinstance(v, dict) else "LM(PC) Rules 2011"))
-                sev = str(getattr(v, "severity", "major") or (v.get("severity", "major") if isinstance(v, dict) else "major")).upper()
+                citation = str(
+                    getattr(v, "citation", None) or (v.get("citation") if isinstance(v, dict) else "LM(PC) Rules 2011")
+                )
+                sev = str(
+                    getattr(v, "severity", "major") or (v.get("severity", "major") if isinstance(v, dict) else "major")
+                ).upper()
 
                 pdf.set_fill_color(255, 248, 247)
                 pdf.set_draw_color(255, 218, 214)
                 pdf.set_font("helvetica", "B", 8)
                 pdf.set_text_color(186, 26, 26)
-                pdf.cell(0, 5, _clean_latin1(f"[{sev}] {rule_id}"), border="LTR", fill=True, new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(
+                    0, 5, _clean_latin1(f"[{sev}] {rule_id}"), border="LTR", fill=True, new_x="LMARGIN", new_y="NEXT"
+                )
 
                 pdf.set_font("helvetica", "", 7.5)
                 pdf.set_text_color(26, 28, 30)
@@ -231,7 +261,15 @@ class ReportService:
 
                 pdf.set_font("helvetica", "I", 7)
                 pdf.set_text_color(86, 97, 85)
-                pdf.cell(0, 4, _clean_latin1(f"Statutory Citation: {citation}"), border="LBR", fill=True, new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(
+                    0,
+                    4,
+                    _clean_latin1(f"Statutory Citation: {citation}"),
+                    border="LBR",
+                    fill=True,
+                    new_x="LMARGIN",
+                    new_y="NEXT",
+                )
                 pdf.ln(2)
 
         # Section 3: Officer Human Review & Decision Audit Trail
@@ -243,9 +281,15 @@ class ReportService:
             pdf.set_font("helvetica", "", 7)
             for log in audit_logs[:5]:
                 action = str(getattr(log, "action", None) or (log.get("action") if isinstance(log, dict) else ""))
-                entity = str(getattr(log, "entity_type", None) or (log.get("entity_type") if isinstance(log, dict) else ""))
-                log_time = str(getattr(log, "created_at", None) or (log.get("created_at") if isinstance(log, dict) else ""))[:19]
-                pdf.cell(0, 4, _clean_latin1(f"[{log_time}] Action: {action} on {entity}"), new_x="LMARGIN", new_y="NEXT")
+                entity = str(
+                    getattr(log, "entity_type", None) or (log.get("entity_type") if isinstance(log, dict) else "")
+                )
+                log_time = str(
+                    getattr(log, "created_at", None) or (log.get("created_at") if isinstance(log, dict) else "")
+                )[:19]
+                pdf.cell(
+                    0, 4, _clean_latin1(f"[{log_time}] Action: {action} on {entity}"), new_x="LMARGIN", new_y="NEXT"
+                )
             pdf.ln(2)
 
         # Section 4: Officer Attestation & Signature
@@ -278,7 +322,15 @@ class ReportService:
 
         pdf.set_font("helvetica", "B", 8)
         pdf.set_text_color(17, 28, 44)
-        pdf.cell(0, 5, _clean_latin1(MANDATORY_LEGAL_DISCLAIMER_TITLE), border="LTR", fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(
+            0,
+            5,
+            _clean_latin1(MANDATORY_LEGAL_DISCLAIMER_TITLE),
+            border="LTR",
+            fill=True,
+            new_x="LMARGIN",
+            new_y="NEXT",
+        )
 
         pdf.set_font("helvetica", "", 6.8)
         pdf.set_text_color(68, 71, 76)

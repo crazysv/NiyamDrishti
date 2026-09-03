@@ -1,28 +1,33 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useServerHealth } from "@/app/hooks/useServerHealth";
-import { Server, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { Server, CheckCircle2, RefreshCw } from "lucide-react";
 
 export default function ColdStartBanner() {
   const { status, elapsedSeconds, isColdStarting, recheck } = useServerHealth();
-  const [visible, setVisible] = useState<boolean>(false);
   const [showConnectedToast, setShowConnectedToast] = useState<boolean>(false);
+  const wasColdStartingRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (isColdStarting) {
-      setVisible(true);
-    } else if (status === "online" && visible) {
-      setShowConnectedToast(true);
-      const timer = setTimeout(() => {
+      wasColdStartingRef.current = true;
+    } else if (status === "online" && wasColdStartingRef.current) {
+      wasColdStartingRef.current = false;
+      const showTimer = setTimeout(() => {
+        setShowConnectedToast(true);
+      }, 0);
+      const hideTimer = setTimeout(() => {
         setShowConnectedToast(false);
-        setVisible(false);
       }, 3500);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
     }
-  }, [status, isColdStarting, visible]);
+  }, [status, isColdStarting]);
 
-  if (!visible && !showConnectedToast) {
+  if (!isColdStarting && !showConnectedToast) {
     return null;
   }
 
@@ -51,7 +56,7 @@ export default function ColdStartBanner() {
                 Waking Server from Sleep ({elapsedSeconds}s)
               </p>
               <button
-                onClick={() => recheck()}
+                onClick={() => void recheck()}
                 className="text-[10px] uppercase font-bold text-[#E65100] hover:text-[#BF360C] flex items-center gap-1 cursor-pointer"
                 title="Retry ping"
               >
@@ -59,21 +64,10 @@ export default function ColdStartBanner() {
                 Ping
               </button>
             </div>
-            <p className="text-[11px] text-[#795548] mt-0.5 leading-snug">
-              Render free tier container boots in ~30s after inactivity. Offline camera & local inspection queuing remain 100% active.
+            <p className="text-[11px] text-[#E65100] mt-0.5 leading-relaxed">
+              Render container spinning up from idle (~30s). You can continue capturing packaging photos offline — they will automatically sync once connected.
             </p>
           </div>
-        </div>
-      ) : status === "error" ? (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-[#FBE9E7] text-[#BF360C] border border-[#FFCCBC] rounded-xl shadow-md text-xs">
-          <AlertCircle className="w-4 h-4 shrink-0 text-[#D84315]" />
-          <span className="flex-1">Backend asleep or offline. Local inspections will sync automatically when reachable.</span>
-          <button
-            onClick={() => recheck()}
-            className="px-2 py-1 bg-white/80 border border-[#FFCCBC] rounded font-medium text-[10px] hover:bg-white cursor-pointer"
-          >
-            Retry
-          </button>
         </div>
       ) : null}
     </aside>

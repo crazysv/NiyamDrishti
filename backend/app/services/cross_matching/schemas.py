@@ -1,5 +1,6 @@
 import uuid
 from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 DiscrepancySeverity = Literal["minor", "major", "critical"]

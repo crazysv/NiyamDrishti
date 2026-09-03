@@ -65,18 +65,58 @@ def test_rule_engine_field_required_pass_and_fail():
 
     # Case 1: All required declarations are present
     mock_fields = [
-        {"id": uuid.uuid4(), "field_type": "mrp", "raw_text": "MRP: 99.00", "confidence": 0.95, "bounding_box": {"h": 40}},
-        {"id": uuid.uuid4(), "field_type": "net_quantity", "raw_text": "Net: 500g", "confidence": 0.90, "bounding_box": {"h": 35}},
-        {"id": uuid.uuid4(), "field_type": "manufacturer_address", "raw_text": "Mfg by ABC Ltd, Delhi - 110001", "confidence": 0.88, "bounding_box": {"h": 50}},
-        {"id": uuid.uuid4(), "field_type": "mfg_date", "raw_text": "Mfg: 03/2026", "confidence": 0.92, "bounding_box": {"h": 30}},
-        {"id": uuid.uuid4(), "field_type": "consumer_care", "raw_text": "customercare@abc.com", "confidence": 0.94, "bounding_box": {"h": 30}},
-        {"id": uuid.uuid4(), "field_type": "country_of_origin", "raw_text": "Made in India", "confidence": 0.96, "bounding_box": {"h": 28}},
-        {"id": uuid.uuid4(), "field_type": "commodity_name", "raw_text": "Roasted Almonds", "confidence": 0.91, "bounding_box": {"h": 45}},
+        {
+            "id": uuid.uuid4(),
+            "field_type": "mrp",
+            "raw_text": "MRP: 99.00",
+            "confidence": 0.95,
+            "bounding_box": {"h": 40},
+        },
+        {
+            "id": uuid.uuid4(),
+            "field_type": "net_quantity",
+            "raw_text": "Net: 500g",
+            "confidence": 0.90,
+            "bounding_box": {"h": 35},
+        },
+        {
+            "id": uuid.uuid4(),
+            "field_type": "manufacturer_address",
+            "raw_text": "Mfg by ABC Ltd, Delhi - 110001",
+            "confidence": 0.88,
+            "bounding_box": {"h": 50},
+        },
+        {
+            "id": uuid.uuid4(),
+            "field_type": "mfg_date",
+            "raw_text": "Mfg: 03/2026",
+            "confidence": 0.92,
+            "bounding_box": {"h": 30},
+        },
+        {
+            "id": uuid.uuid4(),
+            "field_type": "consumer_care",
+            "raw_text": "customercare@abc.com",
+            "confidence": 0.94,
+            "bounding_box": {"h": 30},
+        },
+        {
+            "id": uuid.uuid4(),
+            "field_type": "country_of_origin",
+            "raw_text": "Made in India",
+            "confidence": 0.96,
+            "bounding_box": {"h": 28},
+        },
+        {
+            "id": uuid.uuid4(),
+            "field_type": "commodity_name",
+            "raw_text": "Roasted Almonds",
+            "confidence": 0.91,
+            "bounding_box": {"h": 45},
+        },
     ]
 
-    images = [
-        {"image_role": "front_pdp", "width_px": 1000, "height_px": 1500, "calibration_scale_mm_per_px": 0.08}
-    ]
+    images = [{"image_role": "front_pdp", "width_px": 1000, "height_px": 1500, "calibration_scale_mm_per_px": 0.08}]
 
     summary = engine.evaluate_rules(
         fields=mock_fields,
@@ -124,7 +164,13 @@ def test_rule_engine_font_height_calibrated():
     # Threshold for 100 cm² is 1.5 mm
     # Net quantity font height: 25px * 0.1 mm/px = 2.5 mm -> >= 1.5 mm -> PASS
     mock_fields_pass = [
-        {"id": uuid.uuid4(), "field_type": "net_quantity", "raw_text": "500g", "confidence": 0.95, "bounding_box": {"h": 25}},
+        {
+            "id": uuid.uuid4(),
+            "field_type": "net_quantity",
+            "raw_text": "500g",
+            "confidence": 0.95,
+            "bounding_box": {"h": 25},
+        },
         {"id": uuid.uuid4(), "field_type": "mrp", "raw_text": "100", "confidence": 0.95, "bounding_box": {"h": 30}},
     ]
     images = [{"image_role": "front_pdp", "width_px": 1000, "height_px": 1000, "calibration_scale_mm_per_px": 0.1}]
@@ -136,7 +182,13 @@ def test_rule_engine_font_height_calibrated():
 
     # Sub-test Fail: Font height 10px * 0.1 mm/px = 1.0 mm < 1.5 mm -> FAIL
     mock_fields_fail = [
-        {"id": uuid.uuid4(), "field_type": "net_quantity", "raw_text": "500g", "confidence": 0.95, "bounding_box": {"h": 10}},
+        {
+            "id": uuid.uuid4(),
+            "field_type": "net_quantity",
+            "raw_text": "500g",
+            "confidence": 0.95,
+            "bounding_box": {"h": 10},
+        },
         {"id": uuid.uuid4(), "field_type": "mrp", "raw_text": "100", "confidence": 0.95, "bounding_box": {"h": 30}},
     ]
     summary_fail = engine.evaluate_rules(fields=mock_fields_fail, images=images, rule_pack=pack)
@@ -151,7 +203,13 @@ def test_rule_engine_font_height_uncalibrated_fallback():
     pack = load_default_rule_pack()
 
     mock_fields = [
-        {"id": uuid.uuid4(), "field_type": "net_quantity", "raw_text": "500g", "confidence": 0.95, "bounding_box": {"h": 25}},
+        {
+            "id": uuid.uuid4(),
+            "field_type": "net_quantity",
+            "raw_text": "500g",
+            "confidence": 0.95,
+            "bounding_box": {"h": 25},
+        },
         {"id": uuid.uuid4(), "field_type": "mrp", "raw_text": "100", "confidence": 0.95, "bounding_box": {"h": 30}},
     ]
     # No calibration scale

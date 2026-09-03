@@ -43,8 +43,9 @@ def test_r2_presigned_download_url_generation():
     mock_s3 = MagicMock()
     mock_s3.generate_presigned_url.return_value = "https://mock-r2.cloudflarestorage.com/signed-url"
 
-    with patch("app.services.storage.get_r2_client", return_value=mock_s3), patch(
-        "app.services.storage.settings.R2_BUCKET_NAME", "test-bucket"
+    with (
+        patch("app.services.storage.get_r2_client", return_value=mock_s3),
+        patch("app.services.storage.settings.R2_BUCKET_NAME", "test-bucket"),
     ):
         signed = generate_presigned_download_url("inspections/123/images/front.jpg", expires_in=1800)
         assert signed == "https://mock-r2.cloudflarestorage.com/signed-url"
@@ -60,8 +61,9 @@ def test_r2_presigned_upload_url_generation():
     mock_s3 = MagicMock()
     mock_s3.generate_presigned_url.return_value = "https://mock-r2.cloudflarestorage.com/upload-signed"
 
-    with patch("app.services.storage.get_r2_client", return_value=mock_s3), patch(
-        "app.services.storage.settings.R2_BUCKET_NAME", "test-bucket"
+    with (
+        patch("app.services.storage.get_r2_client", return_value=mock_s3),
+        patch("app.services.storage.settings.R2_BUCKET_NAME", "test-bucket"),
     ):
         res = generate_presigned_upload_url("inspections/456/evidence.jpg", content_type="image/jpeg", expires_in=600)
         assert res["upload_url"] == "https://mock-r2.cloudflarestorage.com/upload-signed"

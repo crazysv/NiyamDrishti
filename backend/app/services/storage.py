@@ -27,11 +27,7 @@ def parse_data_url(data_url: str) -> tuple[str, bytes]:
 
 def get_r2_client():
     """Returns a boto3 S3 client configured for Cloudflare R2 if credentials exist, else None."""
-    if (
-        settings.R2_ACCESS_KEY_ID
-        and settings.R2_SECRET_ACCESS_KEY
-        and settings.R2_ENDPOINT_URL
-    ):
+    if settings.R2_ACCESS_KEY_ID and settings.R2_SECRET_ACCESS_KEY and settings.R2_ENDPOINT_URL:
         try:
             import boto3
 

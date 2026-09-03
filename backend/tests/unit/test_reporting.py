@@ -15,7 +15,10 @@ def test_mandatory_legal_disclaimer_constants():
     assert len(MANDATORY_LEGAL_DISCLAIMER_TEXT) > 100
     assert "Legal Metrology" in MANDATORY_LEGAL_DISCLAIMER_TEXT
     assert "decision-support" in MANDATORY_LEGAL_DISCLAIMER_TEXT.lower()
-    assert "NOT constitute a judicial ruling" in MANDATORY_LEGAL_DISCLAIMER_TEXT or "not constitute a judicial ruling" in MANDATORY_LEGAL_DISCLAIMER_TEXT.lower()
+    assert (
+        "NOT constitute a judicial ruling" in MANDATORY_LEGAL_DISCLAIMER_TEXT
+        or "not constitute a judicial ruling" in MANDATORY_LEGAL_DISCLAIMER_TEXT.lower()
+    )
     assert MANDATORY_LEGAL_DISCLAIMER_TITLE in MANDATORY_LEGAL_DISCLAIMER_HTML
 
 

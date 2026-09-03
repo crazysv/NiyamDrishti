@@ -70,7 +70,14 @@ class BarcodeCalibrationDetector:
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
 
         try:
-            ok, decoded_info, decoded_type, points = self.cv_detector.detectAndDecode(gray)
+            res = self.cv_detector.detectAndDecode(gray)
+            if len(res) == 4:
+                ok, decoded_info, decoded_type, points = res
+            elif len(res) == 3:
+                decoded_info, decoded_type, points = res
+                ok = points is not None and len(points) > 0
+            else:
+                return None
 
             if ok and points is not None and len(points) > 0:
                 for idx, pts in enumerate(points):

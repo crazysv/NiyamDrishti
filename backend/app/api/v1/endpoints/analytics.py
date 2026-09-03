@@ -40,7 +40,7 @@ async def get_analytics_summary(
         status_stmt = status_stmt.where(Inspection.officer_id == current_user.id)
 
     status_res = await db.execute(status_stmt)
-    status_counts = dict(status_res.all())
+    status_counts: dict[str, int] = {str(r[0]): int(r[1]) for r in status_res.all()}
 
     total_inspections = sum(status_counts.values())
     completed_inspections = status_counts.get("completed", 0)
@@ -63,11 +63,7 @@ async def get_analytics_summary(
     compliant_count = sum(1 for _, v_count in completed_rows if v_count == 0)
     violation_count = sum(1 for _, v_count in completed_rows if v_count > 0)
 
-    compliance_rate = (
-        round((compliant_count / len(completed_rows)) * 100, 2)
-        if completed_rows
-        else 100.0
-    )
+    compliance_rate = round((compliant_count / len(completed_rows)) * 100, 2) if completed_rows else 100.0
 
     # 3. Violation severity breakdown
     viol_stmt = select(Violation.severity, func.count(Violation.id)).group_by(Violation.severity)
@@ -77,7 +73,7 @@ async def get_analytics_summary(
         )
 
     viol_res = await db.execute(viol_stmt)
-    sev_counts = dict(viol_res.all())
+    sev_counts: dict[str, int] = {str(r[0]): int(r[1]) for r in viol_res.all()}
 
     total_violations = sum(sev_counts.values())
     critical_violations = sev_counts.get("critical", 0)

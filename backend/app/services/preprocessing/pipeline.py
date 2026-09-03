@@ -125,11 +125,11 @@ class PreprocessingPipeline:
         glare_mask = (l_chan >= self.config.glare_luminance_threshold) & (
             s_chan <= self.config.glare_saturation_threshold
         )
-        glare_mask = glare_mask.astype(np.uint8) * 255
+        glare_mask_uint8: np.ndarray = np.where(glare_mask, 255, 0).astype(np.uint8)
 
         # Dilate mask slightly to capture bright glare halos
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-        dilated_mask = cv2.dilate(glare_mask, kernel, iterations=1)
+        dilated_mask = cv2.dilate(glare_mask_uint8, kernel, iterations=1)
 
         total_pixels = image.shape[0] * image.shape[1]
         glare_pixels = int(cv2.countNonZero(dilated_mask))
@@ -410,7 +410,7 @@ def map_point_to_original(x: float, y: float, transforms: list[dict[str, Any]]) 
     Applies the inverse sequence of pipeline transformations to map a point (x, y)
     from preprocessed image coordinates back to the original image coordinate space.
     """
-    pt = np.array([[[x, y]]], dtype=np.float32)
+    pt: Any = np.array([[[x, y]]], dtype=np.float32)
 
     # Reverse transformation stack
     for t in reversed(transforms):

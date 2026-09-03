@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 export type ServerHealthState = "idle" | "checking" | "waking" | "online" | "error";
 
@@ -17,9 +17,8 @@ export function useServerHealth(): ServerHealthInfo {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const wakeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const checkHealth = async () => {
+  const checkHealth = useCallback(async () => {
     setStatus("checking");
-    const startTime = Date.now();
 
     // If server takes longer than 1.8s to respond, it is likely sleeping (Render free tier cold start)
     if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
@@ -55,19 +54,22 @@ export function useServerHealth(): ServerHealthInfo {
       if (timerRef.current) clearInterval(timerRef.current);
       setStatus("error");
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // Run once on mount if client is online
-    if (typeof window !== "undefined" && navigator.onLine) {
-      checkHealth();
-    }
+    // Run asynchronously on mount if client is online
+    const timer = setTimeout(() => {
+      if (typeof window !== "undefined" && navigator.onLine) {
+        void checkHealth();
+      }
+    }, 0);
 
     return () => {
+      clearTimeout(timer);
       if (timerRef.current) clearInterval(timerRef.current);
       if (wakeTimerRef.current) clearTimeout(wakeTimerRef.current);
     };
-  }, []);
+  }, [checkHealth]);
 
   return {
     status,

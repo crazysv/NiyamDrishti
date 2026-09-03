@@ -100,8 +100,12 @@ class RuleEngine:
                 except (ValueError, TypeError):
                     calib_scale = None
 
-            w_val = getattr(front_img, "width_px", None) or (front_img.get("width_px") if isinstance(front_img, dict) else None)
-            h_val = getattr(front_img, "height_px", None) or (front_img.get("height_px") if isinstance(front_img, dict) else None)
+            w_val = getattr(front_img, "width_px", None) or (
+                front_img.get("width_px") if isinstance(front_img, dict) else None
+            )
+            h_val = getattr(front_img, "height_px", None) or (
+                front_img.get("height_px") if isinstance(front_img, dict) else None
+            )
             if w_val:
                 pdp_width_px = float(w_val)
             if h_val:
