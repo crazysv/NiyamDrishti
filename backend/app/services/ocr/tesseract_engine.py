@@ -63,12 +63,12 @@ class TesseractEngine(BaseOCREngine):
         except Exception:
             proc_image = image  # fallback: pass original array unchanged
 
-        # PSM 3: automatic page segmentation with OSD (Tesseract's intelligent default).
-        # Uses LSTM vocabulary prior — will NOT output single-character garbage from
-        # graphic elements, borders, and decorative packaging patterns.
-        # PSM 11 ("sparse text") was actively harmful — it read every pixel pattern
-        # on the Britannia packet's tiger fur / geometric borders as text fragments.
-        tesseract_config = "--psm 3 --oem 1"
+        # PSM 6: single uniform block of text.
+        # Best for consumer packaging back panels (dense ingredient lists, consumer care,
+        # address blocks). PSM 3 (auto) ran document-OSD which fails on complex photo
+        # backgrounds and returned almost nothing. PSM 11 (sparse) was too permissive
+        # and read graphic/border elements as text fragments.
+        tesseract_config = "--psm 6 --oem 1"
 
         try:
             data: dict[str, list[Any]] = pytesseract.image_to_data(

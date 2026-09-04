@@ -771,7 +771,12 @@ async def extract_inspection_declarations(
         except Exception:
             pass  # Windows / macOS — no-op
 
-    _max_ocr_dim = 800 if _ocr_engine_name == "tesseract" else 1280
+    # Memory safety: cap at 1200px for Tesseract mode — small back-panel text (ingredients,
+    # address) at 800px is ~8px tall (below Tesseract's read threshold). At 1200px it's
+    # ~12-15px. Memory budget: 1200×900 grayscale 1.1MB + Tesseract subprocess 80MB = ~332MB,
+    # well under 512MB. malloc_trim returns glibc heap to OS between images.
+    # PaddleOCR uses 1280px for dense small text.
+    _max_ocr_dim = 1200 if _ocr_engine_name == "tesseract" else 1280
     ocr_results: list[tuple[str, object]] = []   # (image_id, OCRResult)
 
     for img in inspection.images:
