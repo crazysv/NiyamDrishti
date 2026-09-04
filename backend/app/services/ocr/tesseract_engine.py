@@ -50,21 +50,21 @@ class TesseractEngine(BaseOCREngine):
             pytesseract.pytesseract.tesseract_cmd = self.tesseract_cmd
 
         # Lightweight preprocessing: grayscale + adaptive threshold
-        # Dramatically improves Tesseract accuracy on packaging with coloured backgrounds.
-        # Uses only numpy operations — no heavy OpenCV pipeline, memory cost ~5MB.
+        # Uses cv2.cvtColor for grayscale (C++ memory, not Python float64 arrays).
+        # The numpy manual approach allocates 3×float64 arrays (~30MB) — too expensive.
         try:
+            import cv2
             if len(image.shape) == 3:
-                # Weighted grayscale (luminosity method)
-                gray = (0.299 * image[:, :, 0] + 0.587 * image[:, :, 1] + 0.114 * image[:, :, 2]).astype(np.uint8)
+                gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
             else:
                 gray = image.astype(np.uint8)
 
-            import cv2
-            # Adaptive threshold handles uneven lighting (common in handheld packaging photos)
+            # Adaptive threshold handles uneven lighting in handheld packaging photos
             thresh = cv2.adaptiveThreshold(
                 gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 10
             )
             proc_image = thresh
+            del gray  # free immediately
         except Exception:
             proc_image = image  # fallback to original if preprocessing fails
 

@@ -767,23 +767,24 @@ async def extract_inspection_declarations(
         if not img_bytes:
             logger.warning(f"Could not load image bytes for image {img.id} ({img.storage_url})")
             continue
-
-        # Memory safety guard: ensure image is at most 1280px before passing to OCR
+        # Memory safety: cap at 800px for Tesseract mode (fine for text reading),
+        # 1280px for PaddleOCR (needs higher resolution for dense small text).
+        _max_ocr_dim = 800 if _ocr_engine_name == "tesseract" else 1280
         try:
-            import io
+            import io as _io
             from PIL import Image as PILImage
-
-            with PILImage.open(io.BytesIO(img_bytes)) as pil_check:
+            with PILImage.open(_io.BytesIO(img_bytes)) as pil_check:
                 w_chk, h_chk = pil_check.size
-                if max(w_chk, h_chk) > 1280:
-                    sc = 1280.0 / max(w_chk, h_chk)
+                if max(w_chk, h_chk) > _max_ocr_dim:
+                    sc = _max_ocr_dim / max(w_chk, h_chk)
                     nw, nh = int(round(w_chk * sc)), int(round(h_chk * sc))
                     resized_pil = pil_check.resize((nw, nh), PILImage.Resampling.LANCZOS)
                     if resized_pil.mode in ("RGBA", "P"):
                         resized_pil = resized_pil.convert("RGB")
-                    buf = io.BytesIO()
+                    buf = _io.BytesIO()
                     resized_pil.save(buf, format="JPEG", quality=85)
                     img_bytes = buf.getvalue()
+                    del resized_pil, buf
         except Exception as resize_err:
             logger.warning(f"Image resize guard warning: {resize_err}")
 
@@ -791,16 +792,14 @@ async def extract_inspection_declarations(
             t0_ocr = time.perf_counter()
 
             if _ocr_engine_name == "tesseract":
-                # Tesseract low-memory path: skip calibration + preprocessing pipeline entirely.
-                # OpticalCalibrationService and PreprocessingPipeline both run heavy OpenCV ops
-                # (bilateral filter, glare inpaint, CLAHE, perspective warp) using 100-200MB each.
-                # Tesseract has its own internal binarisation/deskew — no pre-preprocessing needed.
-                # GoldenDemoMatcher matches on text anchors, so raw Tesseract output is sufficient.
-                import io
+                # Tesseract low-memory path: decode directly to RGB array, no heavy pipeline.
+                import io as _io2
                 import numpy as np
                 from PIL import Image as PILImage
-                with PILImage.open(io.BytesIO(img_bytes)) as pil_img:
+                with PILImage.open(_io2.BytesIO(img_bytes)) as pil_img:
                     img_array = np.array(pil_img.convert("RGB"))
+                del img_bytes  # free compressed bytes before expanding to array
+                img_bytes = b""
                 ocr_res = _primary.extract(img_array, source_image_id=str(img.id))
                 del img_array
             else:
