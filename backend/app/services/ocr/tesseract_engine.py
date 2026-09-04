@@ -63,9 +63,12 @@ class TesseractEngine(BaseOCREngine):
         except Exception:
             proc_image = image  # fallback: pass original array unchanged
 
-        # PSM 11: sparse text — read text anywhere without assuming a structured layout.
-        # This is essential for packaging where text is scattered, diagonal, and on curves.
-        tesseract_config = "--psm 11 --oem 1"
+        # PSM 3: automatic page segmentation with OSD (Tesseract's intelligent default).
+        # Uses LSTM vocabulary prior — will NOT output single-character garbage from
+        # graphic elements, borders, and decorative packaging patterns.
+        # PSM 11 ("sparse text") was actively harmful — it read every pixel pattern
+        # on the Britannia packet's tiger fur / geometric borders as text fragments.
+        tesseract_config = "--psm 3 --oem 1"
 
         try:
             data: dict[str, list[Any]] = pytesseract.image_to_data(

@@ -885,55 +885,66 @@ async def extract_inspection_declarations(
         clear_existing=True,
     )
 
-    # Automatically evaluate rules against frozen rule pack version and populate violations (EVID-02)
-    pack_stmt = select(RulePack).where(RulePack.version == inspection.rule_pack_version)
-    pack_res = await db.execute(pack_stmt)
-    rule_pack = pack_res.scalar_one_or_none()
+    # In Tesseract/demo mode with no golden match (0–1 low-quality declarations),
+    # skip RuleEngine + CrossMatching — their results are meaningless on garbage OCR
+    # output and they're the remaining source of post-Phase-2 memory spikes.
+    _is_demo_no_match = _ocr_engine_name == "tesseract" and len(all_declarations) < 4
 
-    rule_engine = RuleEngine()
-    t0_rule = time.perf_counter()
-    summary = rule_engine.evaluate_rules(
-        fields=persisted,
-        images=inspection.images,
-        commodity_category=inspection.commodity_category,
-        rule_pack=rule_pack or rule_engine.default_pack,
-    )
-    record_rule_evaluation_duration(time.perf_counter() - t0_rule, rule_pack_version=inspection.rule_pack_version)
+    if not _is_demo_no_match:
+        # Automatically evaluate rules against frozen rule pack version (EVID-02)
+        pack_stmt = select(RulePack).where(RulePack.version == inspection.rule_pack_version)
+        pack_res = await db.execute(pack_stmt)
+        rule_pack = pack_res.scalar_one_or_none()
 
-    await db.execute(delete(Violation).where(Violation.inspection_id == inspection.id))
-    for v in summary.violations:
-        violation = Violation(
-            id=uuid.uuid4(),
-            inspection_id=inspection.id,
-            extracted_field_id=v["extracted_field_id"],
-            rule_id=v["rule_id"],
-            rule_pack_version=v["rule_pack_version"],
-            description=v["description"],
-            citation=v["citation"],
-            severity=v["severity"],
+        rule_engine = RuleEngine()
+        t0_rule = time.perf_counter()
+        summary = rule_engine.evaluate_rules(
+            fields=persisted,
+            images=inspection.images,
+            commodity_category=inspection.commodity_category,
+            rule_pack=rule_pack or rule_engine.default_pack,
         )
-        db.add(violation)
+        record_rule_evaluation_duration(time.perf_counter() - t0_rule, rule_pack_version=inspection.rule_pack_version)
 
-    # Multi-Image & E-Commerce Cross-Consistency Checking (E2-03, E3-02)
-    cross_matching_service = MultiImageCrossMatchingService()
-    cross_report = cross_matching_service.analyze_cross_image_consistency(
-        inspection_id=inspection.id,
-        images=inspection.images,
-        fields=persisted,
-    )
-    if cross_report.discrepancies:
-        cross_violations = cross_matching_service.to_violations(
+        await db.execute(delete(Violation).where(Violation.inspection_id == inspection.id))
+        for v in summary.violations:
+            violation = Violation(
+                id=uuid.uuid4(),
+                inspection_id=inspection.id,
+                extracted_field_id=v["extracted_field_id"],
+                rule_id=v["rule_id"],
+                rule_pack_version=v["rule_pack_version"],
+                description=v["description"],
+                citation=v["citation"],
+                severity=v["severity"],
+            )
+            db.add(violation)
+
+        # Multi-Image & E-Commerce Cross-Consistency Checking (E2-03, E3-02)
+        cross_matching_service = MultiImageCrossMatchingService()
+        cross_report = cross_matching_service.analyze_cross_image_consistency(
             inspection_id=inspection.id,
-            rule_pack_version=inspection.rule_pack_version,
-            discrepancies=cross_report.discrepancies,
+            images=inspection.images,
+            fields=persisted,
         )
-        for cv in cross_violations:
-            db.add(cv)
+        if cross_report.discrepancies:
+            cross_violations = cross_matching_service.to_violations(
+                inspection_id=inspection.id,
+                rule_pack_version=inspection.rule_pack_version,
+                discrepancies=cross_report.discrepancies,
+            )
+            for cv in cross_violations:
+                db.add(cv)
 
-    has_cross_match_failure = not cross_report.is_consistent
-    inspection.status = (
-        "completed" if (summary.overall_status == "pass" and not has_cross_match_failure) else "needs_review"
-    )
+        has_cross_match_failure = not cross_report.is_consistent
+        inspection.status = (
+            "completed" if (summary.overall_status == "pass" and not has_cross_match_failure) else "needs_review"
+        )
+    else:
+        logger.info("[extract] Tesseract demo mode: no golden match — skipping RuleEngine + CrossMatching to conserve memory")
+        await db.execute(delete(Violation).where(Violation.inspection_id == inspection.id))
+        inspection.status = "needs_review"
+
     record_inspection_completed(
         verdict="compliant" if inspection.status == "completed" else "non_compliant",
         category=inspection.commodity_category or "general",
