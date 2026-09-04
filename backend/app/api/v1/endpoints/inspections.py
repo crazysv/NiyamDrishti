@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -710,6 +711,13 @@ async def get_inspection(
     return inspection
 
 
+# Semaphore: only 1 concurrent OCR processing allowed on this instance.
+# 2 concurrent requests × (36MB PIL full-load + 80MB Tesseract subprocess) = 250MB extra
+# on top of 250MB baseline = 482MB against Render's 512MB free-tier limit → OOM crash.
+# Serializing OCR keeps peak at ~370MB. Health checks are unaffected (different endpoint).
+_OCR_SEMAPHORE = asyncio.Semaphore(1)
+
+
 @router.post("/{inspection_id}/process", response_model=list[ExtractedFieldRead])
 @router.post("/{inspection_id}/extract", response_model=list[ExtractedFieldRead])
 async def extract_inspection_declarations(
@@ -743,6 +751,12 @@ async def extract_inspection_declarations(
             detail="Inspection has no captured images to extract from",
         )
 
+    async with _OCR_SEMAPHORE:
+        return await _run_extraction(inspection, db, current_user)
+
+
+async def _run_extraction(inspection: Inspection, db: AsyncSession, current_user: User) -> list[ExtractedField]:
+    """Heavy OCR + extraction logic, serialised by _OCR_SEMAPHORE to prevent concurrent OOM."""
     # Engine selection — use Tesseract on memory-constrained deployments (Render 512MB free tier).
     # PaddleOCR's NN model alone loads 350-450MB. Tesseract peaks at ~80MB.
     # Set env var OCR_ENGINE=tesseract in Render dashboard to enable this path.
