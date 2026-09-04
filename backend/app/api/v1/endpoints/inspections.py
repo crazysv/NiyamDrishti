@@ -759,112 +759,122 @@ async def extract_inspection_declarations(
 
     ocr_service = OCRService(primary_engine=_primary, fallback_engine=_fallback)
     extraction_service = DeclarationExtractionService()
-    all_declarations: list[ExtractedDeclaration] = []
+    # ── Phase 1: OCR all images, accumulate lines ────────────────────────────
+    # OCRResult objects hold only text + bbox metadata (~1 KB each, not the image array).
+    # malloc_trim after each image actually returns glibc heap to the OS (gc.collect alone
+    # does not do this on Linux), preventing cumulative RSS growth across 3 images.
+    import gc, ctypes
 
-    _golden_matched = False  # Track if GoldenDemoMatcher already fired
+    def _malloc_trim() -> None:
+        try:
+            ctypes.CDLL("libc.so.6").malloc_trim(0)
+        except Exception:
+            pass  # Windows / macOS — no-op
+
+    _max_ocr_dim = 800 if _ocr_engine_name == "tesseract" else 1280
+    ocr_results: list[tuple[str, object]] = []   # (image_id, OCRResult)
 
     for img in inspection.images:
-        # In Tesseract/demo mode: once golden profile matched, stop immediately.
-        # Processing remaining images wastes 80-100MB each with zero benefit.
-        if _ocr_engine_name == "tesseract" and _golden_matched:
-            logger.info(f"[extract] Golden match already found — skipping remaining images")
-            break
-
-        # Load image bytes from R2/S3, HTTP, or local storage
         img_bytes = await get_image_bytes(img.storage_url, inspection.id)
         if not img_bytes:
-            logger.warning(f"Could not load image bytes for image {img.id} ({img.storage_url})")
+            logger.warning(f"Could not load image bytes for image {img.id}")
             continue
-        # Memory safety: cap at 800px for Tesseract mode (fine for text reading),
-        # 1280px for PaddleOCR (needs higher resolution for dense small text).
-        _max_ocr_dim = 800 if _ocr_engine_name == "tesseract" else 1280
+
+        # Resize to safe dimension
         try:
             import io as _io
             from PIL import Image as PILImage
-            with PILImage.open(_io.BytesIO(img_bytes)) as pil_check:
-                w_chk, h_chk = pil_check.size
-                if max(w_chk, h_chk) > _max_ocr_dim:
-                    sc = _max_ocr_dim / max(w_chk, h_chk)
-                    nw, nh = int(round(w_chk * sc)), int(round(h_chk * sc))
-                    resized_pil = pil_check.resize((nw, nh), PILImage.Resampling.LANCZOS)
-                    if resized_pil.mode in ("RGBA", "P"):
-                        resized_pil = resized_pil.convert("RGB")
-                    buf = _io.BytesIO()
-                    resized_pil.save(buf, format="JPEG", quality=85)
-                    img_bytes = buf.getvalue()
-                    del resized_pil, buf
-        except Exception as resize_err:
-            logger.warning(f"Image resize guard warning: {resize_err}")
+            with PILImage.open(_io.BytesIO(img_bytes)) as _pil:
+                w, h = _pil.size
+                if max(w, h) > _max_ocr_dim:
+                    sc = _max_ocr_dim / max(w, h)
+                    _r = _pil.resize((int(w * sc), int(h * sc)), PILImage.Resampling.LANCZOS)
+                    if _r.mode in ("RGBA", "P"):
+                        _r = _r.convert("RGB")
+                    _buf = _io.BytesIO()
+                    _r.save(_buf, format="JPEG", quality=85)
+                    img_bytes = _buf.getvalue()
+                    del _r, _buf
+        except Exception as _re:
+            logger.warning(f"Resize warning for {img.id}: {_re}")
 
         try:
             t0_ocr = time.perf_counter()
-
             if _ocr_engine_name == "tesseract":
-                # Tesseract low-memory path: decode directly to RGB array, no heavy pipeline.
-                import io as _io2
-                import numpy as np
+                import io as _io2, numpy as np
                 from PIL import Image as PILImage
-                with PILImage.open(_io2.BytesIO(img_bytes)) as pil_img:
-                    img_array = np.array(pil_img.convert("RGB"))
-                del img_bytes  # free compressed bytes before expanding to array
+                with PILImage.open(_io2.BytesIO(img_bytes)) as _pil2:
+                    _arr = np.array(_pil2.convert("RGB"))
+                del img_bytes
                 img_bytes = b""
-                ocr_res = _primary.extract(img_array, source_image_id=str(img.id))
-                del img_array
+                ocr_res = _primary.extract(_arr, source_image_id=str(img.id))
+                del _arr
             else:
-                # Calibrate image if scale not yet derived (paddle/full mode only)
                 calib_barcode = None
-                if img.calibration_scale_mm_per_px is None:
-                    try:
-                        calib_service = OpticalCalibrationService()
-                        calib_res = calib_service.calibrate_image(img_bytes)
-                        if calib_res.is_calibrated and calib_res.scale_mm_per_px is not None:
-                            img.calibration_scale_mm_per_px = calib_res.scale_mm_per_px
-                            calib_barcode = calib_res.barcode_data
-                    except Exception as calib_err:
-                        logger.warning(f"Calibration warning for image {img.id}: {calib_err}")
-                else:
-                    try:
-                        calib_service = OpticalCalibrationService()
-                        calib_res = calib_service.calibrate_image(img_bytes)
-                        if calib_res.is_calibrated:
-                            calib_barcode = calib_res.barcode_data
-                    except Exception:
-                        pass
+                try:
+                    calib_service = OpticalCalibrationService()
+                    calib_res = calib_service.calibrate_image(img_bytes)
+                    if calib_res.is_calibrated:
+                        img.calibration_scale_mm_per_px = calib_res.scale_mm_per_px
+                        calib_barcode = calib_res.barcode_data
+                except Exception as _ce:
+                    logger.warning(f"Calibration warning {img.id}: {_ce}")
                 ocr_res = ocr_service.process_image(img_bytes, source_image_id=str(img.id))
 
             record_ocr_duration(time.perf_counter() - t0_ocr, engine=_ocr_engine_name, status="success")
-            calib_barcode = None
-            declarations = extraction_service.extract_from_ocr_result(ocr_res, barcode=calib_barcode)
-            all_declarations.extend(declarations)
-
-            # In Tesseract mode: if golden profile matched, mark and stop after this image
-            if _ocr_engine_name == "tesseract" and declarations:
-                _golden_matched = True
-
-        except Exception as ocr_err:
-            logger.error(f"OCR processing failed for image {img.id}: {ocr_err}", exc_info=True)
+            ocr_results.append((str(img.id), ocr_res))
+        except Exception as _oe:
+            logger.error(f"OCR failed for image {img.id}: {_oe}", exc_info=True)
             record_ocr_duration(0.0, engine=_ocr_engine_name, status="error")
-            pass
         finally:
             img_bytes = b""
-            import gc
             gc.collect()
-            # malloc_trim: return freed glibc heap memory to the OS.
-            # gc.collect() alone does NOT release RSS on Linux — glibc holds the heap.
-            # This prevents the iterative memory growth that causes OOM across images.
-            try:
-                import ctypes
-                ctypes.CDLL("libc.so.6").malloc_trim(0)
-            except Exception:
-                pass  # Windows/macOS — no-op, not needed there
+            _malloc_trim()  # release glibc heap — essential on Render 512MB
 
-    import gc
     gc.collect()
-    try:
-        import ctypes
-        ctypes.CDLL("libc.so.6").malloc_trim(0)
-    except Exception:
-        pass
+    _malloc_trim()
+
+    # ── Phase 2: GoldenDemoMatcher on COMBINED lines from ALL images ─────────
+    # Key insight: anchors are split across panels — 'tiger' appears on Front PDP,
+    # '1-800-4254449' on Back Panel. Per-image matching never sees both together.
+    # Combined matching correctly identifies the product.
+    all_declarations: list[ExtractedDeclaration] = []
+
+    if _ocr_engine_name == "tesseract" and ocr_results:
+        from app.services.extraction.demo_matcher import GoldenDemoMatcher
+        _matcher = GoldenDemoMatcher()
+
+        combined_lines = []
+        for _, ocr_res in ocr_results:
+            combined_lines.extend(ocr_res.lines)
+
+        combined_text_preview = " | ".join(l.text for l in combined_lines[:20])
+        logger.info(f"[extract] Combined OCR preview (first 20 lines): {repr(combined_text_preview)}")
+
+        golden_profile = _matcher.match_product(combined_lines)
+        if golden_profile:
+            # Use the image with the most OCR lines for bounding boxes
+            best_img_id, best_ocr = max(ocr_results, key=lambda t: len(t[1].lines))
+            all_declarations = _matcher.extract_golden_declarations(
+                golden_profile, best_ocr.lines, best_img_id
+            )
+            logger.info(
+                f"[extract] Golden match '{golden_profile['sku_id']}' → "
+                f"{len(all_declarations)} declarations from {len(combined_lines)} combined lines"
+            )
+        else:
+            logger.info(
+                f"[extract] No golden match across {len(combined_lines)} combined lines. "
+                f"Falling back to generic extractors."
+            )
+            for img_id, ocr_res in ocr_results:
+                decls = extraction_service.extract_from_ocr_result(ocr_res)
+                all_declarations.extend(decls)
+    else:
+        # PaddleOCR path — per-image generic extraction (unchanged)
+        for img_id, ocr_res in ocr_results:
+            decls = extraction_service.extract_from_ocr_result(ocr_res)
+            all_declarations.extend(decls)
 
 
     # Save extracted fields to DB
