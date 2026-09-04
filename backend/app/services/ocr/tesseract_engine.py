@@ -49,24 +49,19 @@ class TesseractEngine(BaseOCREngine):
         if self.tesseract_cmd:
             pytesseract.pytesseract.tesseract_cmd = self.tesseract_cmd
 
-        # Lightweight preprocessing: grayscale + adaptive threshold
-        # Uses cv2.cvtColor for grayscale (C++ memory, not Python float64 arrays).
-        # The numpy manual approach allocates 3×float64 arrays (~30MB) — too expensive.
+        # Preprocessing: grayscale only — let Tesseract do its own Otsu binarization.
+        # DO NOT apply adaptive threshold here. On dark-background packaging (e.g. the
+        # purple Britannia packet), THRESH_BINARY outputs white-text-on-black (inverted),
+        # causing Tesseract to read texture noise as text instead of the actual words.
+        # Tesseract PSM 11 + OEM 1 with Otsu handles coloured packaging correctly.
         try:
             import cv2
             if len(image.shape) == 3:
-                gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+                proc_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
             else:
-                gray = image.astype(np.uint8)
-
-            # Adaptive threshold handles uneven lighting in handheld packaging photos
-            thresh = cv2.adaptiveThreshold(
-                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 10
-            )
-            proc_image = thresh
-            del gray  # free immediately
+                proc_image = image
         except Exception:
-            proc_image = image  # fallback to original if preprocessing fails
+            proc_image = image  # fallback: pass original array unchanged
 
         # PSM 11: sparse text — read text anywhere without assuming a structured layout.
         # This is essential for packaging where text is scattered, diagonal, and on curves.
