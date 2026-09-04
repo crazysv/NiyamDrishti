@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     PADDLEOCR_LANG: str = "en"
     OCR_MODEL_CACHE_DIR: str = "./ocr_models"
+    # Set to "tesseract" on memory-constrained environments (e.g. Render 512MB free tier).
+    # PaddleOCR's model load alone uses ~350-450MB; Tesseract uses ~80MB peak.
+    # On Render, set env var: OCR_ENGINE=tesseract
+    OCR_ENGINE: str = "paddle"
 
     # ------------------------------------------------------------------
     # Rule engine & Human Review (REV-01, E2-08)

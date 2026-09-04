@@ -25,6 +25,7 @@
 | `SMTP_USERNAME` | ✅ MVP | Sending account | Any Gmail account used for the project | |
 | `SMTP_APP_PASSWORD` | ✅ MVP | Gmail App Password (not the account password) | Google Account → Security → App Passwords (requires 2FA enabled on the account) | Never use the real account password here |
 | `OCR_MODEL_CACHE_DIR` | ✅ MVP | Local path PaddleOCR/Tesseract cache to | Set directly, not a secret | On constrained hosts (e.g. Hugging Face Spaces), must point to a writable path like `/tmp` — see `MASTER_CONTENT.md` §11.2/§11.3 caveats |
+| `OCR_ENGINE` | ✅ MVP | Which OCR primary engine to use (`paddle` or `tesseract`) | **Set to `tesseract` in Render dashboard** | PaddleOCR model init uses ~350–450MB RAM — exceeds Render 512MB free tier and causes OOM crash. Tesseract peaks at ~80MB. See ADR-027. |
 | `ACTIVE_RULE_PACK_VERSION` | ✅ MVP | Which rule pack the engine uses by default | Set after `RULE-02` seeds the initial rule pack | Not a secret, but must be explicit, never silently "latest" without an admin action (`06_SCHEMA.md` `rule_packs.is_active`) |
 | `REVIEW_CONFIDENCE_THRESHOLD` | ✅ MVP | Confidence threshold below which declarations route to review queue (REV-01) | Set directly (baseline 0.85), tune per pilot data | Defaults to 0.85 per `MASTER_CONTENT.md` §10.8 |
 | `CORS_ALLOWED_ORIGINS` | ✅ MVP | Which frontend origin(s) may call the API | Set directly (Cloudflare Pages URL, local dev URL) | |

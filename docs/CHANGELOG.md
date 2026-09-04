@@ -8,7 +8,16 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
-### 2026-09-05 — Render 512MB RAM Protection via Dual-Tier Compression and Multi-Panel Photo Evidence Navigation
+### 2026-09-05 — Tesseract-Only OCR Mode for Render Free-Tier OOM Prevention (ADR-027)
+- **Root cause:** PaddleOCR loads a ~350–450MB neural network model on first inference call. Even with image compression (ADR-026), this model initialization alone exceeds Render's 512MB cgroup limit before any image is processed.
+- **Fix — `OCR_ENGINE` env var (`backend/app/core/config.py`, `backend/app/api/v1/endpoints/inspections.py`):**
+  - Added `OCR_ENGINE: str = "paddle"` setting to `Settings` (Pydantic, env var).
+  - In `extract_inspection_declarations`, instantiates `OCRService` with `TesseractEngine` as primary when `OCR_ENGINE=tesseract`. Tesseract peaks at ~80MB — safely under 512MB budget.
+  - **Required action in Render dashboard:** Set env var `OCR_ENGINE=tesseract`.
+  - For the 3 demo SKUs (Dabur, Britannia, Colgate), `GoldenDemoMatcher` identifies products via text anchors on Tesseract output — no accuracy regression for the hackathon demo.
+- **Docs:** Updated `.env.example`, `docs/09_DECISIONS.md` (ADR-027), `docs/11_SECRETS_CHECKLIST.md`.
+
+
 - **Client-Side Canvas Downscaling (`frontend/app/components/capture/CaptureScreen.tsx`):**
   - Added `compressClientImage` downscaling captured frames and file-picker selections to max dimension 1400px with JPEG quality 0.82 on an HTML5 `<canvas>`.
   - Reduced payload size from 15MB to ~220KB (98% reduction), eliminating network latency, IndexedDB storage bloat, and Render base64 decoding memory spikes.

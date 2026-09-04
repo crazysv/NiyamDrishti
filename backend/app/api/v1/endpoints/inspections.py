@@ -743,7 +743,21 @@ async def extract_inspection_declarations(
             detail="Inspection has no captured images to extract from",
         )
 
-    ocr_service = OCRService()
+    # Engine selection — use Tesseract on memory-constrained deployments (Render 512MB free tier).
+    # PaddleOCR's NN model alone loads 350-450MB. Tesseract peaks at ~80MB.
+    # Set env var OCR_ENGINE=tesseract in Render dashboard to enable this path.
+    _ocr_engine_name = settings.OCR_ENGINE.lower().strip()
+    if _ocr_engine_name == "tesseract":
+        from app.services.ocr.tesseract_engine import TesseractEngine
+        _primary = TesseractEngine()
+        _fallback = None
+        logger.info("[extract] Using Tesseract-only OCR (low-memory mode, OCR_ENGINE=tesseract)")
+    else:
+        _primary = None  # defaults to PaddleOCREngine inside OCRService
+        _fallback = None
+        logger.info("[extract] Using PaddleOCR as primary OCR engine")
+
+    ocr_service = OCRService(primary_engine=_primary, fallback_engine=_fallback)
     extraction_service = DeclarationExtractionService()
     all_declarations: list[ExtractedDeclaration] = []
 
@@ -796,12 +810,12 @@ async def extract_inspection_declarations(
 
             t0_ocr = time.perf_counter()
             ocr_res = ocr_service.process_image(img_bytes, source_image_id=str(img.id))
-            record_ocr_duration(time.perf_counter() - t0_ocr, engine="paddleocr", status="success")
+            record_ocr_duration(time.perf_counter() - t0_ocr, engine=_ocr_engine_name, status="success")
             declarations = extraction_service.extract_from_ocr_result(ocr_res, barcode=calib_barcode)
             all_declarations.extend(declarations)
         except Exception as ocr_err:
             logger.error(f"OCR processing failed for image {img.id}: {ocr_err}", exc_info=True)
-            record_ocr_duration(0.0, engine="paddleocr", status="error")
+            record_ocr_duration(0.0, engine=_ocr_engine_name, status="error")
             # Continue on error for other images
             pass
         finally:
