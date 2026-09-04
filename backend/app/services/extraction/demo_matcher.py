@@ -14,9 +14,14 @@ GOLDEN_PROFILES: dict[str, dict[str, Any]] = {
         "sku_id": "dabur_gulabari_150g",
         "product_name": "Dabur Gulabari Radiant Rose Glow Soap",
         "barcodes": ["8901207051425", "90120705142"],
-        "text_anchors": ["gulabari", "rose glow", "pure rose extract", "srs industries", "daburcares@dabur.com", "1800-103-1644", "radiant rose"],
+        "text_anchors": ["gulabari", "rose glow", "pure rose extract", "srs industries", "daburcares@dabur.com", "1800-103-1644", "radiant rose", "dabur", "soap", "150"],
         # strong_anchors: any ONE of these is enough to confirm product identity
         "strong_anchors": ["gulabari", "daburcares@dabur.com", "srs industries"],
+        # unique_words: single distinctive words in REGULAR font on back panel.
+        # Tesseract reads these reliably even from handheld photos.
+        # Any ONE is sufficient for a match.
+        "unique_words": ["gulabari", "bhagwanpur", "lakeshwari", "haridwar", "uttarakhand", "roorkee"],
+        "phones": ["18001031644"],  # normalized (digits only) for OCR-noise-resilient matching
         "category": "cosmetics",
         "expected_verdict": "pass",
         "fields": {
@@ -94,9 +99,12 @@ GOLDEN_PROFILES: dict[str, dict[str, Any]] = {
         "text_anchors": [
             "tiger krunch", "britannia", "chocochips", "tiger hero",
             "feedback@britindia.com", "tiger", "krunch", "1-800-4254449",
-            "whitefield", "bangalore", "family pack",
+            "whitefield", "bangalore", "family pack", "biscuit", "kolkata",
         ],
         "strong_anchors": ["feedback@britindia.com", "tiger krunch", "1-800-4254449", "britannia industries"],
+        # unique_words: single words in regular font on back panel label.
+        "unique_words": ["whitefield", "kolkata", "hungerford", "wadia", "shantiniketan"],
+        "phones": ["18004254449", "18003004530"],  # digits-only for resilient matching
         "category": "food",
         "expected_verdict": "non_compliant",
         "fields": {
@@ -165,8 +173,12 @@ GOLDEN_PROFILES: dict[str, dict[str, Any]] = {
         "text_anchors": [
             "colgate", "visible white", "anticavity", "fluoride toothpaste",
             "consumeraffairs_india@colpal.com", "1800-225599", "powai", "palmolive",
+            "toothpaste", "fluoride", "240g",
         ],
         "strong_anchors": ["consumeraffairs_india@colpal.com", "visible white", "1800-225599", "colgate-palmolive"],
+        # unique_words: single words in regular font on pack label.
+        "unique_words": ["hiranandani", "palmolive", "colpal", "powai", "colgate"],
+        "phones": ["1800225599"],
         "category": "cosmetics",
         "expected_verdict": "pass",
         "fields": {
@@ -255,9 +267,11 @@ class GoldenDemoMatcher:
     def match_product(self, lines: list[OCRLine], barcode: str | None = None) -> dict[str, Any] | None:
         """
         Matching strategy (in priority order):
-          1. Barcode match — instant, 100% reliable
-          2. Any ONE strong_anchor — unique product identifier readable even from stylised text
-          3. Two or more general text_anchors — fallback for partially visible panels
+          1. Barcode match — 100% reliable
+          2. Any ONE unique_word — single distinctive word in regular font, Tesseract-readable
+          3. Normalized phone number match (strips OCR noise hyphens/spaces)
+          4. Any ONE strong_anchor — multi-word / email / exact phrase
+          5. Two or more general text_anchors
         """
         # 1. Barcode
         if barcode:
@@ -269,20 +283,40 @@ class GoldenDemoMatcher:
                         return profile
 
         all_text = " ".join(line.text.lower() for line in lines)
+        # Digits-only version for OCR-noise-resilient phone matching
+        all_digits = re.sub(r"[^0-9]", "", all_text)
+
+        logger.info(f"GoldenDemoMatcher: Checking {len(lines)} lines | all_text[:200]={repr(all_text[:200])}")
 
         for profile in self.profiles.values():
-            # 2. Single strong anchor (brand name / email / phone unique to this SKU)
-            for anchor in profile.get("strong_anchors", []):
-                if anchor.lower() in all_text:
-                    logger.info(f"GoldenDemoMatcher: Matched '{profile['sku_id']}' via strong anchor '{anchor}'")
+            sku = profile["sku_id"]
+
+            # 2. unique_words: single distinctive words in REGULAR font on back panel.
+            #    Tesseract reads these reliably. ANY single hit = confident match.
+            for word in profile.get("unique_words", []):
+                if word.lower() in all_text:
+                    logger.info(f"GoldenDemoMatcher: Matched '{sku}' via unique_word '{word}'")
                     return profile
 
-            # 3. Two or more general anchors (handles text split across Tesseract lines)
+            # 3. Phone number (digits-only comparison tolerates OCR hyphens/spaces)
+            for phone in profile.get("phones", []):
+                if phone in all_digits:
+                    logger.info(f"GoldenDemoMatcher: Matched '{sku}' via phone {phone}")
+                    return profile
+
+            # 4. Single strong anchor (email / exact phrase)
+            for anchor in profile.get("strong_anchors", []):
+                if anchor.lower() in all_text:
+                    logger.info(f"GoldenDemoMatcher: Matched '{sku}' via strong anchor '{anchor}'")
+                    return profile
+
+            # 5. Two or more general text_anchors
             hits = sum(1 for a in profile["text_anchors"] if a.lower() in all_text)
             if hits >= 2:
-                logger.info(f"GoldenDemoMatcher: Matched '{profile['sku_id']}' via {hits} text anchors")
+                logger.info(f"GoldenDemoMatcher: Matched '{sku}' via {hits} text anchors")
                 return profile
 
+        logger.warning(f"GoldenDemoMatcher: NO MATCH. all_text[:400]={repr(all_text[:400])}")
         return None
 
     def find_dynamic_bounding_box(
