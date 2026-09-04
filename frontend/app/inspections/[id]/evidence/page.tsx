@@ -19,7 +19,40 @@ export default function EvidencePage({ params }: EvidencePageProps) {
 
   const [evidence, setEvidence] = useState<InspectionEvidence | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isExtracting, setIsExtracting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const triggerExtraction = async () => {
+    setIsExtracting(true);
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("access_token") || localStorage.getItem("token")
+          : null;
+
+      const procRes = await fetch(`${API_BASE}/inspections/${inspectionId}/process`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      if (procRes.ok) {
+        const reloadRes = await fetch(`${API_BASE}/inspections/${inspectionId}/evidence`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (reloadRes.ok) {
+          const updated: InspectionEvidence = await reloadRes.json();
+          setEvidence(updated);
+        }
+      } else {
+        const errJson = await procRes.json().catch(() => ({}));
+        alert(`Extraction failed: ${errJson.detail || "Server error during extraction"}`);
+      }
+    } catch (err: unknown) {
+      alert(`Network error during extraction: ${(err as Error).message}`);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   useEffect(() => {
     async function loadEvidence() {
@@ -40,7 +73,28 @@ export default function EvidencePage({ params }: EvidencePageProps) {
           });
 
           if (res.ok) {
-            const data: InspectionEvidence = await res.json();
+            let data: InspectionEvidence = await res.json();
+
+            // If inspection has images but declarations were never extracted (e.g. from prior OOM), auto-trigger now!
+            if ((!data.items || data.items.length === 0) && (data.images && data.images.length > 0)) {
+              try {
+                const procRes = await fetch(`${API_BASE}/inspections/${inspectionId}/process`, {
+                  method: "POST",
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                });
+                if (procRes.ok) {
+                  const reloadRes = await fetch(`${API_BASE}/inspections/${inspectionId}/evidence`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  });
+                  if (reloadRes.ok) {
+                    data = await reloadRes.json();
+                  }
+                }
+              } catch (autoErr) {
+                console.warn("[EvidencePage] Auto extraction trigger notice:", autoErr);
+              }
+            }
+
             setEvidence(data);
             setIsLoading(false);
             return;
@@ -74,6 +128,11 @@ export default function EvidencePage({ params }: EvidencePageProps) {
             officer_name: "Legal Metrology Officer",
             primary_image_url: frontImg?.dataUrl || null,
             primary_image_dimensions: { width: 1200, height: 1600 },
+            images: localImages.map((img) => ({
+              id: img.id,
+              image_role: img.imageRole,
+              storage_url: img.dataUrl,
+            })),
             items: [
               {
                 item_id: "E01",
@@ -188,10 +247,39 @@ export default function EvidencePage({ params }: EvidencePageProps) {
   }
 
   return (
-    <EvidenceViewer
-      evidence={evidence}
-      onReviewQueueClick={() => router.push(`/inspections/${inspectionId}/review`)}
-      onGenerateReportClick={() => router.push(`/inspections/${inspectionId}/report`)}
-    />
+    <div className="relative min-h-screen">
+      {evidence.items.length === 0 && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-40 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="text-xs font-mono text-amber-950 font-medium">
+              Declarations have not yet been extracted for this inspection.
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={isExtracting}
+            onClick={triggerExtraction}
+            className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 px-3 py-1.5 rounded text-xs font-mono font-bold transition-all disabled:opacity-50 shrink-0 shadow-sm"
+          >
+            {isExtracting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>EXTRACTING...</span>
+              </>
+            ) : (
+              <>
+                <span>⚡ EXTRACT DECLARATIONS NOW</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+      <EvidenceViewer
+        evidence={evidence}
+        onReviewQueueClick={() => router.push(`/inspections/${inspectionId}/review`)}
+        onGenerateReportClick={() => router.push(`/inspections/${inspectionId}/report`)}
+      />
+    </div>
   );
 }

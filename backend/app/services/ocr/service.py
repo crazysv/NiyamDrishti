@@ -118,9 +118,9 @@ class OCRService:
         except Exception as e:
             logger.warning(f"Primary OCR engine ({self.primary_engine.name}) failed: {e}")
 
-        # Orientation adaptation for elongated packages with vertical text (e.g. toothpaste carton side panel)
+        # Orientation adaptation for elongated packages with vertical text (only if primary OCR found very few lines)
         h_arr, w_arr = image_array.shape[:2]
-        if (h_arr > w_arr * 1.2 or w_arr > h_arr * 1.2) and (primary_result is None or len(primary_result.lines) < 20):
+        if (h_arr > w_arr * 1.35 or w_arr > h_arr * 1.35) and (primary_result is None or len(primary_result.lines) < 6):
             try:
                 import cv2
 

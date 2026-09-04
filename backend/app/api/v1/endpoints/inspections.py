@@ -442,6 +442,30 @@ async def upload_inspection_image(
         if existing_img:
             return existing_img
 
+    # Ensure memory safety for free-tier deployment (512MB RAM): downscale image if exceeding 1400px
+    try:
+        import io
+        from PIL import Image as PILImage
+
+        with PILImage.open(io.BytesIO(file_bytes)) as pil_img:
+            w_orig, h_orig = pil_img.size
+            if max(w_orig, h_orig) > 1400:
+                scale = 1400.0 / max(w_orig, h_orig)
+                new_w, new_h = int(round(w_orig * scale)), int(round(h_orig * scale))
+                resized = pil_img.resize((new_w, new_h), PILImage.Resampling.LANCZOS)
+                buf = io.BytesIO()
+                if resized.mode in ("RGBA", "P"):
+                    resized = resized.convert("RGB")
+                resized.save(buf, format="JPEG", quality=85, optimize=True)
+                file_bytes = buf.getvalue()
+                width_px, height_px = new_w, new_h
+                filename = f"{role}_{uuid.uuid4().hex[:8]}.jpg"
+            else:
+                width_px = width_px or w_orig
+                height_px = height_px or h_orig
+    except Exception as img_downscale_err:
+        logger.warning(f"Image resize check warning: {img_downscale_err}")
+
     # Save to storage (local filesystem or R2)
     storage_url = await save_image_bytes(inspection_id, file_bytes, filename)
 
@@ -729,6 +753,25 @@ async def extract_inspection_declarations(
         if not img_bytes:
             logger.warning(f"Could not load image bytes for image {img.id} ({img.storage_url})")
             continue
+
+        # Memory safety guard: ensure image is at most 1280px before passing to OCR
+        try:
+            import io
+            from PIL import Image as PILImage
+
+            with PILImage.open(io.BytesIO(img_bytes)) as pil_check:
+                w_chk, h_chk = pil_check.size
+                if max(w_chk, h_chk) > 1280:
+                    sc = 1280.0 / max(w_chk, h_chk)
+                    nw, nh = int(round(w_chk * sc)), int(round(h_chk * sc))
+                    resized_pil = pil_check.resize((nw, nh), PILImage.Resampling.LANCZOS)
+                    if resized_pil.mode in ("RGBA", "P"):
+                        resized_pil = resized_pil.convert("RGB")
+                    buf = io.BytesIO()
+                    resized_pil.save(buf, format="JPEG", quality=85)
+                    img_bytes = buf.getvalue()
+        except Exception as resize_err:
+            logger.warning(f"Image resize guard warning: {resize_err}")
 
         try:
             # Calibrate image if scale not yet derived
@@ -1266,6 +1309,31 @@ async def get_inspection_evidence(
 
     officer_name = inspection.officer.full_name if inspection.officer else "Legal Metrology Officer"
 
+    output_images: list[InspectionImageRead] = []
+    for img in inspection.images:
+        disp_url = img.storage_url
+        if img.storage_url.startswith("local://"):
+            disp_url = f"/api/v1/inspections/{inspection.id}/images/{img.id}/file"
+        elif not img.storage_url.startswith("/uploads/"):
+            disp_url = generate_presigned_download_url(img.storage_url)
+
+        output_images.append(
+            InspectionImageRead(
+                id=img.id,
+                inspection_id=img.inspection_id,
+                image_role=img.image_role,
+                storage_url=disp_url,
+                width_px=img.width_px,
+                height_px=img.height_px,
+                calibration_scale_mm_per_px=img.calibration_scale_mm_per_px,
+                quality_check_passed=img.quality_check_passed,
+                captured_at=img.captured_at,
+                uploaded_at=img.uploaded_at,
+                client_id=img.client_id,
+                sha256_hash=img.sha256_hash,
+            )
+        )
+
     return InspectionEvidenceRead(
         inspection_id=inspection.id,
         product_name=product_name,
@@ -1276,6 +1344,7 @@ async def get_inspection_evidence(
         officer_name=officer_name,
         primary_image_url=primary_url,
         primary_image_dimensions={"width": img_w, "height": img_h},
+        images=output_images,
         items=items,
         stats={
             "total": len(items),

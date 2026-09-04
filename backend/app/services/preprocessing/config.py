@@ -5,8 +5,8 @@ from dataclasses import dataclass
 class PipelineConfig:
     """Configuration options for the preprocessing pipeline."""
 
-    # Dimension constraints
-    max_dimension: int = 2048
+    # Dimension constraints (constrained to 1280 to prevent Render 512MB RAM OOM)
+    max_dimension: int = 1280
     min_dimension: int = 600
 
     # Denoising configuration (edge-preserving)

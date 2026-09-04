@@ -42,6 +42,15 @@ export interface EvidenceItem {
   violations: EvidenceViolation[];
 }
 
+export interface EvidenceImage {
+  id: string;
+  image_role: string;
+  storage_url: string;
+  width_px?: number | null;
+  height_px?: number | null;
+  calibration_scale_mm_per_px?: number | null;
+}
+
 export interface InspectionEvidence {
   inspection_id: string;
   product_name: string;
@@ -52,6 +61,7 @@ export interface InspectionEvidence {
   officer_name?: string | null;
   primary_image_url?: string | null;
   primary_image_dimensions?: { width: number; height: number } | null;
+  images?: EvidenceImage[];
   items: EvidenceItem[];
   stats: {
     total: number;

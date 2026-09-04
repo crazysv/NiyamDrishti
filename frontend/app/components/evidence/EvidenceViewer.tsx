@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Maximize2,
   FileCheck2,
+  Camera,
+  Layers,
 } from "lucide-react";
 import { EvidenceItem, InspectionEvidence } from "@/app/types/evidence";
 
@@ -30,33 +32,56 @@ export default function EvidenceViewer({
   onReviewQueueClick,
   onGenerateReportClick,
 }: EvidenceViewerProps) {
-  // Extract all distinct photo panels from items and primary image
+  // Extract all distinct photo panels from explicit evidence images, items, and primary image
   const imagePanels = React.useMemo(() => {
-    const panelMap = new Map<string, { id: string; url: string; label: string; count: number }>();
+    const panelMap = new Map<string, { id: string; url: string; label: string; count: number; role?: string }>();
 
-    if (evidence.primary_image_url) {
+    // 1. Populate from explicit evidence.images list first (all captured panels)
+    if (evidence.images && evidence.images.length > 0) {
+      evidence.images.forEach((img, idx) => {
+        let label = `Panel ${idx + 1}`;
+        const role = (img.image_role || "").toLowerCase();
+        if (role.includes("front") || role.includes("pdp")) label = "Front PDP";
+        else if (role.includes("back")) label = "Back Panel";
+        else if (role.includes("side")) label = "Side Panel";
+        else if (role.includes("sticker")) label = "Sticker";
+        else if (role.includes("ecommerce")) label = "E-Commerce";
+
+        panelMap.set(String(img.id), {
+          id: String(img.id),
+          url: img.storage_url,
+          label,
+          count: 0,
+          role: img.image_role,
+        });
+      });
+    }
+
+    // 2. Add primary_image_url if panelMap is empty
+    if (evidence.primary_image_url && panelMap.size === 0) {
       panelMap.set("front_pdp", {
         id: "front_pdp",
         url: evidence.primary_image_url,
         label: "Front PDP",
         count: 0,
+        role: "front_pdp",
       });
     }
 
+    // 3. Count declarations per panel or register item source images
     evidence.items.forEach((item, index) => {
-      const imgId = item.source_image_id || `panel_${index}`;
+      const imgId = String(item.source_image_id || `panel_${index}`);
       const imgUrl = item.source_image_url || evidence.primary_image_url || "";
-      if (imgUrl) {
-        if (!panelMap.has(imgId)) {
-          let label = `Panel ${panelMap.size + 1}`;
-          const lower = imgId.toLowerCase();
-          if (lower.includes("front") || lower.includes("pdp")) label = "Front PDP";
-          else if (lower.includes("back")) label = "Back Panel";
-          else if (lower.includes("side")) label = "Side Panel";
-          else if (lower.includes("sticker")) label = "Sticker";
-          panelMap.set(imgId, { id: imgId, url: imgUrl, label, count: 0 });
-        }
+      if (panelMap.has(imgId)) {
         panelMap.get(imgId)!.count += 1;
+      } else if (imgUrl) {
+        let label = `Panel ${panelMap.size + 1}`;
+        const lower = imgId.toLowerCase();
+        if (lower.includes("front") || lower.includes("pdp")) label = "Front PDP";
+        else if (lower.includes("back")) label = "Back Panel";
+        else if (lower.includes("side")) label = "Side Panel";
+        else if (lower.includes("sticker")) label = "Sticker";
+        panelMap.set(imgId, { id: imgId, url: imgUrl, label, count: 1 });
       }
     });
 
@@ -66,6 +91,14 @@ export default function EvidenceViewer({
   const [activeImageId, setActiveImageId] = useState<string>(
     imagePanels[0]?.id || "front_pdp"
   );
+
+  // Synchronize activeImageId if imagePanels loads or updates
+  React.useEffect(() => {
+    if (imagePanels.length > 0 && !imagePanels.some((p) => p.id === activeImageId)) {
+      setActiveImageId(imagePanels[0].id);
+    }
+  }, [imagePanels, activeImageId]);
+
   const [selectedItemId, setSelectedItemId] = useState<string>(
     evidence.items[0]?.item_id || "E01"
   );
@@ -259,27 +292,39 @@ export default function EvidenceViewer({
         <section className="relative w-full bg-[#1a1c1e] border-b border-[#e2e2e5] overflow-hidden select-none">
           {/* Photo Panel / Angle Selector Bar */}
           {imagePanels.length > 1 && (
-            <div className="bg-[#242628] border-b border-white/10 px-3 py-1.5 flex items-center gap-2 overflow-x-auto">
-              <span className="text-[10px] font-mono text-gray-400 uppercase mr-1 shrink-0">Photo Angle:</span>
-              {imagePanels.map((panel) => (
-                <button
-                  key={panel.id}
-                  type="button"
-                  onClick={() => setActiveImageId(panel.id)}
-                  className={`px-2.5 py-1 rounded text-xs font-mono transition-all flex items-center gap-1.5 shrink-0 ${
-                    activeImageId === panel.id
-                      ? "bg-[#333e50] text-white font-bold border border-white/30 shadow-sm"
-                      : "bg-black/30 text-gray-300 hover:text-white hover:bg-black/50 border border-transparent"
-                  }`}
-                >
-                  <span>{panel.label}</span>
-                  {panel.count > 0 && (
-                    <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full font-bold">
-                      {panel.count}
-                    </span>
-                  )}
-                </button>
-              ))}
+            <div className="bg-[#202224] border-b border-white/10 px-3 py-2 flex items-center justify-between gap-2 overflow-x-auto">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono text-amber-400 font-semibold uppercase flex items-center gap-1 shrink-0">
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Panels ({imagePanels.length}):</span>
+                </span>
+                <div className="flex items-center gap-1.5 overflow-x-auto">
+                  {imagePanels.map((panel) => (
+                    <button
+                      key={panel.id}
+                      type="button"
+                      onClick={() => setActiveImageId(panel.id)}
+                      className={`px-3 py-1 rounded text-xs font-mono transition-all flex items-center gap-1.5 shrink-0 ${
+                        activeImageId === panel.id
+                          ? "bg-amber-500 text-slate-950 font-bold shadow-sm ring-1 ring-amber-300"
+                          : "bg-white/10 text-gray-200 hover:text-white hover:bg-white/20 border border-white/10"
+                      }`}
+                    >
+                      <span>{panel.label}</span>
+                      {panel.count > 0 && (
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                          activeImageId === panel.id ? "bg-slate-950 text-amber-300" : "bg-white/20 text-white"
+                        }`}>
+                          {panel.count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <span className="text-[10px] font-mono text-gray-400 shrink-0 hidden sm:inline">
+                Tap panel to inspect declarations
+              </span>
             </div>
           )}
 
@@ -397,6 +442,31 @@ export default function EvidenceViewer({
                 })}
               </div>
             </div>
+
+            {/* Multi-Panel Quick Switcher Thumbnails */}
+            {imagePanels.length > 1 && (
+              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 z-30 bg-black/60 backdrop-blur-md p-1 rounded-lg border border-white/15">
+                {imagePanels.map((panel) => (
+                  <button
+                    key={panel.id}
+                    type="button"
+                    onClick={() => setActiveImageId(panel.id)}
+                    className={`relative w-10 h-10 rounded overflow-hidden border transition-all ${
+                      activeImageId === panel.id
+                        ? "border-amber-400 ring-2 ring-amber-400/60 scale-105"
+                        : "border-white/30 opacity-70 hover:opacity-100"
+                    }`}
+                    title={`Switch to ${panel.label}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={panel.url} alt={panel.label} className="w-full h-full object-cover" />
+                    <span className="absolute bottom-0 inset-x-0 bg-black/85 text-[7px] font-mono text-white text-center truncate px-0.5 font-bold">
+                      {panel.label.replace("Panel", "P")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Viewport Floating Controls */}
             <div className="absolute bottom-3 right-3 flex items-center gap-1.5 z-30">

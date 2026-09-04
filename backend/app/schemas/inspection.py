@@ -152,6 +152,7 @@ class InspectionEvidenceRead(BaseModel):
     officer_name: str | None = None
     primary_image_url: str | None = None
     primary_image_dimensions: dict | None = None
+    images: list[InspectionImageRead] = []
     items: list[EvidenceItemRead] = []
     stats: dict
 

@@ -165,6 +165,55 @@ export default function CaptureScreen() {
     height: { ideal: 1080 },
   };
 
+/**
+ * Client-side canvas compression to prevent mobile camera 12MP/48MP photos (15MB+)
+ * from overwhelming IndexedDB and triggering Render free-tier 512MB RAM OOM.
+ */
+function compressClientImage(dataUrl: string, maxDim = 1400, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(dataUrl);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width <= maxDim && height <= maxDim && dataUrl.length < 500000) {
+        resolve(dataUrl);
+        return;
+      }
+      if (width > height) {
+        if (width > maxDim) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        }
+      } else {
+        if (height > maxDim) {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL("image/jpeg", quality);
+          resolve(compressed);
+          return;
+        }
+      } catch (err) {
+        console.warn("[Capture] Canvas compression fallback:", err);
+      }
+      resolve(dataUrl);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
   // Process and assess a captured or uploaded image
   const processImage = useCallback(
     async (
@@ -174,15 +223,16 @@ export default function CaptureScreen() {
       fileSize?: number
     ) => {
       setIsAssessing(true);
-      const assessment: QualityAssessment = await assessImageQuality(dataUrl);
+      const optimizedDataUrl = await compressClientImage(dataUrl, 1400, 0.82);
+      const assessment: QualityAssessment = await assessImageQuality(optimizedDataUrl);
 
       const newImage: CapturedImage = {
         id: `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         role,
-        dataUrl,
+        dataUrl: optimizedDataUrl,
         capturedAt: new Date().toISOString(),
         fileName,
-        fileSize,
+        fileSize: optimizedDataUrl.length,
         qualityAssessment: assessment,
       };
 
