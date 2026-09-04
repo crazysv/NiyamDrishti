@@ -761,7 +761,15 @@ async def extract_inspection_declarations(
     extraction_service = DeclarationExtractionService()
     all_declarations: list[ExtractedDeclaration] = []
 
+    _golden_matched = False  # Track if GoldenDemoMatcher already fired
+
     for img in inspection.images:
+        # In Tesseract/demo mode: once golden profile matched, stop immediately.
+        # Processing remaining images wastes 80-100MB each with zero benefit.
+        if _ocr_engine_name == "tesseract" and _golden_matched:
+            logger.info(f"[extract] Golden match already found — skipping remaining images")
+            break
+
         # Load image bytes from R2/S3, HTTP, or local storage
         img_bytes = await get_image_bytes(img.storage_url, inspection.id)
         if not img_bytes:
@@ -825,20 +833,38 @@ async def extract_inspection_declarations(
                 ocr_res = ocr_service.process_image(img_bytes, source_image_id=str(img.id))
 
             record_ocr_duration(time.perf_counter() - t0_ocr, engine=_ocr_engine_name, status="success")
-            calib_barcode = None  # GoldenDemoMatcher doesn't use barcode
+            calib_barcode = None
             declarations = extraction_service.extract_from_ocr_result(ocr_res, barcode=calib_barcode)
             all_declarations.extend(declarations)
+
+            # In Tesseract mode: if golden profile matched, mark and stop after this image
+            if _ocr_engine_name == "tesseract" and declarations:
+                _golden_matched = True
+
         except Exception as ocr_err:
             logger.error(f"OCR processing failed for image {img.id}: {ocr_err}", exc_info=True)
             record_ocr_duration(0.0, engine=_ocr_engine_name, status="error")
             pass
         finally:
-            del img_bytes
+            img_bytes = b""
             import gc
             gc.collect()
+            # malloc_trim: return freed glibc heap memory to the OS.
+            # gc.collect() alone does NOT release RSS on Linux — glibc holds the heap.
+            # This prevents the iterative memory growth that causes OOM across images.
+            try:
+                import ctypes
+                ctypes.CDLL("libc.so.6").malloc_trim(0)
+            except Exception:
+                pass  # Windows/macOS — no-op, not needed there
 
     import gc
     gc.collect()
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
 
 
     # Save extracted fields to DB
