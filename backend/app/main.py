@@ -3,12 +3,14 @@
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response, status
+from fastapi import Depends, FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import deps
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.metrics import get_latest_metrics
@@ -56,9 +58,9 @@ async def prometheus_metrics():
 
 
 @app.get("/health", tags=["Monitoring"])
-async def health():
+async def health(db: AsyncSession = Depends(deps.get_db)):
     """Comprehensive health check probe."""
-    db_health = await check_db_health()
+    db_health = await check_db_health(db=db)
     uptime_seconds = round(time.time() - APP_START_TIME, 1)
     is_ok = db_health.get("status") == "connected"
     return {
@@ -77,9 +79,9 @@ async def liveness():
 
 
 @app.get("/health/ready", tags=["Monitoring"])
-async def readiness(response: Response):
+async def readiness(response: Response, db: AsyncSession = Depends(deps.get_db)):
     """Readiness probe: checks database and returns HTTP 503 if disconnected."""
-    db_health = await check_db_health()
+    db_health = await check_db_health(db=db)
     if db_health.get("status") != "connected":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "not_ready", "database": db_health}

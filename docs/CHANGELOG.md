@@ -25,11 +25,18 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
   - **Sync Service (`syncService.ts`):** Removed unused imports `discardOfflineInspection` and `SyncTransientError`.
   - **Retry Backoff (`retryBackoff.ts`):** Replaced `any` conflict data with typed `ConflictPayload` interface.
   - Verified 0 errors and 0 warnings via `npm run lint`.
+- **CI Dependency Alignment (`backend/requirements-ci.txt`):**
+  - Added `prometheus-client>=0.20.0` and `zxing-cpp>=2.2.0` to `requirements-ci.txt`, resolving `ModuleNotFoundError: No module named 'prometheus_client'` during GitHub Actions CI test collection.
+- **Backend Health Probes & Session Dependency Injection (`backend/app/main.py`, `app/db/session.py`):**
+  - Injected `db: AsyncSession = Depends(deps.get_db)` into `/health` and `/health/ready` probe endpoints.
+  - Updated `check_db_health(db=None)` to execute against the active session when passed, allowing test fixtures with SQLite overrides to probe readiness cleanly without unmocked background connection attempts.
+- **Self-Check Read Schema Interoperability (`backend/app/schemas/self_check.py`):**
+  - Added `officer_id: uuid.UUID | None = None` and `@model_validator(mode="after")` to `SelfCheckInspectionRead` to bidirectional-sync `user_id` and `officer_id`, resolving Pydantic validation errors during ORM deserialization.
 - **Full Verification Suite:**
   - `ruff check .` -> All checks passed (0 errors)
   - `ruff format --check .` -> 131 files already formatted
   - `mypy app/` -> 0 issues found in 87 source files
-  - `pytest tests/unit` -> 84/84 tests passing
+  - `pytest --cov=app --cov-report=term-missing -q --tb=short` -> 150/150 tests passing (100%)
   - `npm run lint` -> 0 errors, 0 warnings
   - `npx tsc --noEmit` -> 0 errors
   - `npm run build` -> Clean Next.js build with all 8 routes generated.

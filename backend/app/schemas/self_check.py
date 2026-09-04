@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.inspection import ExtractedFieldRead, InspectionImageRead, ViolationRead
 
@@ -48,7 +48,8 @@ class SelfCheckScorecardRead(BaseModel):
 
 class SelfCheckInspectionRead(BaseModel):
     id: uuid.UUID
-    user_id: uuid.UUID
+    officer_id: uuid.UUID | None = None
+    user_id: uuid.UUID | None = None
     commodity_category: str | None = None
     rule_pack_version: str
     status: str
@@ -60,6 +61,14 @@ class SelfCheckInspectionRead(BaseModel):
     violations: list[ViolationRead] = []
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def sync_user_and_officer_id(self) -> "SelfCheckInspectionRead":
+        if self.user_id is None and self.officer_id is not None:
+            self.user_id = self.officer_id
+        elif self.officer_id is None and self.user_id is not None:
+            self.officer_id = self.user_id
+        return self
 
 
 class SelfCheckSummaryStats(BaseModel):

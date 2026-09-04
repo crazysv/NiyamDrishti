@@ -100,8 +100,24 @@ async def get_db():
         yield session
 
 
-async def check_db_health() -> dict[str, Any]:
+async def check_db_health(db: AsyncSession | None = None) -> dict[str, Any]:
     """Checks database connection liveness with retry for serverless wake-up (STOR-02)."""
+    if db is not None:
+        try:
+            await db.execute(text("SELECT 1"))
+            dialect = db.bind.dialect.name if db.bind else engine.dialect.name
+            return {
+                "status": "connected",
+                "dialect": dialect,
+                "is_serverless_ready": True,
+            }
+        except Exception as exc:
+            return {
+                "status": "error",
+                "dialect": engine.dialect.name,
+                "error": str(exc),
+            }
+
     last_exc = None
     for _ in range(2):
         try:
