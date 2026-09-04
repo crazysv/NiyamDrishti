@@ -49,26 +49,29 @@ class TesseractEngine(BaseOCREngine):
         if self.tesseract_cmd:
             pytesseract.pytesseract.tesseract_cmd = self.tesseract_cmd
 
-        # Preprocessing: grayscale only — let Tesseract do its own Otsu binarization.
-        # DO NOT apply adaptive threshold here. On dark-background packaging (e.g. the
-        # purple Britannia packet), THRESH_BINARY outputs white-text-on-black (inverted),
-        # causing Tesseract to read texture noise as text instead of the actual words.
-        # Tesseract PSM 11 + OEM 1 with Otsu handles coloured packaging correctly.
+        # Preprocessing: adaptive threshold with THRESH_BINARY_INV.
+        # THRESH_BINARY_INV is essential for dark-background packaging:
+        #   - Packaging: yellow/white text on dark purple/green background
+        #   - After grayscale: text pixels ~200 (bright), background ~50 (dark)
+        #   - THRESH_BINARY: bright→255 (white text on black bg) → Tesseract reads NOISE
+        #   - THRESH_BINARY_INV: bright→0 (black text on white bg) → Tesseract reads WORDS ✅
+        # Block size 31 handles both large front-panel text and small back-panel text at 1200px.
         try:
             import cv2
             if len(image.shape) == 3:
-                proc_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+                gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
             else:
-                proc_image = image
+                gray = image
+            proc_image = cv2.adaptiveThreshold(
+                gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 31, 10
+            )
+            del gray
         except Exception:
             proc_image = image  # fallback: pass original array unchanged
 
-        # PSM 6: single uniform block of text.
-        # Best for consumer packaging back panels (dense ingredient lists, consumer care,
-        # address blocks). PSM 3 (auto) ran document-OSD which fails on complex photo
-        # backgrounds and returned almost nothing. PSM 11 (sparse) was too permissive
-        # and read graphic/border elements as text fragments.
-        tesseract_config = "--psm 6 --oem 1"
+        # PSM 11: sparse text — reads text from anywhere on the image, regardless of layout.
+        # Best for consumer packaging where text is scattered, rotated, and on curved surfaces.
+        tesseract_config = "--psm 11 --oem 1"
 
         try:
             data: dict[str, list[Any]] = pytesseract.image_to_data(
