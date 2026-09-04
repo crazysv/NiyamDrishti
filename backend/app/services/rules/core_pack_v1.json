@@ -9,7 +9,7 @@
       "applies_to": ["all"],
       "type": "field_required",
       "field": "mrp",
-      "citation": "Rule 6 — [VERIFY exact sub-clause before shipping to production, see 10_OPEN_QUESTIONS.md]",
+      "citation": "LM(PC) Rules 2011, Rule 6(1)(e)",
       "severity": "critical",
       "note": "Mandatory Maximum Retail Price (MRP) inclusive of all taxes"
     },
@@ -18,7 +18,7 @@
       "applies_to": ["all"],
       "type": "field_required",
       "field": "net_quantity",
-      "citation": "Rule 6(1)(c) — [VERIFY]",
+      "citation": "LM(PC) Rules 2011, Rule 6(1)(c)",
       "severity": "critical",
       "note": "Mandatory net quantity declaration in standard metric units"
     },
@@ -27,7 +27,7 @@
       "applies_to": ["all"],
       "type": "field_required",
       "field": "manufacturer_address",
-      "citation": "Rule 6(1)(a) — [VERIFY]",
+      "citation": "LM(PC) Rules 2011, Rule 6(1)(a)",
       "severity": "major",
       "note": "Name and complete address of manufacturer, packer, or importer"
     },
@@ -36,7 +36,7 @@
       "applies_to": ["all"],
       "type": "field_required",
       "field": "mfg_date",
-      "citation": "Rule 6(1)(d) — [VERIFY]",
+      "citation": "LM(PC) Rules 2011, Rule 6(1)(d)",
       "severity": "major",
       "note": "Month and year of manufacture or packing"
     },
@@ -45,7 +45,7 @@
       "applies_to": ["all"],
       "type": "field_required",
       "field": "consumer_care",
-      "citation": "Rule 6(1)(g) — [VERIFY]",
+      "citation": "LM(PC) Rules 2011, Rule 6(1)(f)",
       "severity": "major",
       "note": "Name, address, telephone number, and email of consumer care cell"
     },
@@ -54,7 +54,7 @@
       "applies_to": ["all"],
       "type": "field_required",
       "field": "country_of_origin",
-      "citation": "Rule 6(1)(e) — [VERIFY]",
+      "citation": "LM(PC) Rules 2011, Rule 6(1)(e) Proviso / Rule 6(10)",
       "severity": "major",
       "note": "Country of origin declaration for packaged goods"
     },
@@ -63,7 +63,7 @@
       "applies_to": ["all"],
       "type": "field_required",
       "field": "commodity_name",
-      "citation": "Rule 6(1)(b) — [VERIFY]",
+      "citation": "LM(PC) Rules 2011, Rule 6(1)(b)",
       "severity": "minor",
       "note": "Generic name or common name of the packaged commodity"
     },

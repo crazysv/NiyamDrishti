@@ -1,7 +1,11 @@
-"""NiyamDrishti FastAPI application entry point."""
-
+import os
 import time
 from contextlib import asynccontextmanager
+
+# Configure low-memory allocation strategies before Paddle/Deep Learning engines initialize
+os.environ.setdefault("FLAGS_allocator_strategy", "naive_best_fit")
+os.environ.setdefault("FLAGS_fraction_of_gpu_memory_to_use", "0.0")
+os.environ.setdefault("FLAGS_eager_delete_tensor_gb", "0.0")
 
 from fastapi import Depends, FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware

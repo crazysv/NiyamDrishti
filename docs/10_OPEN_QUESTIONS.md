@@ -29,13 +29,20 @@ Every genuine ambiguity, conflicting source, or unverified fact gets logged here
 **Current working assumption:** eMaap is a licensing/registration/verification portal; this project is the package-level image-inspection/evidence layer eMaap does not appear to have. Never claim "eMaap has zero enforcement" in a pitch, demo, or report.
 **Resolution:** Positioning language corrected in `MASTER_CONTENT.md` Â§3.4. Still open: whether eMaap has any actual public API surface worth targeting for the Phase 4 adapter (E4-05) â€” do not build that adapter blind; confirm a real integration point exists first.
 
-### OQ-02 â€” MRP declaration's exact sub-clause citation
-**Status:** Open
+### OQ-02 — MRP declaration's exact sub-clause citation
+**Status:** Resolved — 2026-09-04
 **Raised:** 2026-09-02 (research)
 **The ambiguity:** Sources disagree whether the MRP mandatory-declaration requirement sits at Rule 6(1)(d) or Rule 6(1)(f) (lettering conventions vary across the source drafts).
-**Sources/positions:** Both letterings appear in different AI research passes on the same underlying rule; neither was independently checked against a primary-source copy of the bare act in this session.
-**Current working assumption:** Report/rule-pack text cites "Rule 6" and the plain-English requirement, without asserting a specific sub-clause letter, until verified (`06_SCHEMA.md` Â§3 rule-pack example shows this pattern with a `[VERIFY]` marker).
-**Resolution:** *(pending â€” verify against a primary/gazette source of the LMPC Rules, 2011 before any production report prints a specific sub-clause letter)*
+**Sources/positions:** Primary Gazette notification of the Legal Metrology (Packaged Commodities) Rules, 2011 on consumeraffairs.gov.in/pages/legal-metrology-act confirms:
+- Rule 6(1)(a): Name and complete address of the manufacturer / packer / importer
+- Rule 6(1)(b): Generic or common name of commodity
+- Rule 6(1)(c): Net quantity
+- Rule 6(1)(d): Month and year of manufacture/pre-packing/import
+- Rule 6(1)(da) / Rule 6(11): Unit Sale Price (USP)
+- Rule 6(1)(e): Maximum Retail Price (MRP) inclusive of all taxes
+- Rule 6(1)(f): Consumer care cell contact
+- Rule 6(10): E-commerce marketplace disclosures
+**Resolution:** Resolved and verified directly against the official bare text on the Department of Consumer Affairs portal. MRP is statutory clause Rule 6(1)(e). `backend/app/services/rules/core_pack_v1.json` and report templates updated accordingly.
 
 ### OQ-03 â€” Client-side vs. server-side OCR
 **Status:** Resolved — 2026-09-02

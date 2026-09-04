@@ -49,7 +49,34 @@ The backend is packaged as a lightweight Docker container with OpenCV, WeasyPrin
    - Render monitors `GET /health`.
    - Returns `{"status": "healthy", "database": "connected"}`.
 
-### 2.2 Frontend: Cloudflare Pages (`DEPLOY-02`)
+### 2.2 Backend Alternative / High-Memory Host: Hugging Face Spaces (16 GB Free RAM)
+To permanently eliminate the 512 MB memory limit of Render free tier and handle multi-officer concurrent inspections with zero OOM crash risk, deploy the backend to Hugging Face Spaces:
+
+1. **Create Space on Hugging Face:**
+   - Log in to [Hugging Face](https://huggingface.co).
+   - Click **Spaces** -> **New Space**.
+   - Name: `niyamdrishti-backend`
+   - License: `mit` / `apache-2.0`
+   - Space SDK: **Docker** (Blank)
+   - Hardware: **CPU Basic · 2 vCPU · 16 GB RAM (Free)** (No credit card needed).
+2. **Push Backend Code:**
+   - Clone the new Space repo locally or push from your git terminal:
+     ```bash
+     git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/niyamdrishti-backend
+     git subtree push --prefix backend hf main
+     ```
+3. **Configure Secrets:**
+   - In Space **Settings** -> **Variables and secrets**, add:
+     - `DATABASE_URL`: Your Neon connection string
+     - `JWT_SECRET_KEY`: Secret string
+     - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT_URL`: Cloudflare R2 secrets
+     - `APP_ENV`: `production`
+     - `CORS_ALLOWED_ORIGINS`: `https://niyamdrishti.vercel.app,https://niyamdrishti.pages.dev,http://localhost:3000`
+4. **Endpoint:**
+   - Public API URL: `https://YOUR_USERNAME-niyamdrishti-backend.hf.space`
+   - Update `NEXT_PUBLIC_API_BASE_URL` in frontend Vercel/Cloudflare Pages to point to this URL.
+
+### 2.3 Frontend: Cloudflare Pages & Vercel (`DEPLOY-02`)
 The frontend is a responsive Next.js Progressive Web App with offline-first IndexedDB storage.
 
 1. **Deploy via Cloudflare Dashboard:**

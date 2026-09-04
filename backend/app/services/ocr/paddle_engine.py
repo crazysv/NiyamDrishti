@@ -27,6 +27,13 @@ class PaddleOCREngine(BaseOCREngine):
         """Lazy loader for PaddleOCR instance to minimize startup overhead."""
         if self._ocr is None:
             try:
+                import os
+
+                # Configure low-memory flags for PaddlePaddle C++ allocator
+                os.environ.setdefault("FLAGS_allocator_strategy", "naive_best_fit")
+                os.environ.setdefault("FLAGS_fraction_of_gpu_memory_to_use", "0.0")
+                os.environ.setdefault("FLAGS_eager_delete_tensor_gb", "0.0")
+
                 from paddleocr import PaddleOCR
 
                 # PP-OCR with angle classification
@@ -91,6 +98,11 @@ class PaddleOCREngine(BaseOCREngine):
 
         avg_conf = round(float(sum(confidences) / len(confidences)), 4) if confidences else 0.0
         full_text = "\n".join([line.text for line in lines])
+
+        del raw_result
+        import gc
+
+        gc.collect()
 
         return OCRResult(
             source_image_id=source_image_id,

@@ -730,17 +730,17 @@ async def extract_inspection_declarations(
             logger.warning(f"Could not load image bytes for image {img.id} ({img.storage_url})")
             continue
 
-        # Calibrate image if scale not yet derived
-        if img.calibration_scale_mm_per_px is None:
-            try:
-                calib_service = OpticalCalibrationService()
-                calib_res = calib_service.calibrate_image(img_bytes)
-                if calib_res.is_calibrated and calib_res.scale_mm_per_px is not None:
-                    img.calibration_scale_mm_per_px = calib_res.scale_mm_per_px
-            except Exception as calib_err:
-                logger.warning(f"Calibration warning for image {img.id}: {calib_err}")
-
         try:
+            # Calibrate image if scale not yet derived
+            if img.calibration_scale_mm_per_px is None:
+                try:
+                    calib_service = OpticalCalibrationService()
+                    calib_res = calib_service.calibrate_image(img_bytes)
+                    if calib_res.is_calibrated and calib_res.scale_mm_per_px is not None:
+                        img.calibration_scale_mm_per_px = calib_res.scale_mm_per_px
+                except Exception as calib_err:
+                    logger.warning(f"Calibration warning for image {img.id}: {calib_err}")
+
             t0_ocr = time.perf_counter()
             ocr_res = ocr_service.process_image(img_bytes, source_image_id=str(img.id))
             record_ocr_duration(time.perf_counter() - t0_ocr, engine="paddleocr", status="success")
@@ -751,6 +751,15 @@ async def extract_inspection_declarations(
             record_ocr_duration(0.0, engine="paddleocr", status="error")
             # Continue on error for other images
             pass
+        finally:
+            del img_bytes
+            import gc
+
+            gc.collect()
+
+    import gc
+
+    gc.collect()
 
     # Save extracted fields to DB
     persisted = await extraction_service.save_extracted_fields(

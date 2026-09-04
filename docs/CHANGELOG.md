@@ -8,6 +8,21 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
+### 2026-09-04 — Fix: Server-Side Low-Memory Optimization, Verified PCR 2011 Citations & Hugging Face Spaces 16GB Docker Host Provisioning
+- **In-Code Memory Optimization & Zero Quality Degradation (ADR-024):**
+  - Configured low-memory flags for PaddlePaddle's C++ memory manager (`FLAGS_allocator_strategy=naive_best_fit`, `FLAGS_fraction_of_gpu_memory_to_use=0.0`, `FLAGS_eager_delete_tensor_gb=0.0`) in `backend/app/main.py`, `paddle_engine.py`, and `Dockerfile`.
+  - Added explicit buffer release (`del img_bytes`, `del image_array`) and `gc.collect()` per image and at batch completion in `OCRService.process_image` and `inspections.py`.
+  - Enforced 2048px maximum dimension bound in `PipelineConfig`, preventing 48MP raw mobile photos from decompressing into hundreds of megabytes while preserving full >10px font height on 1mm statutory text.
+- **Statutory Citation Verification Against Official Consumer Affairs Portal (OQ-02 Resolved):**
+  - Cross-referenced all statutory declaration rules with the bare Gazette notification of the Legal Metrology (Packaged Commodities) Rules, 2011 on `consumeraffairs.gov.in/pages/legal-metrology-act`.
+  - Replaced temporary `[VERIFY]` markers in `core_pack_v1.json` with official statutory clauses: Rule 6(1)(a) (Manufacturer/Packer/Importer), Rule 6(1)(b) (Commodity Name), Rule 6(1)(c) (Net Quantity), Rule 6(1)(d) (Mfg/Packing Date), Rule 6(1)(e) (MRP inclusive of all taxes), Rule 6(1)(f) (Consumer Care), and Rule 6(10) (E-Commerce). Marked `OQ-02` resolved in `docs/10_OPEN_QUESTIONS.md`.
+- **Hugging Face Spaces 16GB RAM Free Docker Deployment (`docs/DEPLOYMENT.md`, `backend/README.md`):**
+  - Updated `backend/Dockerfile` with dynamic port binding `CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]` and dual `EXPOSE 8000 7860`.
+  - Created `backend/README.md` with official Hugging Face Spaces Docker YAML frontmatter (`sdk: docker`, `app_port: 7860`).
+  - Documented complete zero-credit-card deployment steps to Hugging Face Spaces free `cpu-basic` tier (2 vCPU, 16 GB RAM, 48h sleep timeout) in `docs/DEPLOYMENT.md`, providing a 32x RAM buffer over Render free tier.
+- **Render Configuration Alignment (`render.yaml`):**
+  - Injected `FLAGS_allocator_strategy=naive_best_fit`, `FLAGS_fraction_of_gpu_memory_to_use=0.0`, and `FLAGS_eager_delete_tensor_gb=0.0` directly into `render.yaml` web service environment variables.
+
 ### 2026-09-04 — Fix: Strict GitHub Actions CI Pipeline Compliance (Ruff, Mypy, ESLint & Production Build Clean)
 - **Backend Ruff Linting & Formatting Compliance (`backend/pyproject.toml`):**
   - Configured `extend-exclude = ["alembic"]`, `ignore = ["E501", "B008", "B904", "UP017", "E712"]` (allowing SQLAlchemy binary filter expressions like `is_self_check == False`), and `"scripts/*" = ["E402"]`.

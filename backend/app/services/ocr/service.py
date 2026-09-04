@@ -122,6 +122,10 @@ class OCRService:
         if primary_success and primary_result is not None:
             if preprocessed:
                 primary_result.lines = self._map_lines_to_original(primary_result.lines, preprocessed)
+            del image_array
+            import gc
+
+            gc.collect()
             return primary_result
 
         # 3. Fallback Engine Attempt (Tesseract)
@@ -162,5 +166,10 @@ class OCRService:
         # 5. Map coordinates back to original image space
         if preprocessed and len(chosen_result.lines) > 0:
             chosen_result.lines = self._map_lines_to_original(chosen_result.lines, preprocessed)
+
+        del image_array
+        import gc
+
+        gc.collect()
 
         return chosen_result
