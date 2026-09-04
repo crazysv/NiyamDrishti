@@ -167,4 +167,3 @@ def get_field_confidence_threshold(field_type: str | None) -> float:
         return settings.REVIEW_CONFIDENCE_THRESHOLD
     clean_field = field_type.lower().strip().replace("-", "_")
     return settings.FIELD_CONFIDENCE_THRESHOLDS.get(clean_field, settings.REVIEW_CONFIDENCE_THRESHOLD)
-

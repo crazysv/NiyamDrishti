@@ -6,8 +6,6 @@ Supports dual-mode operation:
    and statutory enforcement docket creation when unconfigured or in development/offline mode.
 """
 
-import hashlib
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -21,7 +19,6 @@ from app.schemas.emaap import (
     EMaapRegistrationResponse,
 )
 from app.schemas.evidence_verification import EvidenceVerificationResult
-
 
 # Seeded sandbox database representing official LMPC registrations
 SANDBOX_REGISTRATIONS: dict[str, dict[str, Any]] = {
@@ -190,7 +187,7 @@ class EMaapAdapter:
         - SHA-256 cryptographic evidence fingerprints
         - Rule-by-rule violation citations under Legal Metrology Act, 2009 Section 36
         """
-        region_code = (inspection.region[:3].upper() if inspection.region else "DEL")
+        region_code = inspection.region[:3].upper() if inspection.region else "DEL"
         date_stamp = datetime.now(timezone.utc).strftime("%Y%m")
         docket_id = f"EMAAP-ENF-{region_code}-{date_stamp}-{str(inspection.id)[:6].upper()}"
 

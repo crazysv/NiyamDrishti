@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from app.core.config import get_field_confidence_threshold, settings
+from app.core.config import get_field_confidence_threshold
 from app.services.rules.schemas import (
     EvaluationSummary,
     RuleDefinition,

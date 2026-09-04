@@ -21,8 +21,8 @@ sys.path.insert(0, str(backend_dir))
 
 from app.core.config import settings
 from app.core.metrics import get_latest_metrics
-from app.db.session import AsyncSessionLocal, check_db_health, init_db
-from app.models.base import AuditLog, Base, Inspection, InspectionImage, RulePack, User
+from app.db.session import check_db_health
+from app.models.base import Base
 from app.services.bhashini.service import BhashiniService
 from app.services.integrations.emaap import EMaapAdapter
 from app.services.rules.engine import RuleEngine
@@ -34,7 +34,9 @@ async def run_readiness_checks() -> bool:
     print("  NIYAMDRISHTI: PRODUCTION PILOT DEPLOYMENT READINESS CHECK (E4-06)")
     print("=" * 70)
     print(f"Environment: {settings.APP_ENV}")
-    print(f"Database URL: {settings.DATABASE_URL.split('@')[-1] if '@' in settings.DATABASE_URL else settings.DATABASE_URL}")
+    print(
+        f"Database URL: {settings.DATABASE_URL.split('@')[-1] if '@' in settings.DATABASE_URL else settings.DATABASE_URL}"
+    )
     print("-" * 70)
 
     all_passed = True
@@ -44,7 +46,16 @@ async def run_readiness_checks() -> bool:
     db_ok = await check_db_health()
     if db_ok:
         print("  [OK] Database connection: HEALTHY")
-        expected_tables = {"users", "inspections", "inspection_images", "extracted_fields", "violations", "rule_packs", "audit_logs", "reports"}
+        expected_tables = {
+            "users",
+            "inspections",
+            "inspection_images",
+            "extracted_fields",
+            "violations",
+            "rule_packs",
+            "audit_logs",
+            "reports",
+        }
         present_tables = set(Base.metadata.tables.keys())
         missing = expected_tables - present_tables
         if not missing:
@@ -58,7 +69,7 @@ async def run_readiness_checks() -> bool:
 
     # 2. Rule Pack Availability
     print("\n[2/7] Checking Legal Metrology Rule Pack...")
-    rule_engine = RuleEngine()
+    _ = RuleEngine()
     rule_pack_path = backend_dir / "app" / "services" / "rules" / "core_pack_v1.json"
     if rule_pack_path.exists():
         pack_data = json.loads(rule_pack_path.read_text(encoding="utf-8"))
@@ -73,7 +84,7 @@ async def run_readiness_checks() -> bool:
     test_payload = b"NiyamDrishti_Test_Evidence_Binary_Verification"
     test_hash = hashlib.sha256(test_payload).hexdigest()
     if len(test_hash) == 64:
-        print(f"  [OK] FIPS PUB 180-4 SHA-256 cryptographic engine: VERIFIED")
+        print("  [OK] FIPS PUB 180-4 SHA-256 cryptographic engine: VERIFIED")
     else:
         print("  [FAIL] Cryptographic hash check failed")
         all_passed = False
@@ -90,7 +101,9 @@ async def run_readiness_checks() -> bool:
     print("\n[5/7] Checking External Government Integration Adapters...")
     emaap = EMaapAdapter()
     emaap_status = emaap.get_status()
-    print(f"  [OK] eMaap Adapter: ACTIVE (Mode: {'LIVE' if not emaap_status.is_sandbox else 'SANDBOX / HIGH-FIDELITY'})")
+    print(
+        f"  [OK] eMaap Adapter: ACTIVE (Mode: {'LIVE' if not emaap_status.is_sandbox else 'SANDBOX / HIGH-FIDELITY'})"
+    )
     if settings.MERIPEHCHAN_CLIENT_ID:
         print("  [OK] MeriPehchan SSO: LIVE NIC CONFIGURATION ACTIVE")
     else:

@@ -91,9 +91,16 @@ export async function fetchWithRetry(
       const response = await fetch(url, options);
 
       if (response.status === 409) {
-        let conflictData: any = {};
+        interface ConflictPayload {
+          message?: string;
+          code?: string;
+          server_status?: string;
+          suggested_resolution?: string;
+          inspection_id?: string;
+        }
+        let conflictData: ConflictPayload = {};
         try {
-          const json = await response.json();
+          const json = (await response.json()) as { detail?: ConflictPayload } & ConflictPayload;
           conflictData = json.detail || json;
         } catch {
           // ignore parse error

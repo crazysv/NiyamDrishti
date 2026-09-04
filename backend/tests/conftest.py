@@ -1,6 +1,7 @@
 """Pytest global configuration and hermetic fixtures for NiyamDrishti backend."""
 
 import pytest
+
 from app.core.config import settings
 
 
@@ -17,4 +18,5 @@ def force_local_storage_and_offline_rules(monkeypatch):
     monkeypatch.setattr(settings, "ACTIVE_RULE_PACK_VERSION", "2026.02.01")
 
     from app.core.rate_limit import limiter
+
     limiter.enabled = False

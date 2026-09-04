@@ -85,7 +85,9 @@ class ManufacturerAddressExtractor(BaseFieldExtractor):
 
                 combined_address = ", ".join(address_parts)
                 # Ignore isolated keyword matches (e.g. standalone "PKD." packing date header)
-                if len(combined_address.strip()) <= 6 or not any(c.isalpha() for c in combined_address[len(raw_role):]):
+                if len(combined_address.strip()) <= 6 or not any(
+                    c.isalpha() for c in combined_address[len(raw_role) :]
+                ):
                     continue
 
                 has_complete_pin = found_pincode is not None

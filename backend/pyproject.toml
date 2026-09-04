@@ -5,7 +5,11 @@ version = "0.1.0"
 [tool.ruff]
 line-length = 120
 target-version = "py311"
+extend-exclude = ["alembic"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501", "B008", "B904", "UP017"]
+ignore = ["E501", "B008", "B904", "UP017", "E712"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/*" = ["E402"]

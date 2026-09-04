@@ -4,6 +4,7 @@ Provides translation, speech synthesis, and vernacular voice UI for Legal Metrol
 """
 
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

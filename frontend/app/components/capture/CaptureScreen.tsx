@@ -61,6 +61,10 @@ function useOnlineStatus() {
   );
 }
 
+function makeNonce(prefix: string): string {
+  return `${prefix}_${Math.random().toString(36).substring(2)}_${Date.now()}`;
+}
+
 export default function CaptureScreen() {
   // Multi-image state
   const [images, setImages] = useState<Record<ImageRole, CapturedImage | null>>({
@@ -88,7 +92,19 @@ export default function CaptureScreen() {
     email?: string;
     role?: string;
     region?: string | null;
-  } | null>(null);
+  } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const storedUser = localStorage.getItem("user");
+      const storedToken = localStorage.getItem("access_token");
+      if (storedUser && storedToken) {
+        return JSON.parse(storedUser);
+      }
+    } catch {
+      // Fall through to auto-login
+    }
+    return null;
+  });
   const [isSwitchingPersona, setIsSwitchingPersona] = useState<boolean>(false);
 
   // Auto-login default sandbox officer on mount if unauthenticated
@@ -97,16 +113,11 @@ export default function CaptureScreen() {
     const storedUser = localStorage.getItem("user");
     const storedToken = localStorage.getItem("access_token");
     if (storedUser && storedToken) {
-      try {
-        setCurrentUser(JSON.parse(storedUser));
-        return;
-      } catch {
-        // Fall through to auto-login
-      }
+      return;
     }
     const autoLogin = async () => {
       try {
-        const authRes = await authorizeSandboxPersona("officer_suresh", "auto_init_" + Date.now());
+        const authRes = await authorizeSandboxPersona("officer_suresh", makeNonce("auto_init"));
         const tokenRes = await handleSSOCallback(authRes.code, authRes.state);
         setCurrentUser(tokenRes.user);
       } catch (err) {
@@ -119,7 +130,7 @@ export default function CaptureScreen() {
   const handleSwitchPersona = async (personaId: string) => {
     setIsSwitchingPersona(true);
     try {
-      const authRes = await authorizeSandboxPersona(personaId, "switch_state_" + Date.now());
+      const authRes = await authorizeSandboxPersona(personaId, makeNonce("switch_state"));
       const tokenRes = await handleSSOCallback(authRes.code, authRes.state);
       setCurrentUser(tokenRes.user);
       setToastMessage(`Switched persona to ${tokenRes.user.full_name} (${tokenRes.user.role.toUpperCase()})`);

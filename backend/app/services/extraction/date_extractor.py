@@ -92,7 +92,7 @@ class MfgDateExtractor(BaseFieldExtractor):
                 date_candidates.append((idx, match.group(0), line))
 
         # Check for explicit date headers
-        for idx, line in enumerate(lines):
+        for line in lines:
             text = line.text
             match = self.DATE_HEADER_PATTERN.search(text)
             raw_match_str = ""
@@ -110,7 +110,7 @@ class MfgDateExtractor(BaseFieldExtractor):
                     # If multiple dates are found (e.g. PKD date and USE BY date), sort chronologically
                     # Manufacturing/packing date is always the earlier date.
                     valid_dates = []
-                    for c_idx, c_date, c_line in date_candidates:
+                    for _, c_date, c_line in date_candidates:
                         m, y, d = self.normalize_date_string(c_date)
                         if m and y:
                             valid_dates.append((y, m, d if d else "01", c_date, c_line))

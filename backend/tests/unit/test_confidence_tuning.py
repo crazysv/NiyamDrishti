@@ -4,6 +4,7 @@ Verifies that per-field tuned thresholds correctly guide automated pass vs needs
 """
 
 import uuid
+
 from app.core.config import get_field_confidence_threshold, settings
 from app.services.rules import RuleEngine, load_default_rule_pack
 
@@ -203,4 +204,3 @@ def test_rule_engine_address_and_origin_tuned_routing():
     origin_res = next(r for r in summary.results if r.rule_id == "declaration-present-country-of-origin")
     assert origin_res.verdict == "needs_review"
     assert "below required 85%" in origin_res.description
-

@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +8,6 @@ from app.core.config import settings
 from app.core.rate_limit import limiter
 from app.core.security import create_access_token, create_refresh_token
 from app.schemas.sso import (
-    JanParichayClaims,
     SSOAuthResponse,
     SSOCallbackRequest,
     SSOInitResponse,
@@ -41,7 +40,7 @@ async def get_sso_status() -> Any:
 @limiter.limit("15/minute")
 async def initiate_sso_login(
     request: Request,
-    redirect_uri: Optional[str] = Query(None, description="Client redirect URI"),
+    redirect_uri: str | None = Query(None, description="Client redirect URI"),
 ) -> Any:
     """
     Initiates OIDC login handoff, generating CSRF state and PKCE challenge.

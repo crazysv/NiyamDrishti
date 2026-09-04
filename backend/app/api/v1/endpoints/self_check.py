@@ -11,18 +11,18 @@ Key Architectural Guarantees:
 3. Provides constructive packaging remediation advisory instead of punitive citations.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
 import uuid
+from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_active_user, get_db
 from app.core.config import settings
-from app.models.base import ExtractedField, Inspection, InspectionImage, User, Violation
+from app.models.base import Inspection, User, Violation
 from app.schemas.self_check import (
     SelfCheckCreate,
     SelfCheckInspectionRead,
@@ -152,22 +152,7 @@ async def list_self_checks(
     res = await db.execute(stmt)
     records = res.scalars().all()
 
-    return [
-        SelfCheckInspectionRead(
-            id=rec.id,
-            user_id=rec.officer_id,
-            commodity_category=rec.commodity_category,
-            rule_pack_version=rec.rule_pack_version,
-            status=rec.status,
-            is_self_check=rec.is_self_check,
-            created_at=rec.created_at,
-            updated_at=rec.updated_at,
-            images=rec.images,
-            fields=rec.fields,
-            violations=rec.violations,
-        )
-        for rec in records
-    ]
+    return [SelfCheckInspectionRead.model_validate(rec) for rec in records]
 
 
 @router.get("/inspections/{inspection_id}", response_model=SelfCheckInspectionRead)
@@ -203,19 +188,7 @@ async def get_self_check(
             detail="Not authorized to access this self-check record",
         )
 
-    return SelfCheckInspectionRead(
-        id=rec.id,
-        user_id=rec.officer_id,
-        commodity_category=rec.commodity_category,
-        rule_pack_version=rec.rule_pack_version,
-        status=rec.status,
-        is_self_check=rec.is_self_check,
-        created_at=rec.created_at,
-        updated_at=rec.updated_at,
-        images=rec.images,
-        fields=rec.fields,
-        violations=rec.violations,
-    )
+    return SelfCheckInspectionRead.model_validate(rec)
 
 
 @router.get("/inspections/{inspection_id}/scorecard", response_model=SelfCheckScorecardRead)
@@ -257,6 +230,7 @@ async def get_self_check_scorecard(
 
     # Readiness status
     critical_count = sum(1 for v in (inspection.violations or []) if v.severity == "critical")
+    readiness: Literal["MARKET_READY", "ACTION_REQUIRED", "CRITICAL_DEFICIENCIES"]
     if critical_count > 0:
         readiness = "CRITICAL_DEFICIENCIES"
     elif violation_count > 0:
@@ -271,10 +245,10 @@ async def get_self_check_scorecard(
         readiness_pct = 100.0 if violation_count == 0 else 0.0
 
     remediations: list[SelfCheckRemediationItem] = []
-    for v in (inspection.violations or []):
+    for v in inspection.violations or []:
         field_name = None
         if v.extracted_field_id:
-            for f in (inspection.fields or []):
+            for f in inspection.fields or []:
                 if f.id == v.extracted_field_id:
                     field_name = f.field_type
                     break
@@ -312,11 +286,7 @@ async def get_self_check_summary(
     """
     Aggregates self-check metrics for the current manufacturer/packer account.
     """
-    stmt = (
-        select(Inspection)
-        .options(selectinload(Inspection.violations))
-        .where(Inspection.is_self_check == True)
-    )
+    stmt = select(Inspection).options(selectinload(Inspection.violations)).where(Inspection.is_self_check == True)
     if current_user.role not in ("admin", "supervisor"):
         stmt = stmt.where(Inspection.officer_id == current_user.id)
 
@@ -335,7 +305,7 @@ async def get_self_check_summary(
         else:
             action_required += 1
 
-        for v in (rec.violations or []):
+        for v in rec.violations or []:
             rid = v.rule_id
             if rid not in deficiency_tally:
                 deficiency_tally[rid] = {

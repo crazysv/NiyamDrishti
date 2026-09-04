@@ -1,15 +1,12 @@
-"""Prometheus metrics registry and instrumentation for NiyamDrishti."""
+import contextlib
 
-import time
-from typing import Callable, Any
 from prometheus_client import (
-    CollectorRegistry,
-    Counter,
-    Histogram,
-    Gauge,
-    generate_latest,
     CONTENT_TYPE_LATEST,
     REGISTRY,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
 )
 
 # Custom Registry for NiyamDrishti metrics (can also use default REGISTRY)
@@ -96,35 +93,27 @@ def get_latest_metrics() -> tuple[bytes, str]:
 
 def record_ocr_duration(duration_seconds: float, engine: str = "paddleocr", status: str = "success") -> None:
     """Safely record OCR processing duration."""
-    try:
+    with contextlib.suppress(Exception):
         ocr_processing_duration_seconds.labels(engine=engine, status=status).observe(duration_seconds)
-    except Exception:
-        pass
 
 
 def record_rule_evaluation_duration(duration_seconds: float, rule_pack_version: str = "2026.02.01") -> None:
     """Safely record rule evaluation latency."""
-    try:
+    with contextlib.suppress(Exception):
         rule_evaluation_duration_seconds.labels(rule_pack_version=rule_pack_version).observe(duration_seconds)
-    except Exception:
-        pass
 
 
 def record_inspection_completed(verdict: str, category: str = "general", is_self_check: bool = False) -> None:
     """Safely record completed inspection counter."""
-    try:
+    with contextlib.suppress(Exception):
         inspections_total.labels(
             overall_verdict=verdict,
             commodity_category=category or "unknown",
             is_self_check=str(is_self_check).lower(),
         ).inc()
-    except Exception:
-        pass
 
 
 def record_offline_sync(entity_type: str, status: str, count: int = 1) -> None:
     """Safely record offline sync operations."""
-    try:
+    with contextlib.suppress(Exception):
         offline_sync_operations_total.labels(entity_type=entity_type, status=status).inc(count)
-    except Exception:
-        pass

@@ -6,14 +6,12 @@ import {
   markInspectionDeadLetter,
   resolveInspectionConflict,
   resetFailedInspectionForRetry,
-  discardOfflineInspection,
   OfflineImage,
 } from '@/app/db/dexie';
 import {
   fetchWithRetry,
   SyncConflictError,
   SyncPermanentError,
-  SyncTransientError,
   calculateBackoffWithJitter,
 } from '@/app/utils/retryBackoff';
 

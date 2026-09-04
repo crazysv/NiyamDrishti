@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_field_confidence_threshold, settings
+from app.core.config import get_field_confidence_threshold
 from app.models.base import ExtractedField
 from app.services.extraction.base import BaseFieldExtractor
 from app.services.extraction.commodity_name_extractor import CommodityNameExtractor

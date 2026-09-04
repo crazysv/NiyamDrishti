@@ -140,18 +140,17 @@ class CommodityNameExtractor(BaseFieldExtractor):
             # Reorder if brand is present (e.g. BRITANNIA first)
             brand_token = None
             other_tokens = []
-            for token, l in candidates:
+            for token, cand_line in candidates:
                 if token.upper() in ["BRITANNIA", "PARLE", "ITC", "NESTLE", "AMUL", "CADBURY", "MONDELEZ"]:
-                    brand_token = (token, l)
+                    brand_token = (token, cand_line)
                 else:
-                    other_tokens.append((token, l))
+                    other_tokens.append((token, cand_line))
 
             final_tokens = ([brand_token] if brand_token else []) + other_tokens
             # Take up to 4 words max to avoid overly long strings
             final_tokens = final_tokens[:4]
 
             assembled_name = " ".join(t[0] for t in final_tokens)
-            ref_line = final_tokens[0][1]
 
             # Compute union bounding box
             min_x = min(t[1].bounding_box.x for t in final_tokens)

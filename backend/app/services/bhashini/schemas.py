@@ -3,8 +3,8 @@ Pydantic schemas for Bhashini ULCA Multilingual Integration (E3-04, ADR-013).
 Supports translation (NMT), text-to-speech (TTS), and vernacular voice narration.
 """
 
-from typing import Any, Optional
 import uuid
+
 from pydantic import BaseModel, Field
 
 
@@ -31,9 +31,7 @@ class TranslationResponse(BaseModel):
     target_language: str
     source_text: str
     translated_text: str
-    is_offline_fallback: bool = Field(
-        ..., description="True if local offline dictionary/transliteration was used"
-    )
+    is_offline_fallback: bool = Field(..., description="True if local offline dictionary/transliteration was used")
 
 
 class BatchTranslationRequest(BaseModel):
@@ -84,8 +82,6 @@ class InspectionTranslationResponse(BaseModel):
     target_language: str
     target_language_name: str
     is_offline_fallback: bool
-    summary_narration: str = Field(
-        ..., description="Complete vernacular spoken narration for voice readout"
-    )
+    summary_narration: str = Field(..., description="Complete vernacular spoken narration for voice readout")
     fields: list[InspectionFieldTranslation]
     violations: list[InspectionViolationTranslation]

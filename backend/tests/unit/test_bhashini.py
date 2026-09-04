@@ -5,6 +5,7 @@ Verifies offline fallback, Indic dictionary translations, speech synthesis, and 
 
 import uuid
 from datetime import datetime, timezone
+
 import pytest
 
 from app.models.base import ExtractedField, Inspection, Violation
@@ -27,7 +28,7 @@ async def test_bhashini_supported_languages():
     assert "te" in codes  # Telugu
     assert "en" in codes  # English
 
-    hindi = next(l for l in resp.languages if l.code == "hi")
+    hindi = next(lang for lang in resp.languages if lang.code == "hi")
     assert hindi.script == "Devanagari"
     assert hindi.native_name == "हिन्दी"
 
@@ -44,7 +45,11 @@ async def test_bhashini_offline_translation_dictionary():
 
     # Translate Net Quantity to Marathi
     resp_mr = await service.translate_text("net_quantity", "en", "mr")
-    assert "निव्वळ प्रमाण" in resp_mr.translated_mr if hasattr(resp_mr, "translated_mr") else "निव्वळ प्रमाण" in resp_mr.translated_text
+    assert (
+        "निव्वळ प्रमाण" in resp_mr.translated_mr
+        if hasattr(resp_mr, "translated_mr")
+        else "निव्वळ प्रमाण" in resp_mr.translated_text
+    )
     assert resp_mr.is_offline_fallback is True
 
     # Translate statutory violation phrase

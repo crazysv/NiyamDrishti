@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import time
 import uuid
 from datetime import datetime, timezone
@@ -14,7 +15,17 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_active_user, get_db
 from app.core.config import get_field_confidence_threshold, settings
+from app.core.metrics import (
+    record_inspection_completed,
+    record_ocr_duration,
+    record_offline_sync,
+    record_rule_evaluation_duration,
+)
 from app.models.base import AuditLog, ExtractedField, Inspection, InspectionImage, Report, RulePack, User, Violation
+from app.schemas.evidence_verification import (
+    EvidenceVerificationResult,
+    Section65BCertificate,
+)
 from app.schemas.inspection import (
     AuditLogRead,
     BatchFieldReviewRequest,
@@ -37,14 +48,21 @@ from app.schemas.inspection import (
     ReviewQueueItemRead,
     ViolationRead,
 )
+from app.schemas.sync import (
+    BatchOfflineSyncRequest,
+    BatchOfflineSyncResponse,
+    OfflineConflictDetail,
+    OfflineSyncResult,
+)
 from app.services.calibration import OpticalCalibrationService
+from app.services.cross_matching import MultiImageCrossMatchingService
+from app.services.cross_matching.schemas import CrossMatchReport
+from app.services.evidence import EvidenceVerificationService
 from app.services.extraction import (
     DeclarationExtractionService,
     ExtractedDeclaration,
     list_categories,
 )
-from app.services.cross_matching import MultiImageCrossMatchingService
-from app.services.cross_matching.schemas import CrossMatchReport
 from app.services.ocr import OCRService
 from app.services.reporting.service import ReportService
 from app.services.rules import RuleEngine
@@ -57,24 +75,8 @@ from app.services.storage import (
     save_image_bytes,
     save_report_bytes,
 )
-from app.schemas.sync import (
-    BatchOfflineSyncRequest,
-    BatchOfflineSyncResponse,
-    OfflineConflictDetail,
-    OfflineSyncInspectionItem,
-    OfflineSyncResult,
-)
-from app.core.metrics import (
-    record_ocr_duration,
-    record_rule_evaluation_duration,
-    record_inspection_completed,
-    record_offline_sync,
-)
-from app.schemas.evidence_verification import (
-    EvidenceVerificationResult,
-    Section65BCertificate,
-)
-from app.services.evidence import EvidenceVerificationService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -384,7 +386,9 @@ async def upload_inspection_image(
         if width_px is None or height_px is None:
             try:
                 import io
+
                 from PIL import Image as PILImage
+
                 with PILImage.open(io.BytesIO(file_bytes)) as pil_img:
                     width_px, height_px = pil_img.size
             except Exception:
@@ -802,7 +806,9 @@ async def extract_inspection_declarations(
             db.add(cv)
 
     has_cross_match_failure = not cross_report.is_consistent
-    inspection.status = "completed" if (summary.overall_status == "pass" and not has_cross_match_failure) else "needs_review"
+    inspection.status = (
+        "completed" if (summary.overall_status == "pass" and not has_cross_match_failure) else "needs_review"
+    )
     record_inspection_completed(
         verdict="compliant" if inspection.status == "completed" else "non_compliant",
         category=inspection.commodity_category or "general",
@@ -1302,7 +1308,8 @@ async def verify_inspection_evidence(
 
     field_ids = {str(f.id) for f in inspection.fields}
     relevant_logs = [
-        log for log in all_logs
+        log
+        for log in all_logs
         if (log.entity_type == "inspection" and log.entity_id == str(inspection.id))
         or (log.entity_type == "extracted_field" and log.entity_id in field_ids)
     ]
@@ -1352,7 +1359,8 @@ async def get_section_65b_certificate(
 
     field_ids = {str(f.id) for f in inspection.fields}
     relevant_logs = [
-        log for log in all_logs
+        log
+        for log in all_logs
         if (log.entity_type == "inspection" and log.entity_id == str(inspection.id))
         or (log.entity_type == "extracted_field" and log.entity_id in field_ids)
     ]

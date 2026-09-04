@@ -1,9 +1,14 @@
 import base64
+import logging
 import os
 import uuid
 from pathlib import Path
 
+import httpx
+
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Default local uploads directory
 UPLOAD_DIR = Path("./uploads")
@@ -119,12 +124,6 @@ async def save_report_bytes(
     return f"/uploads/{inspection_id}/reports/{filename}"
 
 
-import logging
-import httpx
-
-logger = logging.getLogger(__name__)
-
-
 def generate_presigned_download_url(
     storage_url_or_key: str,
     expires_in: int = 3600,
@@ -220,11 +219,13 @@ async def get_image_bytes(
         UPLOAD_DIR / Path(storage_url_or_key).name,
     ]
     if inspection_id:
-        candidates.extend([
-            UPLOAD_DIR / str(inspection_id) / clean_path,
-            UPLOAD_DIR / str(inspection_id) / Path(storage_url_or_key).name,
-            UPLOAD_DIR / str(inspection_id) / "images" / Path(storage_url_or_key).name,
-        ])
+        candidates.extend(
+            [
+                UPLOAD_DIR / str(inspection_id) / clean_path,
+                UPLOAD_DIR / str(inspection_id) / Path(storage_url_or_key).name,
+                UPLOAD_DIR / str(inspection_id) / "images" / Path(storage_url_or_key).name,
+            ]
+        )
     for p in candidates:
         if p.exists() and p.is_file():
             try:

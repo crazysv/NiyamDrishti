@@ -4,8 +4,9 @@ Verifies the ingestion, storage, retrieval, and validation of ecommerce_listing 
 """
 
 import base64
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -101,7 +102,11 @@ async def test_ecommerce_listing_json_data_url_ingestion(ecom_test_db):
         assert data["width_px"] == 1080
         assert data["height_px"] == 1920
         assert data["quality_check_passed"] is True
-        assert data["storage_url"].startswith("/uploads") or data["storage_url"].startswith("local://") or "http" in data["storage_url"]
+        assert (
+            data["storage_url"].startswith("/uploads")
+            or data["storage_url"].startswith("local://")
+            or "http" in data["storage_url"]
+        )
 
 
 @pytest.mark.asyncio
@@ -252,4 +257,3 @@ async def test_ecommerce_cross_match_api_endpoint(ecom_test_db):
         assert qty_disc["discrepancy_type"] == "ecommerce_net_quantity_mismatch"
         assert qty_disc["severity"] == "critical"
         assert "Rule 6(10)" in qty_disc["citation"]
-

@@ -84,4 +84,3 @@ async def readiness(response: Response):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "not_ready", "database": db_health}
     return {"status": "ready", "database": db_health}
-

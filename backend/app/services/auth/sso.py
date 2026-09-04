@@ -5,10 +5,9 @@ import secrets
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import httpx
-from jose import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -86,7 +85,7 @@ class JanParichaySSOService:
         return bool(cid and secret and cid != "mock-client-id" and secret != "mock-secret")
 
     @classmethod
-    def initiate_sso(cls, redirect_uri: Optional[str] = None) -> tuple[str, str, str, bool]:
+    def initiate_sso(cls, redirect_uri: str | None = None) -> tuple[str, str, str, bool]:
         """
         Initiates the SSO flow, generating CSRF state and PKCE challenge.
         Returns: (authorization_url, state, code_verifier, is_sandbox)
@@ -153,8 +152,8 @@ class JanParichaySSOService:
         cls,
         code: str,
         state: str,
-        code_verifier: Optional[str] = None,
-        redirect_uri: Optional[str] = None,
+        code_verifier: str | None = None,
+        redirect_uri: str | None = None,
     ) -> JanParichayClaims:
         """
         Exchanges authorization code for verified government claims.
@@ -231,7 +230,10 @@ class JanParichaySSOService:
         dept = claims.department.lower()
 
         # Admin tier: Central ministry directorate, controllers general, national administrators
-        if any(term in desig for term in ["director", "admin", "controller general", "joint secretary"]) or "ministry" in dept:
+        if (
+            any(term in desig for term in ["director", "admin", "controller general", "joint secretary"])
+            or "ministry" in dept
+        ):
             return "admin"
 
         # Supervisory tier: Zonal / state controllers, deputy controllers, enforcement superintendents
@@ -280,5 +282,7 @@ class JanParichaySSOService:
         db.add(user)
         await db.commit()
         await db.refresh(user)
-        logger.info(f"JIT provisioned new government officer account from MeriPehchan: {user.email} (Role: {user.role})")
+        logger.info(
+            f"JIT provisioned new government officer account from MeriPehchan: {user.email} (Role: {user.role})"
+        )
         return user

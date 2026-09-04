@@ -106,7 +106,6 @@ class NetQuantityExtractor(BaseFieldExtractor):
             if multi_match:
                 count_val = int(multi_match.group(1))
                 unit_qty = float(multi_match.group(2))
-                unit_raw = multi_match.group(3)
                 total_qty = float(multi_match.group(4))
                 final_unit_raw = multi_match.group(5)
 
@@ -195,7 +194,7 @@ class NetQuantityExtractor(BaseFieldExtractor):
                 if has_prefix:
                     confidence = min(1.0, confidence + 0.05)
 
-                parsed_payload: dict[str, Any] = {
+                parsed_payload = {
                     "value": qty_val,
                     "unit": std_unit,
                     "raw_unit": unit_str,

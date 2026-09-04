@@ -1,7 +1,7 @@
 """Integration tests for the National Legal Metrology eMaap Portal Adapter API (E4-05, ADR-020)."""
 
-import hashlib
 import uuid
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -10,7 +10,7 @@ from app.api import deps
 from app.core.security import get_password_hash
 from app.db.session import Base
 from app.main import app
-from app.models.base import AuditLog, ExtractedField, Inspection, InspectionImage, User, Violation
+from app.models.base import AuditLog, ExtractedField, User, Violation
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 

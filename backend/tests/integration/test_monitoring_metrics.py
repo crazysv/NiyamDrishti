@@ -1,16 +1,17 @@
 """Integration tests for Prometheus metrics, correlation ID tracing, and health probes (E4-03)."""
 
 import uuid
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.api import deps
 from app.core.metrics import (
-    record_ocr_duration,
-    record_rule_evaluation_duration,
     record_inspection_completed,
+    record_ocr_duration,
     record_offline_sync,
+    record_rule_evaluation_duration,
 )
 from app.db.session import Base
 from app.main import app

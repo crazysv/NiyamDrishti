@@ -2,13 +2,12 @@
 
 import hashlib
 import json
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Literal
 
 from app.core.config import settings
-from app.models.base import AuditLog, ExtractedField, Inspection, InspectionImage, User, Violation
+from app.models.base import AuditLog, Inspection, User
 from app.schemas.evidence_verification import (
     AuditLogChainItem,
     EvidenceVerificationResult,
@@ -43,7 +42,7 @@ class EvidenceVerificationService:
         image_hash_digest_list: list[str] = []
 
         for img in sorted_images:
-            file_integrity = "unhashed"
+            file_integrity: Literal["verified", "hash_mismatch", "file_missing", "unhashed"] = "unhashed"
             stored_hash = img.sha256_hash
 
             if stored_hash:
@@ -72,7 +71,9 @@ class EvidenceVerificationService:
                             else:
                                 file_integrity = "hash_mismatch"
                                 images_compromised += 1
-                                notes.append(f"Image {img.id} ({img.image_role}) file on disk does not match stored SHA-256 hash.")
+                                notes.append(
+                                    f"Image {img.id} ({img.image_role}) file on disk does not match stored SHA-256 hash."
+                                )
                         except Exception as e:
                             file_integrity = "hash_mismatch"
                             images_compromised += 1
@@ -127,7 +128,7 @@ class EvidenceVerificationService:
                 f"{after_str}"
             )
             recomputed = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-            is_valid_hash = (log.entry_hash == recomputed)
+            is_valid_hash = log.entry_hash == recomputed
 
             # Check chain continuity if chaining was populated
             if idx > 0 and log.prev_hash and expected_prev_hash and log.prev_hash != expected_prev_hash:
@@ -170,6 +171,7 @@ class EvidenceVerificationService:
         evidence_chain_hash = hashlib.sha256(master_payload.encode("utf-8")).hexdigest()
 
         # 4. Overall status determination
+        overall_status: Literal["VERIFIED", "COMPROMISED", "INCOMPLETE"]
         if images_compromised > 0 or not audit_chain_intact:
             overall_status = "COMPROMISED"
             is_tamper_free = False

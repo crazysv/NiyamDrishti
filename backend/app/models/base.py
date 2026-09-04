@@ -326,4 +326,3 @@ def prevent_audit_log_update(mapper, connection, target: AuditLog):
 def prevent_audit_log_delete(mapper, connection, target: AuditLog):
     """Statutory non-repudiation: reject any attempt to purge audit records."""
     raise PermissionError("AuditLog records are append-only and legally immutable. DELETE is strictly forbidden.")
-

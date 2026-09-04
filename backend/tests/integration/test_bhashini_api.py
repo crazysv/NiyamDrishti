@@ -5,6 +5,7 @@ Verifies languages listing, text translation, speech synthesis, and full report 
 
 import uuid
 from datetime import datetime, timezone
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -90,7 +91,7 @@ async def test_get_supported_indic_languages(bhashini_test_db):
         data = resp.json()
 
         assert data["total"] == 12
-        codes = [l["code"] for l in data["languages"]]
+        codes = [lang["code"] for lang in data["languages"]]
         assert "hi" in codes
         assert "mr" in codes
         assert "ta" in codes

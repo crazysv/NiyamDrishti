@@ -1,5 +1,6 @@
 import base64
 import uuid
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -8,9 +9,10 @@ from app.api import deps
 from app.core.security import get_password_hash
 from app.db.session import Base
 from app.main import app
-from app.models.base import User, Inspection
+from app.models.base import Inspection, User
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
+
 
 @pytest.fixture
 async def test_db():
@@ -90,7 +92,9 @@ async def test_idempotent_image_upload(test_db):
         token = login_resp.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
-        create_resp = await ac.post("/api/v1/inspections", json={"commodity_category": "packaged_spices"}, headers=headers)
+        create_resp = await ac.post(
+            "/api/v1/inspections", json={"commodity_category": "packaged_spices"}, headers=headers
+        )
         insp_id = create_resp.json()["id"]
 
         dummy_b64 = base64.b64encode(b"test image bytes for offline idempotency").decode("utf-8")

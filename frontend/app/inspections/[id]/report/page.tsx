@@ -5,21 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Download,
-  FileCheck,
   FileText,
-  ShieldAlert,
   ShieldCheck,
   Volume2,
-  Share2,
-  CheckCircle2,
-  AlertTriangle,
-  HelpCircle,
-  Building2,
-  Calendar,
-  Layers,
   FileJson,
   Loader2,
-  ExternalLink,
 } from "lucide-react";
 import { API_BASE } from "@/app/utils/apiConfig";
 import { db } from "@/app/db/dexie";
@@ -37,6 +27,30 @@ interface ReportMetadata {
   generated_at: string;
 }
 
+interface EvidenceItem {
+  field_label?: string;
+  field_type?: string;
+  parsed_value?: string;
+  raw_text?: string;
+  verdict: "pass" | "fail" | "review" | string;
+}
+
+interface EvidenceData {
+  inspection_id: string;
+  product_name: string;
+  commodity_category: string;
+  overall_status: string;
+  rule_pack_version: string;
+  officer_name: string;
+  items: EvidenceItem[];
+  stats?: {
+    total: number;
+    passed: number;
+    review: number;
+    failed: number;
+  };
+}
+
 export default function InspectionReportPage({ params }: ReportPageProps) {
   const resolvedParams = use(params);
   const inspectionId = resolvedParams.id;
@@ -44,7 +58,7 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
-  const [evidenceData, setEvidenceData] = useState<any>(null);
+  const [evidenceData, setEvidenceData] = useState<EvidenceData | null>(null);
   const [reports, setReports] = useState<ReportMetadata[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -71,8 +85,8 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
             evData = await evRes.json();
             setEvidenceData(evData);
           }
-        } catch (e) {
-          console.warn("[ReportPage] Online evidence fetch failed:", e);
+        } catch {
+          // Fall back to offline local storage
         }
 
         // Offline fallback for evidence
@@ -105,11 +119,12 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
             const repList = await repRes.json();
             setReports(repList);
           }
-        } catch (e) {
-          console.warn("[ReportPage] Reports list fetch failed:", e);
+        } catch {
+          // Ignore fetch error in offline mode
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to load report data");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to load report data";
+        setError(msg);
       } finally {
         setIsLoading(false);
       }
@@ -161,7 +176,7 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
       } else {
         window.open(reportMeta.storage_url, "_blank");
       }
-    } catch (err: any) {
+    } catch {
       // Offline fallback: generate structured JSON or text report
       setToastMsg("Server unavailable. Exporting offline compliance dossier...");
       const offlineDoc = {
@@ -219,8 +234,9 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
         downloadLink.remove();
         setToastMsg("Editable JSON export downloaded.");
       }
-    } catch (err: any) {
-      setToastMsg("Error generating editable export: " + err.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Export failed";
+      setToastMsg("Error generating editable export: " + msg);
     } finally {
       setIsGenerating(false);
       setTimeout(() => setToastMsg(null), 3500);
@@ -246,7 +262,7 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
         setToastMsg("Text-to-speech not supported on this browser.");
         setIsNarrating(false);
       }
-    } catch (e) {
+    } catch {
       setIsNarrating(false);
     }
     setTimeout(() => setToastMsg(null), 3500);
@@ -298,6 +314,12 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
       )}
 
       <main className="p-4 flex-1 flex flex-col gap-4 pb-20">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-lg text-xs font-mono">
+            {error}
+          </div>
+        )}
+
         {/* Official Statutory Dossier Header Card */}
         <div className="bg-white rounded-lg border border-[#D1CDC2] p-4 shadow-sm">
           <div className="flex items-start justify-between border-b border-[#EAE7DC] pb-3 mb-3">
@@ -349,7 +371,7 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
 
           {evidenceData?.items?.length ? (
             <div className="flex flex-col divide-y divide-gray-100 text-xs">
-              {evidenceData.items.map((item: any, idx: number) => (
+              {evidenceData.items.map((item, idx: number) => (
                 <div key={idx} className="py-2 flex items-center justify-between">
                   <div>
                     <span className="font-mono font-bold text-gray-800 uppercase block">
@@ -424,6 +446,23 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
             </button>
           </div>
         </div>
+
+        {/* Generated Reports History */}
+        {reports.length > 0 && (
+          <div className="bg-white rounded-lg border border-[#D1CDC2] p-3.5 text-xs shadow-sm">
+            <h4 className="font-bold font-mono uppercase tracking-wider text-gray-700 mb-2">
+              Generated Reports ({reports.length})
+            </h4>
+            <div className="flex flex-col divide-y divide-gray-100">
+              {reports.map((rep) => (
+                <div key={rep.id} className="py-1.5 flex items-center justify-between text-[11px] font-mono">
+                  <span className="text-gray-700 font-semibold">{rep.format.toUpperCase()} Dossier</span>
+                  <span className="text-gray-400">{new Date(rep.generated_at).toLocaleTimeString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Section 63 BSA Digital Evidence Certificate Notice */}
         <div className="bg-[#EAE7DC]/60 rounded-lg border border-[#D1CDC2] p-3.5 text-xs text-[#333E50]">

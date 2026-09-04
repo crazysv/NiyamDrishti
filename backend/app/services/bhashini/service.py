@@ -5,15 +5,12 @@ for Legal Metrology field inspections. Environment-driven with live ULCA client
 and resilient offline dictionary fallback.
 """
 
-import base64
 import logging
-import uuid
-from typing import Any, Optional
 
 import httpx
 
 from app.core.config import settings
-from app.models.base import ExtractedField, Inspection, Violation
+from app.models.base import Inspection
 from app.services.bhashini.schemas import (
     InspectionFieldTranslation,
     InspectionTranslationResponse,
@@ -154,9 +151,7 @@ STATUTORY_PHRASES: dict[str, dict[str, str]] = {
 }
 
 # Synthetic minimal WAV audio bytes for offline TTS fallback (44-byte silent WAV header)
-OFFLINE_WAV_HEADER_B64 = (
-    "UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
-)
+OFFLINE_WAV_HEADER_B64 = "UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA="
 
 
 class BhashiniService:
@@ -216,9 +211,7 @@ class BhashiniService:
                         is_offline_fallback=False,
                     )
             except Exception as e:
-                logger.warning(
-                    "Bhashini live NMT call failed (%s), falling back to offline dictionary.", e
-                )
+                logger.warning("Bhashini live NMT call failed (%s), falling back to offline dictionary.", e)
 
         # Offline dictionary / rule-based Indic fallback
         translated = self._translate_offline(text, target_lang)
@@ -251,9 +244,7 @@ class BhashiniService:
                         is_offline_fallback=False,
                     )
             except Exception as e:
-                logger.warning(
-                    "Bhashini live TTS call failed (%s), falling back to offline audio.", e
-                )
+                logger.warning("Bhashini live TTS call failed (%s), falling back to offline audio.", e)
 
         return TTSResponse(
             language=language,
@@ -277,7 +268,7 @@ class BhashiniService:
         )
 
         translated_fields: list[InspectionFieldTranslation] = []
-        for field in (inspection.fields or []):
+        for field in inspection.fields or []:
             field_dict = LEGAL_METROLOGY_DICTIONARY.get(field.field_type, {})
             label = field_dict.get(target_lang, field.field_type.replace("_", " ").title())
             val = str(field.parsed_value or field.raw_text or "")
@@ -293,7 +284,7 @@ class BhashiniService:
             )
 
         translated_violations: list[InspectionViolationTranslation] = []
-        for v in (inspection.violations or []):
+        for v in inspection.violations or []:
             trans_resp = await self.translate_text(v.description, "en", target_lang)
             translated_violations.append(
                 InspectionViolationTranslation(
@@ -325,21 +316,16 @@ class BhashiniService:
             else:
                 top_v = translated_violations[0].translated_description
                 summary_narration = (
-                    f"निरीक्षण परिणाम: {total_violations} उल्लंघन पाए गए। "
-                    f"प्रमुख समस्या: {top_v}। कृपया अधिकारी समीक्षा पूरी करें।"
+                    f"निरीक्षण परिणाम: {total_violations} उल्लंघन पाए गए। प्रमुख समस्या: {top_v}। कृपया अधिकारी समीक्षा पूरी करें।"
                 )
         elif target_lang == "mr":
             if total_violations == 0:
                 summary_narration = (
-                    f"तपासणी निकाल: सर्व {total_declarations} घोषणा नियमांनुसार वैध आहेत. "
-                    f"उत्पादन पूर्णपणे पास झाले आहे."
+                    f"तपासणी निकाल: सर्व {total_declarations} घोषणा नियमांनुसार वैध आहेत. उत्पादन पूर्णपणे पास झाले आहे."
                 )
             else:
                 top_v = translated_violations[0].translated_description
-                summary_narration = (
-                    f"तपासणी निकाल: {total_violations} उल्लंघन आढळले. "
-                    f"मुख्य बाब: {top_v}."
-                )
+                summary_narration = f"तपासणी निकाल: {total_violations} उल्लंघन आढळले. मुख्य बाब: {top_v}."
         else:
             summary_narration = (
                 f"Inspection results in {target_lang_obj.name}: {total_declarations} declarations checked, "
@@ -391,7 +377,7 @@ class BhashiniService:
         text: str,
         source_lang: str,
         target_lang: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Performs live HTTP request to Bhashini ULCA NMT API."""
         headers = {
             "Content-Type": "application/json",
@@ -432,7 +418,7 @@ class BhashiniService:
         text: str,
         language: str,
         gender: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Performs live HTTP request to Bhashini ULCA TTS API."""
         headers = {
             "Content-Type": "application/json",

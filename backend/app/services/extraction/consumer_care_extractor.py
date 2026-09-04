@@ -52,9 +52,15 @@ class ConsumerCareExtractor(BaseFieldExtractor):
             valid_phones = []
             for p in phone_matches:
                 p_clean = p.strip()
-                if "1800" in p_clean or "800-" in p_clean or p_clean.startswith("+91"):
-                    valid_phones.append(p_clean)
-                elif any(indicator in text_lower for indicator in ["ph", "tel", "call", "care", "helpline", "toll", "contact", "phone", "mob"]):
+                if (
+                    "1800" in p_clean
+                    or "800-" in p_clean
+                    or p_clean.startswith("+91")
+                    or any(
+                        indicator in text_lower
+                        for indicator in ["ph", "tel", "call", "care", "helpline", "toll", "contact", "phone", "mob"]
+                    )
+                ):
                     valid_phones.append(p_clean)
 
             if has_header or email_match or valid_phones:
@@ -77,10 +83,27 @@ class ConsumerCareExtractor(BaseFieldExtractor):
                     if p_matches:
                         for pm in p_matches:
                             pm_clean = pm.strip()
-                            if ("1800" in pm_clean or "800-" in pm_clean or pm_clean.startswith("+91") or 
-                                any(ind in next_lower or ind in text_lower for ind in ["ph", "tel", "call", "care", "helpline", "toll", "contact", "phone", "mob"])):
-                                if pm_clean not in found_phones:
-                                    found_phones.append(pm_clean)
+                            is_valid_indicator = (
+                                "1800" in pm_clean
+                                or "800-" in pm_clean
+                                or pm_clean.startswith("+91")
+                                or any(
+                                    ind in next_lower or ind in text_lower
+                                    for ind in [
+                                        "ph",
+                                        "tel",
+                                        "call",
+                                        "care",
+                                        "helpline",
+                                        "toll",
+                                        "contact",
+                                        "phone",
+                                        "mob",
+                                    ]
+                                )
+                            )
+                            if is_valid_indicator and pm_clean not in found_phones:
+                                found_phones.append(pm_clean)
                         if next_line not in collected_lines:
                             collected_lines.append(next_line)
                         skip_indices.add(lookahead)

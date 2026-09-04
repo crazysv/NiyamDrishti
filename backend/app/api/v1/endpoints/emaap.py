@@ -1,6 +1,7 @@
 """API endpoints for eMaap National Legal Metrology Portal integration (E4-05, ADR-020)."""
 
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,7 +89,8 @@ async def submit_inspection_docket_to_emaap(
     audit_res = await db.execute(audit_stmt)
     all_logs = audit_res.scalars().all()
     relevant_logs = [
-        log for log in all_logs
+        log
+        for log in all_logs
         if (log.entity_type == "inspection" and log.entity_id == str(inspection.id))
         or (log.entity_type == "extracted_field" and log.entity_id in field_ids)
     ]

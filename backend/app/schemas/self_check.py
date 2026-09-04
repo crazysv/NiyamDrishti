@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Any, Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.inspection import ExtractedFieldRead, InspectionImageRead, ViolationRead

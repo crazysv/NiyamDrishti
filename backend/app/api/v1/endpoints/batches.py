@@ -4,24 +4,22 @@ Enables field officers to conduct rapid, multi-SKU inspections during warehouse
 audits, dark store raids, and distribution center inspections.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import get_current_active_user, get_db
 from app.core.config import settings
-from app.models.base import BatchSession, ExtractedField, Inspection, User, Violation
+from app.models.base import BatchSession, Inspection, User
 from app.schemas.batch import (
     BatchManifestRead,
     BatchSessionCreate,
     BatchSessionDetail,
     BatchSessionRead,
-    BatchSessionUpdate,
     BatchSKUItem,
 )
 from app.schemas.inspection import InspectionCreate, InspectionRead
@@ -35,7 +33,7 @@ def _compute_batch_metrics(session: BatchSession) -> dict:
     non_compliant = 0
     pending = 0
 
-    for insp in (session.inspections or []):
+    for insp in session.inspections or []:
         if insp.status == "completed":
             v_count = len(insp.violations or [])
             if v_count == 0:
@@ -102,7 +100,7 @@ async def create_batch_session(
 
 @router.get("", response_model=list[BatchSessionRead])
 async def list_batch_sessions(
-    status_filter: Optional[str] = Query(None, alias="status"),
+    status_filter: str | None = Query(None, alias="status"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> list[BatchSessionRead]:
@@ -187,13 +185,13 @@ async def get_batch_session_detail(
     metrics = _compute_batch_metrics(batch)
 
     sku_items: list[BatchSKUItem] = []
-    for insp in (batch.inspections or []):
+    for insp in batch.inspections or []:
         v_count = len(insp.violations or [])
         mrp_val = None
         qty_val = None
         name_val = None
 
-        for f in (insp.fields or []):
+        for f in insp.fields or []:
             if f.field_type == "mrp":
                 mrp_val = f.parsed_value or f.raw_text
             elif f.field_type == "net_quantity":
@@ -286,8 +284,8 @@ async def create_batch_sku_inspection(
             selectinload(Inspection.violations),
         )
     )
-    res = await db.execute(reloaded_stmt)
-    return res.scalar_one()
+    insp_res = await db.execute(reloaded_stmt)
+    return insp_res.scalar_one()
 
 
 @router.post("/{batch_id}/complete", response_model=BatchSessionRead)

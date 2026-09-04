@@ -1,8 +1,8 @@
 """Security and evidentiary integrity tests for audit logs and evidence chain of custody (E4-04)."""
 
 import hashlib
-import json
 import uuid
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -11,8 +11,7 @@ from app.api import deps
 from app.core.security import get_password_hash
 from app.db.session import Base
 from app.main import app
-from app.models.base import AuditLog, ExtractedField, Inspection, InspectionImage, User, Violation
-from app.services.evidence.verification import EvidenceVerificationService
+from app.models.base import AuditLog, InspectionImage, User
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 

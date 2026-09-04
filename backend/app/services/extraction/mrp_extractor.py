@@ -25,7 +25,10 @@ class MRPExtractor(BaseFieldExtractor):
 
     PRICE_NUMBER_PATTERN = re.compile(r"(?:RS\.?|₹|INR)?\s*([0-9]+(?:[.,][0-9]{1,2})?)(?:\s*\/-\s*)?", re.IGNORECASE)
 
-    USP_PATTERN = re.compile(r"(?:(?:UNIT\s+SALE\s+PRICE|USP)[\s:.-]*)?(?:RS\.?|₹|INR)?\s*([0-9]+(?:\.[0-9]+)?)\s*[\/]\s*([a-zA-Z]+)", re.IGNORECASE)
+    USP_PATTERN = re.compile(
+        r"(?:(?:UNIT\s+SALE\s+PRICE|USP)[\s:.-]*)?(?:RS\.?|₹|INR)?\s*([0-9]+(?:\.[0-9]+)?)\s*[\/]\s*([a-zA-Z]+)",
+        re.IGNORECASE,
+    )
 
     @property
     def field_type(self) -> str:
@@ -161,8 +164,8 @@ class MRPExtractor(BaseFieldExtractor):
                 if price_val is not None:
                     # Check tax-inclusivity across all nearby lines
                     has_taxes = any(
-                        self.TAX_INCLUSIVE_PATTERN.search(l.text) or "tax" in l.text.lower()
-                        for _, l in nearby_candidates
+                        self.TAX_INCLUSIVE_PATTERN.search(cand.text) or "tax" in cand.text.lower()
+                        for _, cand in nearby_candidates
                     )
 
                     parsed_payload = {

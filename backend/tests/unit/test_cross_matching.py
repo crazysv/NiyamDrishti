@@ -232,4 +232,3 @@ def test_cross_match_ecommerce_consistent():
     assert len(report.discrepancies) == 0
     assert "net_quantity" in report.consistent_fields
     assert "mrp" in report.consistent_fields
-

@@ -4,7 +4,7 @@ Verifies warehouse session creation, rapid SKU intake, session completion, and m
 """
 
 import uuid
-from datetime import datetime, timezone
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -13,7 +13,7 @@ from app.api import deps
 from app.core.security import create_access_token, get_password_hash
 from app.db.session import Base
 from app.main import app
-from app.models.base import ExtractedField, Inspection, User, Violation
+from app.models.base import Inspection, User, Violation
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -91,7 +91,6 @@ async def test_rapid_sku_intake_and_manifest_generation(batch_test_db):
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         token = create_access_token(batch_test_db["officer_id"])
         headers = {"Authorization": f"Bearer {token}"}
-        officer_id = batch_test_db["officer_id"]
 
         # 1. Create batch session
         b_resp = await ac.post(
@@ -121,18 +120,13 @@ async def test_rapid_sku_intake_and_manifest_generation(batch_test_db):
         # 3. Simulate processing: SKU 1 passes, SKU 2 has an altered MRP sticker violation
         async with batch_test_db["session"]() as session:
             # Update SKU 1 to completed (compliant)
-            s1 = (await session.execute(Inspection.__table__.select().where(Inspection.id == uuid.UUID(sku1_id)))).fetchone()
             await session.execute(
-                Inspection.__table__.update()
-                .where(Inspection.id == uuid.UUID(sku1_id))
-                .values(status="completed")
+                Inspection.__table__.update().where(Inspection.id == uuid.UUID(sku1_id)).values(status="completed")
             )
 
             # Update SKU 2 to completed (non-compliant with violation)
             await session.execute(
-                Inspection.__table__.update()
-                .where(Inspection.id == uuid.UUID(sku2_id))
-                .values(status="completed")
+                Inspection.__table__.update().where(Inspection.id == uuid.UUID(sku2_id)).values(status="completed")
             )
             v = Violation(
                 id=uuid.uuid4(),

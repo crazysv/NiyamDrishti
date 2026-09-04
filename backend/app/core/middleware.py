@@ -3,15 +3,16 @@
 import re
 import time
 import uuid
-from typing import Callable
+from collections.abc import Callable
+
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from app.core.metrics import (
-    http_requests_total,
-    http_request_duration_seconds,
     active_requests,
+    http_request_duration_seconds,
+    http_requests_total,
 )
 
 # UUID and common ID pattern matchers for fallback route normalization

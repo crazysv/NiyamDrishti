@@ -8,6 +8,32 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
+### 2026-09-04 — Fix: Strict GitHub Actions CI Pipeline Compliance (Ruff, Mypy, ESLint & Production Build Clean)
+- **Backend Ruff Linting & Formatting Compliance (`backend/pyproject.toml`):**
+  - Configured `extend-exclude = ["alembic"]`, `ignore = ["E501", "B008", "B904", "UP017", "E712"]` (allowing SQLAlchemy binary filter expressions like `is_self_check == False`), and `"scripts/*" = ["E402"]`.
+  - Formatted all 131 backend source and test files to 100% compliance with `py -3.10 -m ruff format .`.
+  - Cleaned up ambiguous variable names, unused variables, and mid-file imports across `app/core/metrics.py`, `app/services/storage.py`, `app/api/v1/endpoints/inspections.py`, `services/extraction/`, `scripts/pilot_readiness_check.py`, and test suites.
+- **Backend Mypy Static Type Hardening (`backend/app/`):**
+  - Resolved `Literal` typing for `file_integrity` and `overall_status` in `app/services/evidence/verification.py`.
+  - Converted manual relationship instantiation in `app/api/v1/endpoints/self_check.py` to `SelfCheckInspectionRead.model_validate(rec)`.
+  - Resolved variable reuse type collision in `app/api/v1/endpoints/batches.py` (`res` -> `insp_res`).
+  - Added `"INSPECTION_FINALIZED"` literal code to `OfflineConflictDetail` in `app/schemas/sync.py`.
+  - Verified 0 issues across all 87 source files with `mypy app/ --ignore-missing-imports --no-strict-optional`.
+- **Frontend ESLint & React 19 Compiler Purity (`frontend/`):**
+  - **Capture Screen (`CaptureScreen.tsx`):** Abstracted `makeNonce()` helper outside component render scope to satisfy `react-hooks/purity`; converted `currentUser` to lazy initialization in `useState(() => ...)` and removed synchronous `setState` in `useEffect` to satisfy `react-hooks/set-state-in-effect`.
+  - **Report Center Page (`report/page.tsx`):** Removed 10 unused Lucide icons, defined strong `EvidenceData` and `EvidenceItem` types eliminating all `any` usages, rendered the `error` state and `reports` history list in the UI, and cleanly typed all `catch` handlers.
+  - **Sync Service (`syncService.ts`):** Removed unused imports `discardOfflineInspection` and `SyncTransientError`.
+  - **Retry Backoff (`retryBackoff.ts`):** Replaced `any` conflict data with typed `ConflictPayload` interface.
+  - Verified 0 errors and 0 warnings via `npm run lint`.
+- **Full Verification Suite:**
+  - `ruff check .` -> All checks passed (0 errors)
+  - `ruff format --check .` -> 131 files already formatted
+  - `mypy app/` -> 0 issues found in 87 source files
+  - `pytest tests/unit` -> 84/84 tests passing
+  - `npm run lint` -> 0 errors, 0 warnings
+  - `npx tsc --noEmit` -> 0 errors
+  - `npm run build` -> Clean Next.js build with all 8 routes generated.
+
 ### 2026-09-04 — Fix: Real-World Commercial Packaging Validation, Barcode Calibration Glare Fallback & Mobile Field UX Hardening
 - **Optical Barcode Calibration Glare Fallback (`CAL-01`, `ADR-023`, `backend/app/services/calibration/detector.py`):**
   - Integrated `zxingcpp` first-pass decoding and implemented a Gaussian adaptive thresholding fallback (`cv2.adaptiveThreshold`) to overcome specular light glare on glossy foil packaging.

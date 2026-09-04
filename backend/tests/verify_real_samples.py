@@ -1,13 +1,14 @@
-import cv2
-import json
-import sys
 import os
+import sys
+
+import cv2
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.services.ocr.paddle_engine import PaddleOCREngine
-from app.services.extraction.service import DeclarationExtractionService
 from app.services.calibration.detector import BarcodeCalibrationDetector
+from app.services.extraction.service import DeclarationExtractionService
+from app.services.ocr.paddle_engine import PaddleOCREngine
+
 
 def test_samples():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../test_data/test_pics"))
@@ -59,6 +60,7 @@ def test_samples():
     assert "consumer_care" in found_types, "Consumer Care missing"
     assert any(c["calibrated"] for c in calibration_results.values()), "Barcode calibration failed on all images"
     print("\nALL STATUTORY DECLARATIONS & CALIBRATION VERIFIED SUCCESSFULLY ON REAL SAMPLES!")
+
 
 if __name__ == "__main__":
     test_samples()

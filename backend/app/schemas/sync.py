@@ -30,6 +30,7 @@ class OfflineSyncInspectionItem(BaseModel):
 class OfflineConflictDetail(BaseModel):
     code: Literal[
         "INSPECTION_FINALISED",
+        "INSPECTION_FINALIZED",
         "CONCURRENT_MODIFICATION",
         "DUPLICATE_CLIENT_ID",
         "IMAGE_ALREADY_EXISTS",
