@@ -54,8 +54,10 @@ async def save_image_bytes(
     filename: str,
 ) -> str:
     """
-    Saves an image either to local filesystem (dev/offline) or Cloudflare R2.
-    Returns the storage URL or relative path.
+    Saves an image to Cloudflare R2 / Supabase S3 (prod) or local filesystem (dev/offline).
+    IMPORTANT: Always stores the raw S3 object key (r2://bucket/key) in the DB — never a
+    presigned URL. Presigned URLs expire; the key never does. Use generate_presigned_download_url
+    when you need a time-limited URL for frontend display.
     """
     client = get_r2_client()
     if client and settings.R2_BUCKET_NAME:
@@ -66,15 +68,10 @@ async def save_image_bytes(
             Body=file_bytes,
             ContentType="image/jpeg",
         )
-        if settings.R2_PUBLIC_BASE_URL:
-            return f"{settings.R2_PUBLIC_BASE_URL.rstrip('/')}/{key}"
-        return client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": settings.R2_BUCKET_NAME, "Key": key},
-            ExpiresIn=86400,
-        )
+        # Store the stable key reference, not a time-limited presigned URL
+        return f"r2://{settings.R2_BUCKET_NAME}/{key}"
 
-    # Local file storage
+    # Local file storage fallback
     inspection_dir = UPLOAD_DIR / str(inspection_id)
     os.makedirs(inspection_dir, exist_ok=True)
 
@@ -170,8 +167,8 @@ async def get_image_bytes(
     inspection_id: uuid.UUID | None = None,
 ) -> bytes | None:
     """
-    Retrieves the raw image bytes for an image stored in Cloudflare R2 / Supabase S3 (prod),
-    via HTTP/HTTPS URL, or local filesystem (dev/offline).
+    Retrieves raw image bytes from r2://key, HTTP/HTTPS URL, or local filesystem.
+    Priority: S3 direct (no expiry) > HTTP fallback > local filesystem.
     """
     if not storage_url_or_key:
         return None
@@ -185,54 +182,64 @@ async def get_image_bytes(
             logger.warning(f"Failed decoding base64 data URL: {e}")
             return None
 
-    # Case 2: HTTP or HTTPS URL (direct download)
+    # Case 2: r2://bucket/key or any S3-resolvable key — always try S3 direct FIRST
+    # This avoids presigned URL expiry entirely.
+    s3_client = get_r2_client()
+    if s3_client and settings.R2_BUCKET_NAME:
+        raw = storage_url_or_key
+        # Strip r2://bucket/ prefix
+        if raw.startswith("r2://"):
+            raw = raw[5:]  # remove "r2://"
+            if raw.startswith(settings.R2_BUCKET_NAME + "/"):
+                raw = raw[len(settings.R2_BUCKET_NAME) + 1:]
+        elif f"/{settings.R2_BUCKET_NAME}/" in raw:
+            raw = raw.split(f"/{settings.R2_BUCKET_NAME}/", 1)[1]
+        elif "inspections/" in raw:
+            raw = "inspections/" + raw.split("inspections/", 1)[1]
+        key = raw.split("?")[0].lstrip("/")
+
+        if key.startswith("inspections/"):
+            try:
+                resp = s3_client.get_object(Bucket=settings.R2_BUCKET_NAME, Key=key)
+                data = resp["Body"].read()
+                if data:
+                    return data
+            except Exception as e:
+                logger.warning(f"S3 get_object failed for key '{key}': {e}")
+
+    # Case 3: HTTP or HTTPS URL fallback (for legacy stored presigned URLs)
     if storage_url_or_key.startswith("http://") or storage_url_or_key.startswith("https://"):
         try:
             async with httpx.AsyncClient(timeout=30.0) as client_http:
                 resp = await client_http.get(storage_url_or_key)
                 if resp.status_code == 200:
                     return resp.content
-                logger.warning(f"HTTP GET returned {resp.status_code} for {storage_url_or_key}")
+                logger.warning(f"HTTP GET returned {resp.status_code} for {storage_url_or_key[:80]}")
         except Exception as e:
-            logger.warning(f"HTTP download failed for {storage_url_or_key}: {e}")
-
-    # Case 3: S3 / Cloudflare R2 object
-    client = get_r2_client()
-    if client and settings.R2_BUCKET_NAME and not storage_url_or_key.startswith("/uploads/"):
-        key = storage_url_or_key.replace("r2://", "").lstrip("/")
-        if f"/{settings.R2_BUCKET_NAME}/" in key:
-            key = key.split(f"/{settings.R2_BUCKET_NAME}/", 1)[1]
-        elif "inspections/" in key:
-            key = "inspections/" + key.split("inspections/", 1)[1]
-        key = key.split("?")[0]
-
-        try:
-            resp = client.get_object(Bucket=settings.R2_BUCKET_NAME, Key=key)
-            return resp["Body"].read()
-        except Exception as e:
-            logger.warning(f"S3 get_object failed for key '{key}': {e}")
+            logger.warning(f"HTTP download failed for {storage_url_or_key[:80]}: {e}")
 
     # Case 4: Local filesystem
-    clean_path = storage_url_or_key.replace("local://", "").lstrip("/").replace("uploads/", "")
-    candidates = [
-        UPLOAD_DIR / clean_path,
-        UPLOAD_DIR / Path(storage_url_or_key).name,
-    ]
-    if inspection_id:
-        candidates.extend(
-            [
-                UPLOAD_DIR / str(inspection_id) / clean_path,
-                UPLOAD_DIR / str(inspection_id) / Path(storage_url_or_key).name,
-                UPLOAD_DIR / str(inspection_id) / "images" / Path(storage_url_or_key).name,
-            ]
-        )
-    for p in candidates:
-        if p.exists() and p.is_file():
-            try:
-                with open(p, "rb") as f:
-                    return f.read()
-            except Exception as e:
-                logger.warning(f"Failed reading local file {p}: {e}")
+    if storage_url_or_key.startswith("/uploads/") or storage_url_or_key.startswith("local://"):
+        clean_path = storage_url_or_key.replace("local://", "").lstrip("/").replace("uploads/", "")
+        candidates = [
+            UPLOAD_DIR / clean_path,
+            UPLOAD_DIR / Path(storage_url_or_key).name,
+        ]
+        if inspection_id:
+            candidates.extend(
+                [
+                    UPLOAD_DIR / str(inspection_id) / clean_path,
+                    UPLOAD_DIR / str(inspection_id) / Path(storage_url_or_key).name,
+                    UPLOAD_DIR / str(inspection_id) / "images" / Path(storage_url_or_key).name,
+                ]
+            )
+        for p in candidates:
+            if p.exists() and p.is_file():
+                try:
+                    with open(p, "rb") as f:
+                        return f.read()
+                except Exception as e:
+                    logger.warning(f"Failed reading local file {p}: {e}")
 
     return None
 
