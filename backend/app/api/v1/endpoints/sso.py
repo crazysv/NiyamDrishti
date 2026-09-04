@@ -52,6 +52,7 @@ async def initiate_sso_login(
     return SSOInitResponse(
         authorization_url=auth_url,
         state=state,
+        code_verifier=code_verifier,
         code_challenge=code_verifier,
         is_sandbox=is_sandbox,
     )

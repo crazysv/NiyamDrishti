@@ -198,3 +198,9 @@ async def test_emaap_enforcement_docket_submission(test_client_and_db):
         )
         log_rows = logs.fetchall()
         assert len(log_rows) == 1
+        log_entry = log_rows[0]
+        assert log_entry.after_value["docket_id"] == docket_data["docket_id"]
+        assert log_entry.after_value["status"] == "ACKNOWLEDGED"
+        assert log_entry.after_value["evidence_chain_hash"] == docket_data["evidence_chain_hash"]
+        assert log_entry.entry_hash is not None
+        assert len(log_entry.entry_hash) == 64  # SHA-256 hex digest

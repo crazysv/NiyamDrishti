@@ -41,7 +41,8 @@ class SSOInitResponse(BaseModel):
     """
     authorization_url: str
     state: str
-    code_challenge: Optional[str] = None
+    code_verifier: Optional[str] = None
+    code_challenge: Optional[str] = None  # Deprecated alias for backward compatibility
     is_sandbox: bool
 
 

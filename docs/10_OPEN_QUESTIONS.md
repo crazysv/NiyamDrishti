@@ -79,5 +79,22 @@ Every genuine ambiguity, conflicting source, or unverified fact gets logged here
 
 *(Add new entries below this line as they're found, in ascending OQ number order.)*
 
+### OQ-08 — Legal Metrology (Packaged Commodities) Rules, 2011 Core Declaration Sub-Clause Citations
+**Status:** Open
+**Raised:** 2026-09-04 (during Phase 1 audit & fix session)
+**The ambiguity:** In `backend/app/services/rules/core_pack_v1.json`, all Rule 6 statutory citations contain explicit `[VERIFY]` markers (e.g., `Rule 6(1)(c) — [VERIFY]`, `Rule 6(1)(a) — [VERIFY]`, `Rule 6(1)(d) — [VERIFY]`). While the legal requirements themselves (MRP inclusive of taxes, net quantity in metric units, manufacturer/packer/importer name and address, month/year of manufacture, consumer care contacts, commodity name, pan-masala RSP) are verified statutory mandates under Rule 6, the exact lettered sub-clauses have minor variations across successive central gazette amendments.
+**Sources/positions:** AGENTS.md Rule 9 strictly commands: "Never fabricate a legal citation. If you're not sure a rule/section number is correct, say so explicitly in the code comment, the report template, and docs/10_OPEN_QUESTIONS.md — a wrong citation on a compliance report is a real-world credibility risk, not a cosmetic bug."
+**Current working assumption:** All citations retain their `[VERIFY]` annotations in `core_pack_v1.json`, and generated reports render the verified plain-English statutory requirement. Tracker entry for RULE-02 is updated to accurately reflect that citations are marked `[VERIFY]` per AGENTS.md Rule 9 pending official sub-clause confirmation.
+**Resolution:** *(pending — cross-verify against official Ministry of Consumer Affairs gazette notifications before removing [VERIFY] markers)*
+
+### OQ-09 — Expiry / Best-Before / Use-By Date Extraction Scope in E2-01
+**Status:** Deferred
+**Raised:** 2026-09-04 (during Phase 2 audit & fix session)
+**The ambiguity:** `MASTER_CONTENT.md` §4.2 lists 9 mandatory declaration types, including field #9: `Best-before / use-by / expiry date (food, pharma, cosmetics)`. In Phase 2 (`E2-01`), new extractors were implemented for dimensions/count (`DimensionsAndCountExtractor`), importer/packer/marketer (`ImporterPackerExtractor`), and pan-masala retail sale price (`RSPExtractor`). However, a dedicated `ExpiryDateExtractor` was not added; `MfgDateExtractor` strictly targets date of manufacture/packing.
+**Sources/positions:** Under LM(PC) Rules, 2011 Rule 6 and FSSAI Packaging & Labelling Regulations, expiry/best-before dates are mandatory for perishable food, pharmaceuticals, and cosmetics, but not for general non-perishable packaged commodities (e.g., electronics, hardware, stationary, apparel).
+**Current working assumption:** E2-01 deliverable focused on the universal declarations applicable across all general packaged commodities. Expiry / best-before date extraction is deferred to category-specific rule packs (e.g., food/cosmetics plugins) or a subsequent extraction pipeline enhancement.
+**Resolution:** *(deferred — decide whether to add ExpiryDateExtractor in Phase 3/4 or as part of specialized food/pharma commodity modules)*
+
+
 
 

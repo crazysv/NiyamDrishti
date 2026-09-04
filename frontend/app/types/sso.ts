@@ -23,6 +23,7 @@ export interface SSOSandboxProfile {
 export interface SSOInitResponse {
   authorization_url: string;
   state: string;
+  code_verifier?: string | null;
   code_challenge?: string | null;
   is_sandbox: boolean;
 }

@@ -81,6 +81,8 @@ async def test_sso_sandbox_personas_and_init(sso_test_db):
         init_data = init_resp.json()
         assert init_data["is_sandbox"] is True
         assert "state" in init_data
+        assert "code_verifier" in init_data
+        assert init_data["code_verifier"] is not None
         assert "/api/v1/auth/sso/sandbox" in init_data["authorization_url"]
 
         # 2. Test Personas Listing

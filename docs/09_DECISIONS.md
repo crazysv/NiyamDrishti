@@ -180,7 +180,11 @@ Implement per-field tuned confidence thresholds (`E2-08`) in `backend/app/core/c
 - `country_of_origin`: `0.85` (strict threshold for mandatory trade provenance declarations).
 - Default / unlisted: `0.85` (fallback baseline).
 Integrated via `get_field_confidence_threshold(field_type)` across `extraction/service.py`, `rules/engine.py`, and `endpoints/inspections.py`.
+**Addendum (2026-09-04 — Phase 2 Audit & Fix):**
+Normalized extractor field_type configuration keys. In the initial implementation, `FIELD_CONFIDENCE_THRESHOLDS` used descriptive English labels (`date_of_manufacture`, `dimensions_and_count`, `importer_packer`, `retail_sale_price`). However, concrete extractor classes define specific `field_type` values (`mfg_date`, `dimension_count`, `packer_importer`, `rsp`), fine-grained declaration sub-types (`dimensions`, `item_count`, `importer_address`, `packer_address`, `marketer_address`), and rule packs use canonical identifiers (e.g. `mfg_date`, `commodity_name`). `FIELD_CONFIDENCE_THRESHOLDS` in `backend/app/core/config.py` was expanded to explicitly map both canonical extractor identifiers, fine-grained sub-types, and descriptive aliases, guaranteeing consistent calibrated threshold routing across all extractor and rule engine call sites.
+
 ### ADR-013 — Bhashini Multilingual Adapter Architecture (Live ULCA with Offline Stub Fallback)
+
 **Date:** 2026-09-04
 **Status:** Accepted
 **Context:** In Phase 3 (`E3-03`, `E3-04`, `MASTER_CONTENT.md` §11.11, `OQ-07`), multilingual capabilities are needed for field officers operating across Indian states:
@@ -345,6 +349,24 @@ Implement an environment-driven Bhashini adapter pattern (`BhashiniService` / `B
    - `POST /api/v1/integrations/emaap/dockets/{inspection_id}`: Docket submission endpoint.
 **Consequences:** Establishes a clean, production-ready interface to eMaap that works immediately in demonstrations, offline pilots, and real deployments without waiting on external NIC approval timelines; 100% compliant with free-tier and independence guardrails.
 
+**Addendum (2026-09-04 — Phase 4 Audit Remediation):** Clarified architectural boundary for audit logging: `EMaapAdapter` (`app/services/integrations/emaap.py`) is a stateless network adapter client without direct database session dependencies. The immutable `AuditLog` record (`action="emaap_docket_submitted"`, `entity_type="inspection"`, `after_value={"docket_id": ..., "status": ..., "evidence_chain_hash": ...}`) is emitted and committed in the API route handler `POST /api/v1/integrations/emaap/dockets/{inspection_id}` (`app/api/v1/endpoints/emaap.py`) where active user context and database sessions reside. Integration test assertions in `test_emaap_adapter_api.py` verify the audit record creation and automated SHA-256 `entry_hash` chaining.
 
+### ADR-021 — Client-Side Aspect Ratio & Occlusion Quality Gate Heuristics (CAP-05)
+**Date:** 2026-09-04
+**Status:** Accepted
+**Context:** In Phase 1 task CAP-05 (`docs/07_IMPLEMENTATION_PLAN.md`), the client-side quality gate required "perspective / crop / resolution / occlusion checks" before sending images to downstream OCR. Previously, `qualityGate.ts` implemented 600x600 minimum resolution, Laplacian blur, and glare checks, but had no algorithmic checks for extreme perspective skew or occlusion, leaving the `"perspective"` issue type unused. Heavy homography or deep-learning segmentation models cannot run client-side on mobile browsers without introducing heavy dependencies or blocking the capture flow.
+**Decision:**
+1. **Perspective & Aspect Ratio Proxy:** Implement an aspect ratio heuristic checking if `aspectRatio > 3.0` or `aspectRatio < 0.33` (`MAX_ASPECT_RATIO = 3.0`). Packaged commodities photographed at severe oblique angles or with clipped crop boundaries exhibit extreme aspect ratios that degrade OCR recognition.
+2. **Center-Zone Occlusion Detection:** Compute a 16-bin luminance histogram across the central 70% package area (`MAX_OCCLUSION_RATIO = 0.40`). If more than 40% of the center pixels belong to a single uniform bin while the image as a whole has high variance, it flags a dominant uniform obstruction (such as an officer's thumb or a shadow over declarations).
+3. **Actionable Feedback:** When triggered, these heuristics raise the existing `"perspective"` `QualityIssue` with concrete retake advice ("Position camera directly parallel to the product face", "Ensure fingers, thumbs, and shadows are clear of mandatory declarations") without blocking officer override authority.
+**Consequences:** Fulfills CAP-05 without adding any external NPM packages, keeping client evaluation fast (~25ms on downsampled 640px offscreen canvas) and fully offline.
 
-
+### ADR-022 — Dual-Target Frontend Deployment Strategy (Cloudflare Pages + Vercel) (DEPLOY-02)
+**Date:** 2026-09-04
+**Status:** Accepted
+**Context:** Task DEPLOY-02 specifies deploying the Next.js frontend to Cloudflare Pages. `frontend/wrangler.toml` was previously a minimal stub lacking `pages_build_output_dir`. Additionally, the backend Render service (`render.yaml`) already whitelist CORS origins for both `*.vercel.app` and `*.pages.dev`. Next.js with Turbopack benefits from first-class zero-config Vercel hosting while also supporting Cloudflare Pages edge deployment.
+**Decision:**
+1. **Cloudflare Pages:** Configured `frontend/wrangler.toml` with `pages_build_output_dir = ".next"` and `compatibility_flags = ["nodejs_compat"]` to enable direct CLI (`wrangler pages deploy .next`) and dashboard Git deploys.
+2. **Vercel Support:** Added `frontend/vercel.json` specifying framework `nextjs` and clean URLs.
+3. Both deployment targets use free tiers with zero custom domain or paid requirements, preserving project Rule 1.
+**Consequences:** Teams deploying NiyamDrishti can choose between Cloudflare Pages and Vercel without changing any frontend application code.

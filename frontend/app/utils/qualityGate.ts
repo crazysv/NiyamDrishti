@@ -25,6 +25,8 @@ export interface QualityMetrics {
   blurVariance: number;
   meanBrightness: number;
   glarePercentage: number;
+  aspectRatio?: number;
+  occlusionRatio?: number;
 }
 
 export interface QualityAssessment {
@@ -44,6 +46,8 @@ export const QUALITY_THRESHOLDS = {
   BLUR_THRESHOLD: 120, // Laplacian variance < 120 indicates blur
   MIN_BRIGHTNESS: 42, // Mean grayscale < 42 is too dark
   MAX_GLARE_RATIO: 0.08, // Over 8% saturated white pixels in center region = glare
+  MAX_ASPECT_RATIO: 3.0, // Aspect ratio > 3:1 or < 1:3 indicates extreme perspective or narrow crop
+  MAX_OCCLUSION_RATIO: 0.40, // Over 40% uniform tone in center indicates finger/shadow obstruction
 };
 
 /**
@@ -101,6 +105,7 @@ export async function assessImageQuality(dataUrl: string): Promise<QualityAssess
       const centerTop = Math.floor(sampleHeight * 0.15);
       const centerBottom = Math.floor(sampleHeight * 0.85);
       const centerPixels = (centerRight - centerLeft) * (centerBottom - centerTop);
+      const centerBins = new Uint32Array(16);
 
       for (let i = 0; i < totalPixels; i++) {
         const r = data[i * 4];
@@ -111,10 +116,12 @@ export async function assessImageQuality(dataUrl: string): Promise<QualityAssess
         gray[i] = lum;
         brightnessSum += lum;
 
-        // Check glare in center zone
+        // Check glare and occlusion in center zone
         const x = i % sampleWidth;
         const y = Math.floor(i / sampleWidth);
         if (x >= centerLeft && x <= centerRight && y >= centerTop && y <= centerBottom) {
+          const bin = Math.min(15, Math.floor(lum / 16));
+          centerBins[bin]++;
           if (r > 245 && g > 245 && b > 245) {
             glarePixelsInCenter++;
           }
@@ -123,6 +130,11 @@ export async function assessImageQuality(dataUrl: string): Promise<QualityAssess
 
       const meanBrightness = brightnessSum / totalPixels;
       const glarePercentage = glarePixelsInCenter / centerPixels;
+      let maxCenterBin = 0;
+      for (let b = 0; b < 16; b++) {
+        if (centerBins[b] > maxCenterBin) maxCenterBin = centerBins[b];
+      }
+      const occlusionRatio = centerPixels > 0 ? maxCenterBin / centerPixels : 0;
 
       // 2. Blur Estimation via 3x3 Laplacian operator
       // Kernel:
@@ -201,6 +213,35 @@ export async function assessImageQuality(dataUrl: string): Promise<QualityAssess
         });
       }
 
+      // Perspective & Aspect Ratio check (CAP-05)
+      const aspectRatio = width / Math.max(1, height);
+      const isExtremeAspect =
+        aspectRatio > QUALITY_THRESHOLDS.MAX_ASPECT_RATIO ||
+        aspectRatio < (1 / QUALITY_THRESHOLDS.MAX_ASPECT_RATIO);
+      if (isExtremeAspect) {
+        issues.push({
+          type: "perspective",
+          severity: "warning",
+          title: "Extreme Perspective / Aspect Skew",
+          message: `Package aspect ratio (${aspectRatio.toFixed(2)}) is unusually steep or narrow.`,
+          actionHint: "Position the camera directly parallel/flat to the principal display panel.",
+        });
+      }
+
+      // Occlusion check (CAP-05)
+      const isOccluded =
+        occlusionRatio > QUALITY_THRESHOLDS.MAX_OCCLUSION_RATIO &&
+        blurVariance >= QUALITY_THRESHOLDS.BLUR_THRESHOLD;
+      if (isOccluded) {
+        issues.push({
+          type: "perspective",
+          severity: "warning",
+          title: "Label Occlusion Detected",
+          message: "A large uniform obstruction or heavy shadow covers over 40% of the center label area.",
+          actionHint: "Ensure fingers, thumbs, and shadows are clear of mandatory declarations before shooting.",
+        });
+      }
+
       // 4. Compute Overall Score
       const hasErrors = issues.some((i) => i.severity === "error");
       const passed = !hasErrors;
@@ -209,6 +250,8 @@ export async function assessImageQuality(dataUrl: string): Promise<QualityAssess
       if (meanBrightness < QUALITY_THRESHOLDS.MIN_BRIGHTNESS) score -= 30;
       if (glarePercentage > QUALITY_THRESHOLDS.MAX_GLARE_RATIO) score -= 20;
       if (width < QUALITY_THRESHOLDS.MIN_WIDTH) score -= 25;
+      if (isExtremeAspect) score -= 15;
+      if (isOccluded) score -= 15;
       score = Math.max(10, Math.min(100, score));
 
       let statusText = "QUALITY CHECK PASSED";
@@ -229,6 +272,8 @@ export async function assessImageQuality(dataUrl: string): Promise<QualityAssess
           blurVariance: Math.round(blurVariance),
           meanBrightness: Math.round(meanBrightness),
           glarePercentage: Math.round(glarePercentage * 100) / 100,
+          aspectRatio: Math.round(aspectRatio * 100) / 100,
+          occlusionRatio: Math.round(occlusionRatio * 100) / 100,
         },
       });
     };
@@ -253,6 +298,8 @@ export async function assessImageQuality(dataUrl: string): Promise<QualityAssess
           blurVariance: 0,
           meanBrightness: 0,
           glarePercentage: 0,
+          aspectRatio: 1,
+          occlusionRatio: 0,
         },
       });
     };

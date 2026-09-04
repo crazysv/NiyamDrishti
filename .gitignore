@@ -11,6 +11,7 @@ backend/*.db
 *.db
 backend/.paddleocr/
 backend/uploads/
+uploads/
 backend/htmlcov/
 backend/.coverage
 backend/.coverage.*

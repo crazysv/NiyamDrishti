@@ -8,6 +8,76 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
+### 2026-09-04 — Fix: Phase 4 Independent Audit Remediation & Parity Synchronization
+- **Government SSO PKCE `code_verifier` Normalization (`E4-01`, `backend/app/schemas/sso.py`, `backend/app/api/v1/endpoints/sso.py`, `frontend/app/types/sso.ts`):**
+  - Resolved naming inconsistency where `SSOInitResponse` previously mapped the PKCE raw verifier to `code_challenge`.
+  - Added `code_verifier` field to `SSOInitResponse` schema (backend Pydantic model and frontend TypeScript interface) and populated it explicitly. Retained `code_challenge` as a deprecated backward-compatible alias.
+  - Added assertion in `backend/tests/integration/test_sso_api.py` validating presence of non-empty `code_verifier`.
+- **eMaap Enforcement Docket AuditLog Architectural Boundary & Test Hardening (`E4-05`, `ADR-020 Addendum`, `backend/tests/integration/test_emaap_adapter_api.py`):**
+  - Verified and documented separation of concerns: `EMaapAdapter` (`app/services/integrations/emaap.py`) serves as a stateless network client, while the API route handler `POST /api/v1/integrations/emaap/dockets/{inspection_id}` (`app/api/v1/endpoints/emaap.py`) manages the transaction and writes the append-only `AuditLog` entry (`action="emaap_docket_submitted"`).
+  - Strengthened `backend/tests/integration/test_emaap_adapter_api.py` to assert that the generated `AuditLog` contains matching `docket_id`, `status="ACKNOWLEDGED"`, `evidence_chain_hash`, and a 64-character SHA-256 Merkle chain `entry_hash`.
+  - Documented architectural boundary in ADR-020 Addendum in `docs/09_DECISIONS.md`.
+- **Documentation Parity & Test Count Synchronization (`E4-06`, `docs/08_TRACKER.md`, `docs/CHANGELOG.md`):**
+  - Updated `docs/08_TRACKER.md` and `docs/CHANGELOG.md` E4-06 entries from "148 tests" to accurately reflect the 150-test passing suite (accounting for the 2 unit tests added to `test_confidence_tuning.py` during Phase 2 audit remediation).
+  - Maintained 1:1 parity between `docs/07_IMPLEMENTATION_PLAN.md` and `docs/08_TRACKER.md` per `AGENTS.md` Rule 3.
+- **Verification:**
+  - All 150/150 backend tests passing (including 6/6 SSO tests, 3/3 eMaap tests).
+  - Frontend TypeScript check (`npx tsc --noEmit`) clean with 0 errors.
+
+### 2026-09-04 — Fix: Phase 3 Independent Audit Parity & Test Count Synchronization
+- **E3-01 Tracker Test Count Alignment (`docs/08_TRACKER.md`):**
+  - Updated `docs/08_TRACKER.md` task `E3-01` Notes column from "4 dedicated integration tests" to "5 dedicated integration tests".
+  - Aligned documentation with `backend/tests/integration/test_ecommerce_ingestion_api.py`, which contains 5 test cases (`test_ecommerce_listing_json_data_url_ingestion`, `test_ecommerce_listing_multipart_upload_ingestion`, `test_ecommerce_listing_retrieval_in_inspection`, `test_invalid_image_role_rejected`, and `test_ecommerce_cross_match_api_endpoint` added during E3-02 cross-matching integration).
+  - Updated `docs/14_TRANSLATION_AUDIT.md`: documented Phase 3 fidelity audit log (E3-01..E3-06 pass), backfilled Phase 1 and Phase 2 audit logs, and updated Part 2 Language Coverage tracking table reflecting full support for all 12 scheduled Indian regional languages via Bhashini.
+  - Maintained 1:1 parity between `docs/07_IMPLEMENTATION_PLAN.md` and `docs/08_TRACKER.md` per `AGENTS.md` Rule 3.
+  - All 150/150 backend tests passing, 26/26 Phase 3 tests passing.
+
+### 2026-09-04 — Fix: Phase 2 Independent Audit Remediation & Parity Synchronization
+- **Config Key ↔ Extractor `field_type` Normalization (`E2-08`, `ADR-012 Addendum`, `backend/app/core/config.py`):**
+  - Corrected mismatched configuration keys in `FIELD_CONFIDENCE_THRESHOLDS`. Previously, descriptive keys (`date_of_manufacture`, `dimensions_and_count`, `importer_packer`, `retail_sale_price`) did not match concrete extractor class `field_type` values (`mfg_date`, `dimension_count`, `packer_importer`, `rsp`), causing lookups from `DeclarationExtractionService` and `RuleEngine` to fall back to the generic 0.85 threshold.
+  - Expanded `FIELD_CONFIDENCE_THRESHOLDS` in `backend/app/core/config.py` to explicitly map:
+    - Canonical extractor `field_type` values: `mfg_date` (0.80), `dimension_count` (0.80), `packer_importer` (0.78), `rsp` (0.85), `commodity_name` (0.85).
+    - Fine-grained declaration finding sub-types: `dimensions` (0.80), `item_count` (0.80), `importer_address` (0.78), `packer_address` (0.78), `marketer_address` (0.78).
+    - Descriptive aliases (`date_of_manufacture`, `dimensions_and_count`, `importer_packer`, `retail_sale_price`) for complete backward compatibility.
+  - Expanded `backend/tests/unit/test_confidence_tuning.py` to 6 comprehensive tests:
+    - Added `test_all_registered_extractors_field_type_thresholds()` iterating over all registered extractors in `DeclarationExtractionService`.
+    - Added `test_rule_engine_mfg_date_tuned_routing()` validating `mfg_date` evaluation routing at 0.81 (pass) and 0.78 (needs_review).
+- **Rule Pack Management UI Activation & Error Handling Hardening (`E2-07`, `frontend/app/components/admin/RulePackManagement.tsx`):**
+  - Resolved authorization and silent error swallowing in `handleAuthorizeActivation`:
+    - Retrieves authentication token (`access_token` / `token`) from `localStorage` and supplies it to `uploadRulePack` and `activateRulePack`.
+    - Removed `.catch(() => {})` silent error swallowing; failed activations now display the actual API error message, set `pinError`, and keep the modal open for administrator correction rather than falsely claiming synchronization.
+- **Expiry / Best-Before Date Scope Documentation (`E2-01`, `OQ-09`, `docs/10_OPEN_QUESTIONS.md`):**
+  - Logged `OQ-09` in `docs/10_OPEN_QUESTIONS.md` documenting that `MASTER_CONTENT.md` §4.2 field #9 (Best-before / use-by / expiry date) applies to food/pharma/cosmetics commodities and is deferred from universal package declarations to category-specific plugin rules.
+- **Documentation & Parity Synchronization (`E2-03`, `E2-06`, `docs/08_TRACKER.md`, `docs/09_DECISIONS.md`):**
+  - Updated `docs/08_TRACKER.md`: corrected `E2-03` test count to 7, updated `E2-06` to state graceful demo fallback rather than offline caching, clarified `E2-07` client-side PIN gate and admin JWT authorization, and noted `E2-08` field_type normalization.
+  - Added Addendum to ADR-012 in `docs/09_DECISIONS.md`.
+  - Verified 1:1 parity between `07_IMPLEMENTATION_PLAN.md` and `08_TRACKER.md`.
+- **Verification:**
+  - Backend pytest suite: 150/150 tests passed (27 Phase 2 tests passed).
+  - Frontend Next.js build: Turbopack production build compiled with zero errors, 8/8 routes generated.
+
+### 2026-09-04 — Fix: Phase 1 Independent Audit Remediation & Parity Synchronization
+- **Alembic Initial Migration Generation (`SETUP-05`, `backend/alembic/`):**
+  - Resolved UTF-8 BOM encoding issue in `backend/alembic.ini` that prevented configparser from recognizing the `[alembic]` section header.
+  - Created missing standard `backend/alembic/script.py.mako` migration template.
+  - Updated `backend/alembic/env.py` to route database connection URLs through `normalize_database_url` and properly configure `NullPool` with `connect_args` for async SQLAlchemy execution.
+  - Generated initial schema migration `backend/alembic/versions/146f8e7efe38_initial_schema.py` capturing all statutory tables (`users`, `audit_logs`, `batch_sessions`, `rule_packs`, `inspections`, `inspection_images`, `reports`, `extracted_fields`, `violations`).
+  - Verified migration execution via `alembic upgrade head` and `alembic downgrade base`.
+- **Client-Side Quality Gate: Aspect Ratio & Occlusion Checks (`CAP-05`, `ADR-021`, `frontend/app/utils/qualityGate.ts`):**
+  - Implemented aspect ratio / perspective skew check with `MAX_ASPECT_RATIO = 3.0` flagging steep oblique camera angles and extreme cropping with specific retake guidance.
+  - Implemented 16-bin center-zone luminance histogram with `MAX_OCCLUSION_RATIO = 0.40` detecting uniform obstructions (fingers/thumbs or heavy shadows covering >40% of package declarations).
+  - Wired checks to raise actionable `"perspective"` `QualityIssue` feedback and compute updated quality metrics (`aspectRatio`, `occlusionRatio`).
+- **Dual-Target Frontend Deployment Strategy (`DEPLOY-02`, `ADR-022`, `frontend/`):**
+  - Updated `frontend/wrangler.toml` to specify `pages_build_output_dir = ".next"` for Cloudflare Pages builds.
+  - Created `frontend/vercel.json` for first-class Vercel deployment matching backend `render.yaml` CORS whitelist.
+  - Verified clean Next.js Turbopack build (`npm run build`) and clean TypeScript type-check (`tsc --noEmit`).
+- **Statutory Citations Audit Clarification (`RULE-02`, `OQ-08`, `docs/08_TRACKER.md`):**
+  - Corrected tracker description for RULE-02 from "verified citations" to accurately document that Rule 6 citations are marked `[VERIFY]` per `AGENTS.md` Rule 9 pending official gazette sub-clause confirmation.
+  - Logged `OQ-08` in `docs/10_OPEN_QUESTIONS.md` documenting sub-clause tracking.
+- **Verification:**
+  - Ran backend test suite: 148/148 tests passed (0 failures).
+  - Ran frontend build: clean compile, 8/8 routes prerendered.
+
 ### 2026-09-04 — Fix: Live Evidence Viewer Remote Storage, Auto-Processing Trigger & Mobile Parity
 - **Live Evidence Viewer Fixes (`frontend/app/inspections/[id]/evidence/page.tsx`, `review/page.tsx`):**
   - Updated Evidence Viewer from relative path `/api/v1/...` to centralized `API_BASE` (`@/app/utils/apiConfig`) to eliminate HTTP 404s on Vercel.
@@ -32,7 +102,7 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
     - Established digital chain of custody and courtroom admissibility procedures (Section 63 BSA / 65B IEA certificates, mandatory statutory disclaimers).
     - Defined SRE, observability, and incident response runbook (Prometheus scrapers, Grafana dashboards, alerting rules, database scale-to-zero connection resilience).
   - **Phase 4 & Project Implementation Complete:**
-    - All 148 backend tests passing.
+    - All 150 backend tests passing.
     - Frontend TypeScript check clean.
     - All tasks across Phase 0, Phase 1 (MVP), Phase 2, Phase 3, and Phase 4 verified and marked Done with exact tracker/plan parity.
 

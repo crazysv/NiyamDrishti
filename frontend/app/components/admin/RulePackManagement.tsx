@@ -233,24 +233,32 @@ export default function RulePackManagement() {
 
     try {
       const targetVersion = candidatePack.version.replace(/^v/, "");
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("access_token") || localStorage.getItem("token") || undefined
+          : undefined;
 
       // If we uploaded a rawJson that doesn't exist yet on backend, upload it first
       if (candidatePack.rawJson) {
         try {
-          await uploadRulePack({
-            version: targetVersion,
-            effective_from: new Date().toISOString(),
-            source_citation: (candidatePack.rawJson.source_citation as string) || "Legal Metrology Packaged Commodities Rules",
-            rules_json: candidatePack.rawJson,
-          });
-        } catch {
-          // May already exist
+          await uploadRulePack(
+            {
+              version: targetVersion,
+              effective_from: new Date().toISOString(),
+              source_citation:
+                (candidatePack.rawJson.source_citation as string) ||
+                "Legal Metrology Packaged Commodities Rules",
+              rules_json: candidatePack.rawJson,
+            },
+            token
+          );
+        } catch (uploadErr) {
+          // May already exist; continue to activation attempt
+          console.warn("Rule pack pre-upload check:", uploadErr);
         }
       }
 
-      await activateRulePack(targetVersion).catch(() => {
-        // Fallback for demo when backend has distinct auth
-      });
+      await activateRulePack(targetVersion, token);
 
       alert(
         `Rule Pack ${candidatePack.version} successfully authorized and deployed across all national field terminals.`
@@ -259,10 +267,11 @@ export default function RulePackManagement() {
       setIsModalOpen(false);
       setAdminPin("");
       await loadData();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Activation failed:", err);
-      alert("Rule Pack activation processed. Field terminals synchronized.");
-      setIsModalOpen(false);
+      const message = err instanceof Error ? err.message : "Failed to activate rule pack.";
+      setPinError(`Activation failed: ${message}`);
+      alert(`Rule Pack activation failed: ${message}`);
     } finally {
       setIsActivating(false);
     }

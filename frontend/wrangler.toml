@@ -1,6 +1,7 @@
 name = "niyamdrishti"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".next"
 
 [vars]
 NEXT_PUBLIC_API_BASE_URL = "https://niyamdrishti-api.onrender.com"

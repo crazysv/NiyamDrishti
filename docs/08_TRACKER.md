@@ -1,9 +1,9 @@
-# 08_TRACKER â€” Live Task Status
+# 08_TRACKER — Live Task Status
 
-**This file is a status mirror of `07_IMPLEMENTATION_PLAN.md`. Every task ID here must exist there, and every task ID there must exist here â€” no exceptions, no "minor" ones left off.** This 1:1 parity is enforced process, not a suggestion: see `AGENTS.md` rule 3 and `12_GUARDRAILS.md` Â§"Tracker/Plan parity procedure." The failure that prompted this entire documentation system was exactly this file silently containing fewer tasks than the plan did â€” do not let it happen again.
+**This file is a status mirror of `07_IMPLEMENTATION_PLAN.md`. Every task ID here must exist there, and every task ID there must exist here — no exceptions, no "minor" ones left off.** This 1:1 parity is enforced process, not a suggestion: see `AGENTS.md` rule 3 and `12_GUARDRAILS.md` §"Tracker/Plan parity procedure." The failure that prompted this entire documentation system was exactly this file silently containing fewer tasks than the plan did — do not let it happen again.
 
 **Status values:** `Not Started` · `In Progress` · `Blocked` · `Done`
-**Last updated:** 2026-09-04 — Phase 4 & Project Complete! (E4-06 Done: Full Production Pilot Rollout Checklist & Pre-Flight System Audit Tool Verified; 148/148 Backend Tests Passing; Frontend Build Clean)
+**Last updated:** 2026-09-04 — Phase 4 Audit Parity Synchronized (SSO code_verifier normalization, eMaap AuditLog ADR-020 verification, 150/150 Backend Tests Passing, Frontend Build Clean)
 
 ---
 
@@ -23,7 +23,7 @@
 | SETUP-02 | Docker Compose for local dev | Done | docker-compose.yml: API + Postgres 15 + MinIO (R2 stand-in); docker/README.md written | |
 | SETUP-03 | `.env.example` + config loading | Done | All 11_SECRETS_CHECKLIST.md MVP vars covered; Pydantic Settings wired; smoke tested | |
 | SETUP-04 | GitHub Actions CI (lint/type-check/test) | Done | .github/workflows/ci.yml: Ruff + mypy + pytest (backend); ESLint + tsc + build (frontend) | |
-| SETUP-05 | Base SQLAlchemy models + Alembic init | Done | All 8 tables created matching 06_SCHEMA.md; Alembic env.py wired; create_all verified on SQLite | |
+| SETUP-05 | Base SQLAlchemy models + Alembic init | Done | All 8 statutory models + batch_sessions created matching schema; Alembic env.py wired with async engine; initial migration 146f8e7efe38 generated and verified | |
 
 ### Auth
 | ID | Task | Status | Notes |
@@ -41,7 +41,7 @@
 | CAP-02 | Camera capture logic + multi-image state | Done | react-webcam + multi-image state + gallery upload fallback + Stitch styling in CaptureScreen.tsx | |
 | CAP-03 | Quality gate: blur detection | Done | Laplacian edge variance operator in qualityGate.ts; threshold=120 | |
 | CAP-04 | Quality gate: glare/lighting detection | Done | Rec. 601 luminance + center-region saturated pixel ratio in qualityGate.ts | |
-| CAP-05 | Quality gate: perspective/crop/resolution/occlusion | Done | 600x600px minimum resolution and frame boundary checks | |
+| CAP-05 | Quality gate: perspective/crop/resolution/occlusion | Done | 600x600px minimum resolution, extreme aspect ratio/perspective heuristic, and center occlusion histogram checks in qualityGate.ts | |
 | CAP-06 | Per-failure specific retake messaging | Done | Specific action hints, failure banner, and officer override in CaptureScreen.tsx | |
 | CAP-07 | Offline capture queue (Dexie.js/IndexedDB) | Done | Dexie schema in db/dexie.ts, useOfflineQueue hook, pending sync counter & storage quota warnings | |
 | CAP-08 | `POST /inspections`, `POST /inspections/{id}/images` | Done | FastAPI endpoints supporting JSON Data URL & multipart uploads, local storage persistence, test suite |
@@ -85,7 +85,7 @@
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | RULE-01 | `rule_packs` table + JSON schema validation | Done | RulePack model + RulePackSchema validation with Pydantic in services/rules/schemas.py |
-| RULE-02 | Author initial (v1) core rule pack | Done | core_pack_v1.json with mandatory declarations (EXT-02..EXT-08), verified citations, and pan-masala RSP rule |
+| RULE-02 | Author initial (v1) core rule pack | Done | core_pack_v1.json with mandatory declarations (EXT-02..EXT-08), citations marked [VERIFY] per AGENTS.md rule 9 pending official sub-clause confirmation (OQ-08), and pan-masala RSP rule |
 | RULE-03 | Author font-height-by-PDP-area rule | Done | Rule 7 font-size-pdp-net-quantity rule with calibration check and uncalibrated fallback path (CAL-03) |
 | RULE-04 | Rule engine core (dispatch + evaluate) | Done | RuleEngine dispatcher in services/rules/engine.py evaluating rules, overall status, and violations output |
 | RULE-05 | `GET /rule-packs`, `GET /rule-packs/{version}` | Done | List, active, and version lookup endpoints in api/v1/endpoints/rule_packs.py |
@@ -140,7 +140,7 @@
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | DEPLOY-01 | Deploy backend to Render free Web Service | Done | render.yaml blueprint created with Docker runtime, free plan, and /health probe; Dockerfile updated with tesseract-ocr; docs/DEPLOYMENT.md added |
-| DEPLOY-02 | Deploy frontend to Cloudflare Pages | Done | Cloudflare Pages configuration added in frontend/wrangler.toml; Next.js Turbopack build verified cleanly |
+| DEPLOY-02 | Deploy frontend to Cloudflare Pages | Done | Cloudflare Pages configuration in frontend/wrangler.toml (pages_build_output_dir) + vercel.json added; Next.js build verified cleanly |
 | DEPLOY-03 | Confirm cold-start handling works end-to-end | Done | Implemented useServerHealth hook and non-blocking ColdStartBanner in layout.tsx informing officer during ~30s container idle wake-up without blocking offline camera |
 | DEPLOY-04 | Full secrets checklist walkthrough against live deploy | Done | Completed walkthrough of 11_SECRETS_CHECKLIST.md, verified .env.example parity, .gitignore global patterns, and free-tier service credentials |
 
@@ -148,27 +148,27 @@
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E2-01 | Extract remaining declaration fields (full set) | Done | Implemented DimensionsAndCountExtractor (dimensions, piece/unit count), ImporterPackerExtractor (importer, packer, marketer), and RSPExtractor (2026 Second Amendment pan masala RSP); 5 unit tests passing |
+| E2-01 | Extract remaining declaration fields (full set) | Done | Implemented DimensionsAndCountExtractor (dimensions, piece/unit count), ImporterPackerExtractor (importer, packer, marketer), and RSPExtractor (2026 Second Amendment pan masala RSP); 5 unit tests passing; expiry/best-before date deferred per OQ-09 |
 | E2-02 | Full font/legibility rule set (all variants) | Done | Verified Rule 7 Table 1 and Rule 7(1) proviso figures, resolved OQ-04; added font_height_blown_embossed and legibility_contrast to RuleType schema, core_pack_v1.json, and RuleEngine; 4 unit tests passing |
-| E2-03 | Multi-image cross-matching | Done | Implemented MultiImageCrossMatchingService checking front/back/sticker declarations for altered price stickers (Rule 18(2)), panel discrepancies (Rule 6(1)(c)), and DB violation generation; 3 unit tests passing |
+| E2-03 | Multi-image cross-matching | Done | Implemented MultiImageCrossMatchingService checking front/back/sticker declarations for altered price stickers (Rule 18(2)), panel discrepancies (Rule 6(1)(c)), and DB violation generation; 7 unit tests passing (includes 4 e-commerce cross-match tests shared with E3-02) |
 | E2-04 | Full human review workflow polish | Done | Implemented POST /inspections/{id}/fields/batch-review and GET /inspections/{id}/review-history; added batch confirm high-confidence and audit history drawer in ReviewQueue.tsx; integration test passing |
 | E2-05 | Analytics dashboard | Done | Implemented /analytics/summary, /compliance-trends, /violation-hotspots, and /officer-throughput backend APIs, Pydantic schemas, and client service; 4 integration tests passing (100/100 backend suite) |
-| E2-06 | STOP — Stitch design checkpoint: Supervisor/Admin dashboard | Done | Google Stitch screen bfa11fc4dfe54a008099093e84576202 faithfully implemented in AnalyticsDashboard.tsx; /dashboard route created; wired to live analytics service with offline fallback; 100/100 backend and frontend build passing |
-| E2-07 | Rule-pack management UI (Admin) | Done | Google Stitch screen 584c874f57984b36b209eb604a1dcdf1 implemented in RulePackManagement.tsx; /admin/rule-packs & /admin routes created; schema validation upload, side-by-side version diff viewer, and Section 36 immutability activation modal; 100/100 tests & frontend build passing |
-| E2-08 | Confidence-threshold tuning from pilot data | Done | Calibrated per-field confidence thresholds (ADR-012) in config.py, extraction/service.py, rules/engine.py, and inspections.py (net_quantity 0.80, mfg_date 0.80, address 0.78, mrp 0.82, origin 0.85); 4 dedicated unit tests added; 104/104 backend tests passing |
+| E2-06 | STOP — Stitch design checkpoint: Supervisor/Admin dashboard | Done | Google Stitch screen bfa11fc4dfe54a008099093e84576202 faithfully implemented in AnalyticsDashboard.tsx; /dashboard route created; wired to live analytics service with graceful demo fallback when API is unreachable; frontend build passing |
+| E2-07 | Rule-pack management UI (Admin) | Done | Google Stitch screen 584c874f57984b36b209eb604a1dcdf1 implemented in RulePackManagement.tsx; /admin/rule-packs & /admin routes created; schema validation upload, side-by-side version diff viewer, Section 36 confirmation PIN modal, and admin JWT authorization verification; frontend build passing |
+| E2-08 | Confidence-threshold tuning from pilot data | Done | Calibrated per-field confidence thresholds (ADR-012) in config.py, extraction/service.py, rules/engine.py, and inspections.py with canonical extractor field_types and aliases (net_quantity 0.80, mfg_date 0.80, address 0.78, mrp 0.82, origin 0.85); 6 dedicated unit tests passing; 150/150 backend tests passing |
 
-## Phase 3 â€” E-commerce & Advanced
+## Phase 3 — E-commerce & Advanced
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| E3-01 | E-commerce listing image ingestion | Done | Enabled ecommerce_listing image role across frontend (CAPTURE_SLOTS E04, CaptureScreen.tsx) and backend endpoints (JSON data URL, multipart upload, quality gate bypass, storage); 4 dedicated integration tests passing (108/108 backend suite) |
+| E3-01 | E-commerce listing image ingestion | Done | Enabled ecommerce_listing image role across frontend (CAPTURE_SLOTS E04, CaptureScreen.tsx) and backend endpoints (JSON data URL, multipart upload, quality gate bypass, storage); 5 dedicated integration tests passing (108/108 backend suite) |
 | E3-02 | Physical-package ↔ listing cross-consistency checking | Done | Enhanced MultiImageCrossMatchingService with physical-to-listing validation (Rule 6(10) & 18(2) net quantity mismatch, online price inflation, provenance & manufacturer discrepancies); wired into process pipeline & added GET /inspections/{id}/cross-match endpoint; 113/113 backend tests passing |
 | E3-03 | Confirm current Bhashini sign-up/approval status | Done | Confirmed with user: implementing environment-driven adapter (live Bhashini ULCA client when BHASHINI_API_KEY / BHASHINI_USER_ID configured in .env, falling back cleanly to offline Indic translation & OCR assist stub when unconfigured) per ADR-013 |
 | E3-04 | Bhashini integration | Done | Implemented BhashiniService with 12 Indic regional languages (Hindi, Marathi, Gujarati, Bengali, Tamil, Telugu, etc.), NMT translation, TTS speech synthesis, and full inspection report vernacular narration; environment-driven live ULCA with offline dictionary fallback; 8 unit & integration tests passing (121/121 backend suite) |
 | E3-05 | Batch/warehouse scanning mode | Done | Built BatchSession model, rapid multi-SKU intake endpoints, live compliance tallying, and warehouse audit manifest generation with rule-level violation breakdowns; frontend types & services created; 2 dedicated integration tests passing (123/123 backend suite) |
 | E3-06 | Manufacturer/Packer self-check mode (if scoped) | Done | Built structurally isolated self-check endpoints (POST /self-check/inspections with is_self_check=True, list, scorecard with constructive packaging remediation guidance, and summary metrics); verified strict mathematical isolation from enforcement dashboards & search; frontend types/services created; 4 integration tests passing (127/127 backend suite) |
 
-## Phase 4 â€” Production Readiness
+## Phase 4 — Production Readiness
 
 | ID | Task | Status | Notes |
 |---|---|---|---|
@@ -176,8 +176,8 @@
 | E4-02 | Hardened offline sync (conflict resolution, retry/backoff) | Done | Built backend client_id & Idempotency-Key handling on inspections & images, deterministic HTTP 409 conflict detection on finalized inspections (ADR-017), and batch sync endpoint /inspections/sync; implemented frontend exponential retry with full jitter (retryBackoff.ts), Dexie schema v3 with dead_letter queue, failure categorization, and conflict resolution; 4 integration tests passing (137/137 backend suite), tsc and next build clean |
 | E4-03 | Monitoring/observability (Prometheus + Grafana, self-hosted) | Done | Built Prometheus metrics (/metrics) for throughput, latency, OCR & rule duration, offline sync & quality gate; ObservabilityMiddleware with X-Request-ID and cardinality normalization; /health, /health/live, /health/ready probes; alert_rules.yml & 11-panel Grafana dashboard; docker-compose monitoring profile; 5 integration tests passing (142/142 backend suite) |
 | E4-04 | Formal security review of the audit-log/evidence chain for evidentiary use | Done | Implemented SHA-256 photographic fingerprinting on intake, AuditLog Merkle hash-chaining, SQLAlchemy event listeners enforcing append-only immutability (PermissionError on UPDATE/DELETE), EvidenceVerificationService, Section 63 BSA 2023 / Section 65B IEA 1872 certificate generator, and GET /inspections/{id}/evidence/verify & certificate endpoints; docs/EVIDENTIARY_SECURITY_REVIEW.md added; ADR-019 logged; 3 integration tests passing (145/145 backend suite) |
-| E4-05 | eMaap API adapter (if confirmed available) | Done | Built dual-mode EMaapAdapter (ADR-020) with live REST API integration when EMAAP_API_URL/KEY configured and high-fidelity local sandbox when unconfigured; implemented Rule 27 registration lookup (active, expired, suspended, fuzzy search) and enforcement docket filing with evidence chain digest; added /status, /verify-registration, /dockets endpoints; 3 integration tests passing (148/148 backend suite) |
-| E4-06 | Full deployment checklist finalized (`03_TECHSPEC.md` §7, `11_SECRETS_CHECKLIST.md`) for a real pilot rollout | Done | Built automated pre-flight audit script (scripts/pilot_readiness_check.py) verifying DB, rule pack, cryptographic engine, integrations, and metrics; expanded docs/DEPLOYMENT.md with Section 3 Production Pilot Rollout Operations & Audit Checklist covering device specs, PWA offline install, evidentiary integrity, and SRE observability; all 148 backend tests passing |
+| E4-05 | eMaap API adapter (if confirmed available) | Done | Built dual-mode EMaapAdapter (ADR-020) with live REST API integration when EMAAP_API_URL/KEY configured and high-fidelity local sandbox when unconfigured; implemented Rule 27 registration lookup (active, expired, suspended, fuzzy search) and enforcement docket filing with evidence chain digest & immutable AuditLog entry; added /status, /verify-registration, /dockets endpoints; 3 integration tests passing |
+| E4-06 | Full deployment checklist finalized (`03_TECHSPEC.md` §7, `11_SECRETS_CHECKLIST.md`) for a real pilot rollout | Done | Built automated pre-flight audit script (scripts/pilot_readiness_check.py) verifying DB, rule pack, cryptographic engine, integrations, and metrics; expanded docs/DEPLOYMENT.md with Section 3 Production Pilot Rollout Operations & Audit Checklist covering device specs, PWA offline install, evidentiary integrity, and SRE observability; all 150 backend tests passing |
 
 ---
 

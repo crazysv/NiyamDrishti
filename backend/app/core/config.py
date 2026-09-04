@@ -67,15 +67,26 @@ class Settings(BaseSettings):
     ACTIVE_RULE_PACK_VERSION: str = ""  # set after RULE-02 seeds initial pack
     REVIEW_CONFIDENCE_THRESHOLD: float = 0.85  # default fallback threshold
     # Field-specific tuned confidence thresholds from Phase 1 pilot data (E2-08, ADR-012)
+    # Maps canonical extractor field_types, fine-grained declaration sub-types, and legacy/rule aliases.
     FIELD_CONFIDENCE_THRESHOLDS: dict[str, float] = {
         "mrp": 0.82,
         "net_quantity": 0.80,
+        "mfg_date": 0.80,
         "date_of_manufacture": 0.80,
         "manufacturer_address": 0.78,
         "consumer_care": 0.80,
         "country_of_origin": 0.85,
+        "commodity_name": 0.85,
+        "dimension_count": 0.80,
         "dimensions_and_count": 0.80,
+        "dimensions": 0.80,
+        "item_count": 0.80,
+        "packer_importer": 0.78,
         "importer_packer": 0.78,
+        "importer_address": 0.78,
+        "packer_address": 0.78,
+        "marketer_address": 0.78,
+        "rsp": 0.85,
         "retail_sale_price": 0.85,
     }
 
