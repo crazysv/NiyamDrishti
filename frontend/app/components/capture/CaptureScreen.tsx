@@ -1,4 +1,5 @@
 "use client";
+import AppLogo from "@/app/components/common/AppLogo";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
@@ -488,9 +489,7 @@ function compressClientImage(dataUrl: string, maxDim = 1400, quality = 0.82): Pr
       {/* Header */}
       <header className="sticky top-0 z-40 bg-[#F9F7F2]/90 backdrop-blur-md border-b border-[#D1CDC2] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded bg-[#4A5568] flex items-center justify-center text-white font-mono-data font-bold text-xs shadow-sm">
-            ND
-          </div>
+          <AppLogo size={32} />
           <div className="flex flex-col">
             <span className="font-semibold text-base tracking-tight leading-none text-[#1A1C1E]">
               NiyamDrishti

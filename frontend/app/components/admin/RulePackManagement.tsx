@@ -1,4 +1,5 @@
 "use client";
+import AppLogo from "@/app/components/common/AppLogo";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
@@ -283,9 +284,7 @@ export default function RulePackManagement() {
       <header className="fixed top-0 left-0 right-0 h-16 z-50 bg-[#333E50] text-white shadow-sm flex items-center px-4 md:px-6 justify-between">
         <div className="flex items-center gap-4 min-w-0">
           <Link href="/" className="flex items-center gap-3 shrink-0">
-            <div className="w-8 h-8 rounded bg-[#4A5568] flex items-center justify-center font-bold text-white tracking-wider text-xs border border-white/20">
-              ND
-            </div>
+            <AppLogo size={32} />
             <div className="flex flex-col">
               <span className="text-lg font-bold tracking-tight text-white leading-tight">
                 NiyamDrishti

@@ -1,4 +1,5 @@
 "use client";
+import AppLogo from "@/app/components/common/AppLogo";
 
 import React, { useState, useRef } from "react";
 import {
@@ -197,9 +198,7 @@ export default function EvidenceViewer({
       <header className="sticky top-0 z-50 bg-[#f9f9fc]/90 backdrop-blur-md border-b border-[#e2e2e5] px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#333e50] text-white flex items-center justify-center font-bold text-sm shadow-sm">
-              ND
-            </div>
+            <AppLogo size={32} />
             <div className="flex flex-col">
               <span className="font-semibold text-base leading-tight tracking-tight text-[#1a1c1e]">
                 NiyamDrishti
