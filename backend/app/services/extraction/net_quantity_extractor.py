@@ -167,15 +167,23 @@ class NetQuantityExtractor(BaseFieldExtractor):
                     "vol",
                 ]
             ):
-                # Check current line or next line
+                # Check current line or nearby lines (above and below)
                 match = self.STANDALONE_QTY_PATTERN.search(text)
-                if not match and idx + 1 < len(lines):
-                    next_text = lines[idx + 1].text
-                    if not any(k in next_text.lower() for k in self.NUTRITION_EXCLUSION):
-                        match = self.STANDALONE_QTY_PATTERN.search(next_text)
-                        if match:
-                            text = f"{line.text} {next_text}"
-                has_prefix = False
+                target_line = line
+                if not match:
+                    for offset in [-1, 1, -2, 2, -3, 3]:
+                        target_idx = idx + offset
+                        if 0 <= target_idx < len(lines):
+                            cand_text = lines[target_idx].text
+                            if not any(k in cand_text.lower() for k in self.NUTRITION_EXCLUSION):
+                                match = self.STANDALONE_QTY_PATTERN.search(cand_text)
+                                if match:
+                                    text = f"{line.text} : {cand_text}"
+                                    target_line = lines[target_idx]
+                                    has_prefix = True
+                                    break
+                else:
+                    has_prefix = True
 
             if match:
                 qty_str = match.group(1)
@@ -200,6 +208,7 @@ class NetQuantityExtractor(BaseFieldExtractor):
                     "raw_unit": unit_str,
                 }
 
+                bbox_src = target_line if "target_line" in locals() else line
                 declarations.append(
                     ExtractedDeclaration(
                         field_type=self.field_type,
@@ -207,10 +216,10 @@ class NetQuantityExtractor(BaseFieldExtractor):
                         parsed_value=json.dumps(parsed_payload),
                         confidence=round(confidence, 4),
                         bounding_box={
-                            "x": line.bounding_box.x,
-                            "y": line.bounding_box.y,
-                            "w": line.bounding_box.w,
-                            "h": line.bounding_box.h,
+                            "x": bbox_src.bounding_box.x,
+                            "y": bbox_src.bounding_box.y,
+                            "w": bbox_src.bounding_box.w,
+                            "h": bbox_src.bounding_box.h,
                         },
                         source_image_id=source_image_id,
                         verdict="pass",

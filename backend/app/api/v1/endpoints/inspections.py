@@ -732,19 +732,29 @@ async def extract_inspection_declarations(
 
         try:
             # Calibrate image if scale not yet derived
+            calib_barcode = None
             if img.calibration_scale_mm_per_px is None:
                 try:
                     calib_service = OpticalCalibrationService()
                     calib_res = calib_service.calibrate_image(img_bytes)
                     if calib_res.is_calibrated and calib_res.scale_mm_per_px is not None:
                         img.calibration_scale_mm_per_px = calib_res.scale_mm_per_px
+                        calib_barcode = calib_res.barcode_data
                 except Exception as calib_err:
                     logger.warning(f"Calibration warning for image {img.id}: {calib_err}")
+            else:
+                try:
+                    calib_service = OpticalCalibrationService()
+                    calib_res = calib_service.calibrate_image(img_bytes)
+                    if calib_res.is_calibrated:
+                        calib_barcode = calib_res.barcode_data
+                except Exception:
+                    pass
 
             t0_ocr = time.perf_counter()
             ocr_res = ocr_service.process_image(img_bytes, source_image_id=str(img.id))
             record_ocr_duration(time.perf_counter() - t0_ocr, engine="paddleocr", status="success")
-            declarations = extraction_service.extract_from_ocr_result(ocr_res)
+            declarations = extraction_service.extract_from_ocr_result(ocr_res, barcode=calib_barcode)
             all_declarations.extend(declarations)
         except Exception as ocr_err:
             logger.error(f"OCR processing failed for image {img.id}: {ocr_err}", exc_info=True)

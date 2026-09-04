@@ -87,19 +87,22 @@ class RuleEngine:
             front_img = images[0]
 
         calib_scale: float | None = None
+        # Check if any captured panel has derived optical calibration scale from a barcode
+        for img in images:
+            s_val = getattr(img, "calibration_scale_mm_per_px", None)
+            if s_val is None and isinstance(img, dict):
+                s_val = img.get("calibration_scale_mm_per_px")
+            if s_val is not None:
+                try:
+                    calib_scale = float(s_val)
+                    break
+                except (ValueError, TypeError):
+                    pass
+
         pdp_width_px = 1200.0
         pdp_height_px = 1600.0
 
         if front_img is not None:
-            scale_val = getattr(front_img, "calibration_scale_mm_per_px", None)
-            if scale_val is None and isinstance(front_img, dict):
-                scale_val = front_img.get("calibration_scale_mm_per_px")
-            if scale_val is not None:
-                try:
-                    calib_scale = float(scale_val)
-                except (ValueError, TypeError):
-                    calib_scale = None
-
             w_val = getattr(front_img, "width_px", None) or (
                 front_img.get("width_px") if isinstance(front_img, dict) else None
             )

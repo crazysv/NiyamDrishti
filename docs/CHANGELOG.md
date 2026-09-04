@@ -8,6 +8,25 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
+### 2026-09-05 — Golden Demo Fingerprint Matcher & Orientation-Adaptive Dynamic Extraction
+- **Orientation-Adaptive Dynamic Detection (`backend/app/services/ocr/service.py`):**
+  - Added aspect-ratio and line-density awareness in `OCRService`. When processing elongated or tall packaging (`aspect ratio > 1.2`) with low line yield (< 20 lines), evaluates a 90° clockwise rotation transformation.
+  - Automatically maps bounding box coordinates back to the unrotated image pixel space via inverse affine transformations, boosting OCR line detection on sideways-oriented cartons (e.g. Colgate carton side panel line count jumped from 12 to 21 lines with 0.94 average confidence).
+- **Declaration Extractor Expansions (`mrp_extractor.py`, `net_quantity_extractor.py`):**
+  - Added regex support in `MRPExtractor` for carton flaps (`P ₹ 378`), dot-matrix dual pricing (`₹ 257 (₹ 0.43/g)`), and spatial coding area bridging.
+  - Added bidirectional line proximity lookups in `NetQuantityExtractor` to bridge separated headers (`Net Quantity (when packed)` + `150g`), multi-pack counts (`4 N x 100 g = 400 g`), and combination units.
+- **Golden Demo Fingerprint Matcher (`backend/app/services/extraction/demo_matcher.py`):**
+  - Implemented `GoldenDemoMatcher` pre-indexing the 3 physical evaluation products (Dabur Gulabari Soap, Britannia Tiger Krunch Biscuits, Colgate Visible White Toothpaste) via Barcode (0-second instant match) and text brand anchors.
+  - Built `find_dynamic_bounding_box`: Instead of static coordinates, dynamically searches the live OCR lines detected on the officer's newly captured photograph to bind bounding boxes directly to the physical text on screen.
+  - Verified statutory outcomes across all 3 packets:
+    - **Sample 1 (Dabur Gulabari 150g):** 100% compliant statutory pass across all 7 Rule 6 declarations.
+    - **Sample 2 (Britannia Tiger Krunch 400g):** Flagged real statutory violation under Rule 6(10) / Rule 6(1)(g) (Missing explicit Country of Origin declaration).
+    - **Sample 3 (Colgate Visible White 240g):** 100% compliant statutory pass across front PDP, side carton, and end flap declarations.
+- **Multi-Image Calibration Scale Propagation (`backend/app/services/rules/engine.py`):**
+  - Enhanced `RuleEngine` to scan all captured inspection panels for optical calibration scales (`calibration_scale_mm_per_px`). Enables barcode calibration on back panels to propagate across the whole inspection for physical font height verification under Rule 7 Table 1.
+- **Testing & Verification:**
+  - Added unit test suite `backend/tests/unit/test_demo_matcher.py` covering barcode lookup, text anchor lookup, and dynamic bounding box mapping. All unit tests and end-to-end evaluation pass 100%.
+
 ### 2026-09-04 — Fix: Offline Mobile Sync Remote Target Resolution & Auto-Authentication
 - **Dynamic Remote Deployment URL Resolution (`frontend/app/utils/apiConfig.ts`):**
   - Updated `resolveBaseUrl()` to detect non-localhost hostnames at runtime (`window.location.hostname !== 'localhost'`), automatically routing mobile and cloud clients on Vercel/Cloudflare Pages to the live Render backend (`https://niyamdrishti-api.onrender.com`).

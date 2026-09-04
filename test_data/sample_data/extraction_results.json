@@ -1,0 +1,643 @@
+{
+  "sample_1": {
+    "images": {
+      "back.jpeg": {
+        "barcode": "8901207051425",
+        "lines_count": 22,
+        "extracted_fields": [
+          "mrp",
+          "net_quantity",
+          "manufacturer_address",
+          "mfg_date",
+          "consumer_care",
+          "country_of_origin",
+          "commodity_name"
+        ],
+        "sample_ocr_lines": [
+          "MADE IN INDIA",
+          "257(70.43/g)",
+          "BZ50012",
+          "12/2025",
+          "12/2027",
+          "150g",
+          "90120705142",
+          "Net Quantity (when packed)",
+          "Vill-Lakeshwari Bhagwanpur Roorkee, Haridwar",
+          "For MRP Rs.incl. of all taxes).Batch No"
+        ]
+      },
+      "front.jpeg": {
+        "barcode": null,
+        "lines_count": 11,
+        "extracted_fields": [
+          "commodity_name"
+        ],
+        "sample_ocr_lines": [
+          "Dabur",
+          "NEW",
+          "Gulabari",
+          "Radiant Rose Glow",
+          "NIACINAMIDE",
+          "PURE ROSE EXTRACT",
+          "Dabure",
+          "NEW",
+          "Gulabari",
+          "Rase Glow"
+        ]
+      },
+      "side.jpeg": {
+        "barcode": null,
+        "lines_count": 12,
+        "extracted_fields": [
+          "manufacturer_address",
+          "commodity_name",
+          "net_quantity"
+        ],
+        "sample_ocr_lines": [
+          "NEN",
+          "INGREDIENTS.",
+          "NEW",
+          "Dabure",
+          "Sodium Palmate, Sodium Palm Kernelate Water",
+          "Gulabari",
+          "Talc Perfume. Glycerin. Alpha Oletin Sullonate",
+          "Sodium Chloride,Tetrasodium EDTA. Tetra Sodium",
+          "Radiant Rose Glow",
+          "Etidronate,Titanium Dioxide, Niacinamide. Rase"
+        ]
+      }
+    },
+    "all_declarations": [
+      {
+        "field_type": "mrp",
+        "raw_text": "MRP Rs. 257.00 (incl. of all taxes) Unit Sale Price: ₹ 0.43/g",
+        "confidence": 0.98,
+        "bbox": {
+          "x": 428.3,
+          "y": 143.2,
+          "w": 239.3,
+          "h": 75.2
+        }
+      },
+      {
+        "field_type": "net_quantity",
+        "raw_text": "Net Quantity (when packed) : 150g",
+        "confidence": 1.0,
+        "bbox": {
+          "x": 318.6,
+          "y": 292.9,
+          "w": 48.1,
+          "h": 87.4
+        }
+      },
+      {
+        "field_type": "manufacturer_address",
+        "raw_text": "Mfd. By: SRS Industries Unit-II, Khasra No.- 82, Shiv Ganga Indl. Estate, Vill-Lakeshwari, Bhagwanpur Roorkee, Haridwar - 247661 Uttarakhand. Mkd. By: Dabur India Ltd., New Delhi - 110002",
+        "confidence": 0.97,
+        "bbox": {
+          "x": 456.1,
+          "y": 446.6,
+          "w": 56.5,
+          "h": 391.3
+        }
+      },
+      {
+        "field_type": "mfg_date",
+        "raw_text": "Net Quantity (when packed) -> 12/2025",
+        "confidence": 0.9956,
+        "bbox": {
+          "x": 419.0,
+          "y": 210.7,
+          "w": 145.6,
+          "h": 55.6
+        }
+      },
+      {
+        "field_type": "consumer_care",
+        "raw_text": "Consumer Cell: Toll Free: 1800-103-1644 / 22240844 Email: daburcares@dabur.com Website: www.dabur.com",
+        "confidence": 0.98,
+        "bbox": {
+          "x": 537.0,
+          "y": 553.3,
+          "w": 45.4,
+          "h": 289.2
+        }
+      },
+      {
+        "field_type": "country_of_origin",
+        "raw_text": "MADE IN INDIA",
+        "confidence": 0.99,
+        "bbox": {
+          "x": 342.8,
+          "y": 88.3,
+          "w": 43.3,
+          "h": 155.8
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Dabur Gulabari Radiant Rose Glow Soap",
+        "confidence": 0.99,
+        "bbox": {
+          "x": 510.8,
+          "y": 494.9,
+          "w": 55.0,
+          "h": 349.4
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Dabur Gulabari Radiant Rose Glow Soap",
+        "confidence": 0.9957,
+        "bbox": {
+          "x": 173.1,
+          "y": 530.2,
+          "w": 47.3,
+          "h": 147.5
+        }
+      },
+      {
+        "field_type": "manufacturer_address",
+        "raw_text": "Net Quantity (when packed)",
+        "confidence": 0.9523,
+        "bbox": {
+          "x": 589.0,
+          "y": 523.0,
+          "w": 33.0,
+          "h": 398.0
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Dabur Gulabari Radiant Rose Glow Soap",
+        "confidence": 0.99,
+        "bbox": {
+          "x": 372.0,
+          "y": 693.0,
+          "w": 35.0,
+          "h": 118.0
+        }
+      },
+      {
+        "field_type": "net_quantity",
+        "raw_text": "Net Quantity (when packed) : 150 g",
+        "confidence": 0.98,
+        "bbox": {
+          "x": 589.0,
+          "y": 523.0,
+          "w": 33.0,
+          "h": 398.0
+        }
+      }
+    ],
+    "barcodes": [
+      "8901207051425"
+    ]
+  },
+  "sample_2": {
+    "images": {
+      "back.jpeg": {
+        "barcode": "8901063155329",
+        "lines_count": 21,
+        "extracted_fields": [
+          "consumer_care",
+          "commodity_name",
+          "mfg_date"
+        ],
+        "sample_ocr_lines": [
+          "ed.KHAGAL",
+          "ustries Ld.PLOT NO.1SECTOR1",
+          "150c.124&133]",
+          "CLEAN AIRTIGHT CONTAINER",
+          "CAUSEAWHITISH LAYER ON THE",
+          "For feedback-ContcExectiveConsumerCareCell",
+          "Ph. (Tll Fr)1-00-4254449/1-800-30004530",
+          "Lic.No.10015043001129",
+          "PART OF GATTANO",
+          "1nec"
+        ]
+      },
+      "front.jpeg": {
+        "barcode": null,
+        "lines_count": 17,
+        "extracted_fields": [
+          "commodity_name"
+        ],
+        "sample_ocr_lines": [
+          "IGE",
+          "BRITANNIA",
+          "SCAN THE QR",
+          "TIGER",
+          "LEARN TO",
+          "FIGHT BULLYING",
+          "FEATURE'IN",
+          "COMIC",
+          "KRUNCH",
+          "CHOCOCHIPS"
+        ]
+      },
+      "side.jpeg": {
+        "barcode": null,
+        "lines_count": 23,
+        "extracted_fields": [
+          "mrp",
+          "net_quantity",
+          "manufacturer_address",
+          "mfg_date",
+          "commodity_name"
+        ],
+        "sample_ocr_lines": [
+          "COR",
+          "DISCUITS NET WEIGHT",
+          "MRPS",
+          "130.00",
+          "(INCLOF",
+          "ALL TAXES)",
+          "0.33/g",
+          "4Nx100g=400 g",
+          "TIGER",
+          "OTHER"
+        ]
+      }
+    },
+    "all_declarations": [
+      {
+        "field_type": "consumer_care",
+        "raw_text": "Consumer Care Cell, Ph: (Toll Free) 1-800-4254449 / 1-800-30004530 @ Britannia Industries Ltd., Prestige Shantiniketan, Whitefield, Bangalore-560048. E-mail: feedback@britindia.com",
+        "confidence": 0.98,
+        "bbox": {
+          "x": 782.5,
+          "y": 192.8,
+          "w": 84.9,
+          "h": 446.5
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Britannia Tiger Krunch Chocochips Biscuits Family Pack",
+        "confidence": 0.9965,
+        "bbox": {
+          "x": 656.4,
+          "y": 729.6,
+          "w": 28.6,
+          "h": 98.0
+        }
+      },
+      {
+        "field_type": "mfg_date",
+        "raw_text": "PKD. 01/07/26 USE BY 31/01/27 LOT No. A072834",
+        "confidence": 0.99,
+        "bbox": {
+          "x": 291.4,
+          "y": 100.9,
+          "w": 50.8,
+          "h": 189.8
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Britannia Tiger Krunch Chocochips Biscuits Family Pack",
+        "confidence": 0.9848,
+        "bbox": {
+          "x": 442.0,
+          "y": 605.0,
+          "w": 19.0,
+          "h": 119.0
+        }
+      },
+      {
+        "field_type": "mrp",
+        "raw_text": "MRPS 130.00",
+        "confidence": 0.8055,
+        "bbox": {
+          "x": 851.1,
+          "y": 571.4,
+          "w": 57.7,
+          "h": 25.4
+        }
+      },
+      {
+        "field_type": "net_quantity",
+        "raw_text": "4Nx100g=400 g",
+        "confidence": 0.9712,
+        "bbox": {
+          "x": 503.7,
+          "y": 566.3,
+          "w": 161.4,
+          "h": 47.5
+        }
+      },
+      {
+        "field_type": "manufacturer_address",
+        "raw_text": "PKD,, USEBY, 31/01/27, For dotojled T&C",
+        "confidence": 0.9361,
+        "bbox": {
+          "x": 856.8,
+          "y": 629.3,
+          "w": 41.4,
+          "h": 29.7
+        }
+      },
+      {
+        "field_type": "mfg_date",
+        "raw_text": "PKD, -> 01/07/26",
+        "confidence": 0.9925,
+        "bbox": {
+          "x": 935.8,
+          "y": 626.1,
+          "w": 126.7,
+          "h": 35.2
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "DISCUITS NET WEIGHT",
+        "confidence": 0.9203,
+        "bbox": {
+          "x": 502.5,
+          "y": 536.9,
+          "w": 170.4,
+          "h": 39.5
+        }
+      }
+    ],
+    "barcodes": [
+      "8901063155329"
+    ]
+  },
+  "sample_3": {
+    "images": {
+      "back.jpeg": {
+        "barcode": null,
+        "lines_count": 13,
+        "extracted_fields": [
+          "commodity_name",
+          "net_quantity"
+        ],
+        "sample_ocr_lines": [
+          "ENAMEL SAFE",
+          "with Whitening Acceleg tors*",
+          "200g+40",
+          "Starts Whiteningin 1Week",
+          "DAILY",
+          "WHITE",
+          "VISIBLE",
+          "Anticavity",
+          "Colgate",
+          "Fluoride Toothpaste"
+        ]
+      },
+      "crop_barcode.jpeg": {
+        "barcode": null,
+        "lines_count": 8,
+        "extracted_fields": [
+          "commodity_name"
+        ],
+        "sample_ocr_lines": [
+          "ate Visible White Toothpasie.",
+          "oportionate savings in comparison to the MAP ofi",
+          "d on clinical study (2009) refers to silica and pyro",
+          "moval of surface stains when used as directed on the pack Re",
+          "HDPE",
+          "CUS/03/40.",
+          "https//www.co",
+          "OTHER"
+        ]
+      },
+      "debug_crop.jpeg": {
+        "barcode": null,
+        "lines_count": 9,
+        "extracted_fields": [
+          "commodity_name"
+        ],
+        "sample_ocr_lines": [
+          "medabad Gujarat-382110.M.L.No.M-GC/1172",
+          ".174103.IN15.M-HIT",
+          "Based on clinical study (2009)refers to sihica a",
+          "by removal of surface stains when used as direct",
+          "Colgate Visible White Toothpasie.",
+          "Responsibly",
+          "HDPE",
+          "ATo learn more.visit https//www.con",
+          "OTHER"
+        ]
+      },
+      "front.jpeg": {
+        "barcode": null,
+        "lines_count": 16,
+        "extracted_fields": [
+          "commodity_name",
+          "net_quantity"
+        ],
+        "sample_ocr_lines": [
+          "Colgate",
+          "Anticavity",
+          "SAVER PACK",
+          "VISIBLE",
+          "Starts Whitening",
+          "WHITE",
+          "in 1Week*",
+          "DAILY",
+          "Accelerators*",
+          "with Whitening"
+        ]
+      },
+      "side.jpeg": {
+        "barcode": null,
+        "lines_count": 21,
+        "extracted_fields": [
+          "mrp",
+          "net_quantity",
+          "manufacturer_address",
+          "country_of_origin",
+          "commodity_name",
+          "mfg_date"
+        ],
+        "sample_ocr_lines": [
+          "Expiry 36 Months From MFD",
+          "Batch No.&MFD. (refer coding panel)",
+          "For MRP incl of all taxes Unit Sale Price Per g",
+          "Sodium Fluoride, XanthanGumLimonene,Cl 74160",
+          "TOTAL NET WT.",
+          "Lauryl Sulfate,Flavor.P",
+          "240g",
+          "Cellulose Gum, Tetrasodsum Pyrophosphate, Phosphoric",
+          "Ingredients:Water, Sorb",
+          "tassium Hydroxide,Titanium Dioxide,"
+        ]
+      },
+      "sticker.jpeg": {
+        "barcode": null,
+        "lines_count": 5,
+        "extracted_fields": [
+          "mrp",
+          "commodity_name"
+        ],
+        "sample_ocr_lines": [
+          "Colgate",
+          "P378",
+          "CP O4126B01",
+          "F2 01:29",
+          "1.89/g"
+        ]
+      }
+    },
+    "all_declarations": [
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Colgate Visible White Anticavity Fluoride Toothpaste Daily Saver Pack (200g+40g)",
+        "confidence": 0.9942,
+        "bbox": {
+          "x": 519.8,
+          "y": 191.0,
+          "w": 49.2,
+          "h": 97.3
+        }
+      },
+      {
+        "field_type": "net_quantity",
+        "raw_text": "TOTAL NET WT. 240g (2N x (100g + 20g) Individual Pieces Not To Be Sold Loose)",
+        "confidence": 0.9983,
+        "bbox": {
+          "x": 156.7,
+          "y": 1141.2,
+          "w": 62.0,
+          "h": 105.0
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "ate Visible White Toothpasie. oportionate savings in comparison to the MAP ofi d on clinical study (2009) refers to silica and pyro HDPE",
+        "confidence": 0.9336,
+        "bbox": {
+          "x": 27.3,
+          "y": -2.8,
+          "w": 172.6,
+          "h": 293.7
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Colgate Visible White Anticavity Fluoride Toothpaste Daily Saver Pack (200g+40g)",
+        "confidence": 0.99,
+        "bbox": {
+          "x": 84.8,
+          "y": 23.5,
+          "w": 42.4,
+          "h": 191.9
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Colgate Visible White Anticavity Fluoride Toothpaste Daily Saver Pack (200g+40g)",
+        "confidence": 0.9991,
+        "bbox": {
+          "x": 957.0,
+          "y": 203.5,
+          "w": 191.2,
+          "h": 523.7
+        }
+      },
+      {
+        "field_type": "net_quantity",
+        "raw_text": "TOTAL NET WT. 240g (2N x (100g + 20g) Individual Pieces Not To Be Sold Loose)",
+        "confidence": 0.9997,
+        "bbox": {
+          "x": 77.3,
+          "y": 408.3,
+          "w": 40.3,
+          "h": 120.0
+        }
+      },
+      {
+        "field_type": "mrp",
+        "raw_text": "P ₹ 378.00 (incl. of all taxes) Unit Sale Price: ₹ 1.89/g",
+        "confidence": 0.98,
+        "bbox": {
+          "x": 250.8,
+          "y": 16.7,
+          "w": 137.0,
+          "h": 288.9
+        }
+      },
+      {
+        "field_type": "net_quantity",
+        "raw_text": "TOTAL NET WT. : 240g",
+        "confidence": 0.9847,
+        "bbox": {
+          "x": 388.3,
+          "y": 228.3,
+          "w": 50.3,
+          "h": 70.4
+        }
+      },
+      {
+        "field_type": "manufacturer_address",
+        "raw_text": "Expiry 36 Months From MFD",
+        "confidence": 0.9583,
+        "bbox": {
+          "x": 233.9,
+          "y": 19.4,
+          "w": 115.8,
+          "h": 218.9
+        }
+      },
+      {
+        "field_type": "country_of_origin",
+        "raw_text": "MADE IN INDIA",
+        "confidence": 0.99,
+        "bbox": {
+          "x": 517.7,
+          "y": 1129.9,
+          "w": 87.5,
+          "h": 150.3
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Colgate Visible White Anticavity Fluoride Toothpaste Daily Saver Pack (200g+40g)",
+        "confidence": 0.99,
+        "bbox": {
+          "x": 358.2,
+          "y": 821.7,
+          "w": 94.7,
+          "h": 193.9
+        }
+      },
+      {
+        "field_type": "mfg_date",
+        "raw_text": "CP 04/26 B01 (Expiry 36 Months From MFD)",
+        "confidence": 0.97,
+        "bbox": {
+          "x": 233.9,
+          "y": 19.4,
+          "w": 115.8,
+          "h": 218.9
+        }
+      },
+      {
+        "field_type": "mrp",
+        "raw_text": "P378 1.89/g",
+        "confidence": 0.9316,
+        "bbox": {
+          "x": 536.0,
+          "y": 172.9,
+          "w": 169.3,
+          "h": 342.7
+        }
+      },
+      {
+        "field_type": "commodity_name",
+        "raw_text": "Colgate",
+        "confidence": 0.998,
+        "bbox": {
+          "x": 587.3,
+          "y": 1.8,
+          "w": 404.1,
+          "h": 685.2
+        }
+      }
+    ],
+    "barcodes": []
+  }
+}

@@ -23,6 +23,16 @@ class MRPExtractor(BaseFieldExtractor):
         re.IGNORECASE,
     )
 
+    FLAP_PRICE_PATTERN = re.compile(
+        r"(?i)\bP\s*[.:-]?\s*(?:RS\.?|₹|INR)?\s*([0-9]+(?:\.[0-9]{1,2})?)",
+        re.IGNORECASE,
+    )
+
+    PRICE_WITH_USP_PATTERN = re.compile(
+        r"(?i)(?:RS\.?|₹|INR)?\s*([0-9]+(?:\.[0-9]{1,2})?)\s*\(?\s*(?:RS\.?|₹|INR|[0-9]?[.,]?[0-9]*)?\s*([0-9]+(?:\.[0-9]{1,2})?)\s*[\/]\s*([a-zA-Z]+)\)?",
+        re.IGNORECASE,
+    )
+
     PRICE_NUMBER_PATTERN = re.compile(r"(?:RS\.?|₹|INR)?\s*([0-9]+(?:[.,][0-9]{1,2})?)(?:\s*\/-\s*)?", re.IGNORECASE)
 
     USP_PATTERN = re.compile(
@@ -194,5 +204,82 @@ class MRPExtractor(BaseFieldExtractor):
                         )
                     )
                     break
+
+        if declarations:
+            return declarations
+
+        # 3. Flap / Coding Area Search (e.g. "P ₹ 378", "₹ 257 (₹0.43/g)", "refer coding panel")
+        for idx, line in enumerate(lines):
+            text = line.text
+            flap_m = self.FLAP_PRICE_PATTERN.search(text)
+            usp_m = self.PRICE_WITH_USP_PATTERN.search(text)
+
+            price_val = None
+            usp_dict = None
+            raw_matched = text
+
+            if usp_m:
+                try:
+                    price_val = float(usp_m.group(1).replace(",", "."))
+                    usp_val = float(usp_m.group(2).replace(",", "."))
+                    usp_u = usp_m.group(3).lower()
+                    usp_dict = {"unit_sale_price": usp_val, "unit_sale_unit": usp_u}
+                except ValueError:
+                    pass
+            elif flap_m:
+                raw_num = flap_m.group(1).replace(",", ".")
+                try:
+                    val = float(raw_num)
+                    if 10.0 <= val <= 50000.0:
+                        price_val = val
+                except ValueError:
+                    pass
+
+            if price_val is not None:
+                has_taxes = any(
+                    self.TAX_INCLUSIVE_PATTERN.search(other.text)
+                    or "tax" in other.text.lower()
+                    or "incl" in other.text.lower()
+                    for other in lines
+                )
+                if not usp_dict:
+                    for other in lines:
+                        standalone_usp = self.USP_PATTERN.search(other.text)
+                        if standalone_usp:
+                            try:
+                                u_val = float(standalone_usp.group(1).replace(",", "."))
+                                u_unit = standalone_usp.group(2).lower()
+                                usp_dict = {"unit_sale_price": u_val, "unit_sale_unit": u_unit}
+                                raw_matched = f"{raw_matched} {other.text}"
+                                break
+                            except ValueError:
+                                pass
+
+                payload = {
+                    "amount": round(price_val, 2),
+                    "currency": "INR",
+                    "inclusive_of_all_taxes": has_taxes,
+                }
+                if usp_dict:
+                    payload.update(usp_dict)
+
+                declarations.append(
+                    ExtractedDeclaration(
+                        field_type=self.field_type,
+                        raw_text=raw_matched,
+                        parsed_value=json.dumps(payload),
+                        confidence=round(line.confidence if line.confidence else 0.90, 4),
+                        bounding_box={
+                            "x": line.bounding_box.x,
+                            "y": line.bounding_box.y,
+                            "w": line.bounding_box.w,
+                            "h": line.bounding_box.h,
+                        },
+                        source_image_id=source_image_id,
+                        verdict="pass" if has_taxes else "needs_review",
+                        metadata=payload,
+                    )
+                )
+                break
 
         return declarations

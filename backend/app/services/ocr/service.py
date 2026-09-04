@@ -118,6 +118,48 @@ class OCRService:
         except Exception as e:
             logger.warning(f"Primary OCR engine ({self.primary_engine.name}) failed: {e}")
 
+        # Orientation adaptation for elongated packages with vertical text (e.g. toothpaste carton side panel)
+        h_arr, w_arr = image_array.shape[:2]
+        if (h_arr > w_arr * 1.2 or w_arr > h_arr * 1.2) and (primary_result is None or len(primary_result.lines) < 20):
+            try:
+                import cv2
+
+                center = (w_arr / 2.0, h_arr / 2.0)
+                rot_mat = cv2.getRotationMatrix2D(center, -90, 1.0)
+                rot_mat[0, 2] += (h_arr - w_arr) / 2.0
+                rot_mat[1, 2] += (w_arr - h_arr) / 2.0
+                rot_img = cv2.warpAffine(image_array, rot_mat, (h_arr, w_arr))
+                rot_res = self.primary_engine.extract(rot_img, source_image_id=source_image_id)
+                current_lines = len(primary_result.lines) if primary_result else 0
+                if len(rot_res.lines) >= current_lines + 4:
+                    logger.info(
+                        f"Orientation adaptation: 90-deg rotation yielded {len(rot_res.lines)} lines vs {current_lines}"
+                    )
+                    rot_transform = [{"type": "rotation", "matrix": rot_mat.tolist()}]
+                    mapped_lines = []
+                    for line in rot_res.lines:
+                        orig_box = map_bbox_to_original(
+                            {
+                                "x": line.bounding_box.x,
+                                "y": line.bounding_box.y,
+                                "w": line.bounding_box.w,
+                                "h": line.bounding_box.h,
+                            },
+                            scale_factor=1.0,
+                            transforms=rot_transform,
+                        )
+                        line.bounding_box = BoundingBox(
+                            x=orig_box["x"], y=orig_box["y"], w=orig_box["w"], h=orig_box["h"]
+                        )
+                        mapped_lines.append(line)
+                    rot_res.lines = mapped_lines
+                    rot_res.preprocessing_steps = applied_steps + ["auto_orientation_90"]
+                    primary_result = rot_res
+                    primary_success = True
+                del rot_img
+            except Exception as rot_e:
+                logger.warning(f"Orientation adaptation warning: {rot_e}")
+
         # 2. Return primary if strong and successful
         if primary_success and primary_result is not None:
             if preprocessed:
