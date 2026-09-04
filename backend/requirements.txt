@@ -14,8 +14,9 @@ httpx>=0.27.0
 pillow>=10.3.0
 numpy>=1.24.0
 opencv-python-headless>=4.9.0
-paddlepaddle==2.6.2
-paddleocr==2.9.1
+pytesseract>=0.3.10
+# paddlepaddle and paddleocr removed: ~400MB model init OOM-crashes Render 512MB free tier.
+# Use OCR_ENGINE=tesseract env var on Render. Re-add if upgrading to a paid instance. (ADR-027)
 zxing-cpp>=2.2.0
 jinja2>=3.1.0
 fpdf2>=2.7.0

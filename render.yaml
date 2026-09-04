@@ -33,13 +33,9 @@ services:
         sync: false
       - key: OCR_MODEL_CACHE_DIR
         value: /tmp/ocr_cache
+      - key: OCR_ENGINE
+        value: tesseract
       - key: REVIEW_CONFIDENCE_THRESHOLD
         value: "0.85"
       - key: RATE_LIMIT_AUTH
         value: 10/minute
-      - key: FLAGS_allocator_strategy
-        value: naive_best_fit
-      - key: FLAGS_fraction_of_gpu_memory_to_use
-        value: "0.0"
-      - key: FLAGS_eager_delete_tensor_gb
-        value: "0.0"
