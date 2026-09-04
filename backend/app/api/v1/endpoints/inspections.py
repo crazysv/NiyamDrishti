@@ -788,45 +788,59 @@ async def extract_inspection_declarations(
             logger.warning(f"Image resize guard warning: {resize_err}")
 
         try:
-            # Calibrate image if scale not yet derived
-            calib_barcode = None
-            if img.calibration_scale_mm_per_px is None:
-                try:
-                    calib_service = OpticalCalibrationService()
-                    calib_res = calib_service.calibrate_image(img_bytes)
-                    if calib_res.is_calibrated and calib_res.scale_mm_per_px is not None:
-                        img.calibration_scale_mm_per_px = calib_res.scale_mm_per_px
-                        calib_barcode = calib_res.barcode_data
-                except Exception as calib_err:
-                    logger.warning(f"Calibration warning for image {img.id}: {calib_err}")
-            else:
-                try:
-                    calib_service = OpticalCalibrationService()
-                    calib_res = calib_service.calibrate_image(img_bytes)
-                    if calib_res.is_calibrated:
-                        calib_barcode = calib_res.barcode_data
-                except Exception:
-                    pass
-
             t0_ocr = time.perf_counter()
-            ocr_res = ocr_service.process_image(img_bytes, source_image_id=str(img.id))
+
+            if _ocr_engine_name == "tesseract":
+                # Tesseract low-memory path: skip calibration + preprocessing pipeline entirely.
+                # OpticalCalibrationService and PreprocessingPipeline both run heavy OpenCV ops
+                # (bilateral filter, glare inpaint, CLAHE, perspective warp) using 100-200MB each.
+                # Tesseract has its own internal binarisation/deskew — no pre-preprocessing needed.
+                # GoldenDemoMatcher matches on text anchors, so raw Tesseract output is sufficient.
+                import io
+                import numpy as np
+                from PIL import Image as PILImage
+                with PILImage.open(io.BytesIO(img_bytes)) as pil_img:
+                    img_array = np.array(pil_img.convert("RGB"))
+                ocr_res = _primary.extract(img_array, source_image_id=str(img.id))
+                del img_array
+            else:
+                # Calibrate image if scale not yet derived (paddle/full mode only)
+                calib_barcode = None
+                if img.calibration_scale_mm_per_px is None:
+                    try:
+                        calib_service = OpticalCalibrationService()
+                        calib_res = calib_service.calibrate_image(img_bytes)
+                        if calib_res.is_calibrated and calib_res.scale_mm_per_px is not None:
+                            img.calibration_scale_mm_per_px = calib_res.scale_mm_per_px
+                            calib_barcode = calib_res.barcode_data
+                    except Exception as calib_err:
+                        logger.warning(f"Calibration warning for image {img.id}: {calib_err}")
+                else:
+                    try:
+                        calib_service = OpticalCalibrationService()
+                        calib_res = calib_service.calibrate_image(img_bytes)
+                        if calib_res.is_calibrated:
+                            calib_barcode = calib_res.barcode_data
+                    except Exception:
+                        pass
+                ocr_res = ocr_service.process_image(img_bytes, source_image_id=str(img.id))
+
             record_ocr_duration(time.perf_counter() - t0_ocr, engine=_ocr_engine_name, status="success")
+            calib_barcode = None  # GoldenDemoMatcher doesn't use barcode
             declarations = extraction_service.extract_from_ocr_result(ocr_res, barcode=calib_barcode)
             all_declarations.extend(declarations)
         except Exception as ocr_err:
             logger.error(f"OCR processing failed for image {img.id}: {ocr_err}", exc_info=True)
             record_ocr_duration(0.0, engine=_ocr_engine_name, status="error")
-            # Continue on error for other images
             pass
         finally:
             del img_bytes
             import gc
-
             gc.collect()
 
     import gc
-
     gc.collect()
+
 
     # Save extracted fields to DB
     persisted = await extraction_service.save_extracted_fields(
