@@ -108,19 +108,68 @@ class BarcodeCalibrationDetector:
 
         return None
 
+    def _try_zxing(self, image: np.ndarray) -> dict[str, Any] | None:
+        """Attempts barcode detection using zxingcpp with raw and adaptive thresholding."""
+        try:
+            import zxingcpp
+
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+            candidates = [gray]
+
+            # Glossy packaging / glare fallback: adaptive thresholding
+            try:
+                thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 4)
+                candidates.append(thresh)
+            except Exception:
+                pass
+
+            for candidate in candidates:
+                results = zxingcpp.read_barcodes(candidate)
+                for b in results:
+                    raw_fmt = str(b.format).replace("BarcodeFormat.", "").replace("_", "-").upper()
+                    data = str(b.text)
+                    pts = [
+                        (b.position.top_left.x, b.position.top_left.y),
+                        (b.position.top_right.x, b.position.top_right.y),
+                        (b.position.bottom_right.x, b.position.bottom_right.y),
+                        (b.position.bottom_left.x, b.position.bottom_left.y),
+                    ]
+                    xs = [p[0] for p in pts]
+                    ys = [p[1] for p in pts]
+                    min_x, max_x = float(min(xs)), float(max(xs))
+                    min_y, max_y = float(min(ys)), float(max(ys))
+                    w = max_x - min_x
+                    h = max_y - min_y
+                    width_px = max(w, h)
+
+                    if width_px > 20:
+                        return {
+                            "type": raw_fmt,
+                            "data": data,
+                            "bbox": {"x": round(min_x, 1), "y": round(min_y, 1), "w": round(w, 1), "h": round(h, 1)},
+                            "width_px": round(width_px, 1),
+                        }
+        except Exception as e:
+            logger.debug(f"zxingcpp detection failed: {e}")
+        return None
+
     def calibrate(self, image: np.ndarray) -> CalibrationResult:
         """
         Executes optical calibration on the image.
-        1. Attempts barcode detection (OpenCV / pyzbar)
+        1. Attempts barcode detection (zxingcpp / OpenCV / pyzbar)
         2. If detected: look up nominal physical width in millimeters and compute mm-per-pixel scale.
         3. If not detected (CAL-03): return uncalibrated fallback result with explicit warning.
         """
         detected: dict[str, Any] | None = None
 
-        # 1. Try OpenCV detector first (universal)
-        detected = self._try_opencv(image)
+        # 1. Try zxingcpp first (fastest, most robust for 1D retail barcodes & glossy packaging)
+        detected = self._try_zxing(image)
 
-        # 2. Try pyzbar if OpenCV didn't find anything
+        # 2. Try OpenCV detector
+        if not detected:
+            detected = self._try_opencv(image)
+
+        # 3. Try pyzbar fallback
         if not detected:
             detected = self._try_pyzbar(image)
 

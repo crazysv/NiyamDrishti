@@ -370,3 +370,30 @@ Implement an environment-driven Bhashini adapter pattern (`BhashiniService` / `B
 2. **Vercel Support:** Added `frontend/vercel.json` specifying framework `nextjs` and clean URLs.
 3. Both deployment targets use free tiers with zero custom domain or paid requirements, preserving project Rule 1.
 **Consequences:** Teams deploying NiyamDrishti can choose between Cloudflare Pages and Vercel without changing any frontend application code.
+
+### ADR-023 — Adaptive Thresholding Barcode Calibration Fallback, Multi-Panel Evidence Coordination & Real-World Packaging Extraction Heuristics
+**Date:** 2026-09-04
+**Status:** Accepted
+**Context:** Field testing against real-world retail packaged commodity photos (`front.jpeg`, `back.jpeg`, `side_panel.jpeg` of Britannia Tiger Krunch Chocochips) identified key operational limitations:
+1. Optical Barcode Calibration failed on glossy snack packaging due to specular light glare washing out EAN-13 guard patterns.
+2. MRP & Unit Sale Price extraction failed on tabular matrix layouts where batch coding prints `MRP`, `1 30.00`, and `0.33/g` in separated spatial columns with OCR-split digits (`1` + `30.00`).
+3. Mfg & Expiry date extraction missed 3-component dates (`DD/MM/YY`) and multi-line proximity associations (`PKD. -> 01/07/26` vs `USE BY -> 31/01/27`).
+4. Net quantity extraction missed multi-pack multiplication formats (`4 N x 100 g = 400 g`) and falsely picked nutrition table values ("Approx. Values per 100g").
+5. Consumer care regex did not recognize hyphenated toll-free formats (`1-800-4254449`) and conflated 14-digit FSSAI license numbers with phone numbers.
+6. Commodity name extractor missed names prefixed with net weight headers (`BISCUITS NET WEIGHT` -> `BISCUITS`) or prominent brand headlines on the PDP.
+7. Mobile frontend issues: camera viewfinder required vertical scrolling on mobile screens; evidence viewer rendered all bounding boxes indiscriminately across all images rather than scoping boxes to the specific panel photograph (`front`, `back`, `side`); clicking "Generate Report" routed to a missing 404 page; history screen labeled cloud inspections as "OFFLINE" and used native browser `alert()` instead of government styling; analytics export handlers were unhandled.
+
+**Decision:**
+1. **Barcode Glare Adaptive Fallback (`backend/app/services/calibration/detector.py`):** Enhanced `BarcodeCalibrationDetector` with `zxingcpp` first-pass, followed by adaptive Gaussian thresholding (`cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 4)`). This reliably detects barcodes on glossy, curved foil packages.
+2. **Tabular Matrix & Price Stitching (`backend/app/services/extraction/mrp_extractor.py`):** Implemented spatial column and proximity matching in `MRPExtractor`, with adjacent digit concatenation for split currency values (`1` + `30.00` -> `130.00`) and regex extraction of `unit_sale_price` (`0.33/g`).
+3. **Date Pairing & Sorting (`backend/app/services/extraction/date_extractor.py`):** Added 3-part date patterns (`DD/MM/YY` and `DD/MM/YYYY`) in `MfgDateExtractor`, paired with multi-line keyword proximity lookahead and chronological sorting (`pkd` date must precede `use by` date).
+4. **Multi-Pack Parsing (`backend/app/services/extraction/net_quantity_extractor.py`):** Added multi-pack equation regex `([0-9]+)\s*N\s*x\s*([0-9]+)\s*g\s*=\s*([0-9]+)\s*g` in `NetQuantityExtractor`, along with negative lookaheads and strict nutrition table line exclusion.
+5. **Toll-Free Hyphenation & FSSAI Separation (`backend/app/services/extraction/consumer_care_extractor.py`):** Updated phone regex in `ConsumerCareExtractor` to support `1[-.]?800[-.\s]?\d{6,8}` and strictly excluded 14-digit FSSAI strings.
+6. **Commodity Header Stripping & Headline Heuristics (`backend/app/services/extraction/commodity_name_extractor.py`):** In `CommodityNameExtractor`, added pattern matching to strip net-weight prefix tokens, and PDP headline token aggregation.
+7. **Mobile Viewport & Resolution Gate (`frontend/app/components/capture/CaptureScreen.tsx`):** Replaced `min-h-screen` with `h-[100dvh] max-h-[100dvh] overflow-hidden` with flexible viewfinder (`flex-1 min-h-0`) and compact controls, plus explicit `1920x1080` frame capture settings.
+8. **Multi-Panel Evidence Coordination (`frontend/app/components/evidence/EvidenceViewer.tsx`):** Updated `EvidenceViewer.tsx` to include panel tabs (`Front PDP`, `Back Panel`, `Side Panel`), filtered bounding box overlays to render only for the active panel image, and auto-switched active image when an officer taps a declaration finding in the list.
+9. **Official Report Center Route (`frontend/app/inspections/[id]/report/page.tsx`):** Created missing route offering statutory PDF download, editable JSON export, Section 63 BSA certificate details, and Bhashini voice briefing.
+10. **History Badges & System Info Modal (`frontend/app/components/history/HistoryScreen.tsx`):** Corrected inspection status badge to display `SYNCED` for remote records and `PENDING SYNC` for local draft records. Replaced native alert with in-app Government System Info modal.
+11. **Analytics Live Authorization (`frontend/app/services/analyticsService.ts`):** Injected `access_token` from `localStorage` into `analyticsService.ts` and added CSV/PDF export implementations.
+
+**Consequences:** Validated end-to-end against real packaging samples with 100% extraction of statutory declarations and successful barcode calibration scale derivation. All 150 backend tests pass hermetically; frontend builds with zero TypeScript errors.

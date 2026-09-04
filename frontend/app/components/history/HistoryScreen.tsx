@@ -17,6 +17,9 @@ import {
   CloudUpload,
   ChevronRight,
   BarChart3,
+  ShieldCheck,
+  X,
+  Info,
 } from "lucide-react";
 import { searchInspections } from "../../services/inspectionService";
 import { InspectionSummary, InspectionSearchParams } from "../../types/inspection";
@@ -50,6 +53,7 @@ export default function HistoryScreen() {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
   const [, startTransition] = useTransition();
 
   const loadData = useCallback(async () => {
@@ -400,13 +404,14 @@ export default function HistoryScreen() {
                             </span>
                           ) : null}
 
-                          {insp.captured_offline ? (
-                            <span className="px-1.5 py-0.5 bg-[#F0EDE5] text-[#4A5568] rounded font-mono text-[10px]">
-                              OFFLINE
+                          {insp.status === "sync_pending" || insp.id.startsWith("local_") ? (
+                            <span className="px-1.5 py-0.5 bg-[#FFDAD6] text-[#BA1A1A] rounded font-mono text-[10px] font-bold">
+                              PENDING SYNC
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 bg-[#D6E3D3] text-[#3E4A3E] rounded font-mono text-[10px]">
-                              SYNCED
+                            <span className="px-1.5 py-0.5 bg-[#D6E3D3] text-[#3E4A3E] rounded font-mono text-[10px] font-bold flex items-center gap-0.5">
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                              <span>SYNCED</span>
                             </span>
                           )}
                         </div>
@@ -499,13 +504,76 @@ export default function HistoryScreen() {
 
         <button
           type="button"
-          onClick={() => alert("NiyamDrishti Legal Metrology System · Rule Pack 2026.02.01 Active")}
+          onClick={() => setIsAboutOpen(true)}
           className="flex flex-col items-center gap-1 text-[#75777D] hover:text-[#333E50] transition"
         >
-          <CheckCircle2 className="w-5 h-5" />
+          <Info className="w-5 h-5" />
           <span className="font-mono text-[10px] tracking-wider uppercase">About</span>
         </button>
       </nav>
+
+      {/* System Information Modal */}
+      {isAboutOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-[#F9F7F2] rounded-xl border border-[#D1CDC2] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95">
+            <div className="bg-[#333E50] text-white px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <h3 className="text-sm font-semibold leading-tight">NiyamDrishti</h3>
+                  <p className="text-[10px] text-white/70 font-mono">SIH26034 · Legal Metrology Platform</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAboutOpen(false)}
+                className="text-white/70 hover:text-white p-1 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 flex flex-col gap-3 text-xs font-mono">
+              <div className="bg-white p-3 rounded border border-[#D1CDC2] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Active Rule Pack:</span>
+                  <span className="font-bold text-gray-800">v2026.02.01</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Legal Standard:</span>
+                  <span className="font-semibold text-gray-800">LM (PC) Rules, 2011</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Electronic Evidence:</span>
+                  <span className="font-semibold text-emerald-800">Sec 63 BSA 2023</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">OCR Inference:</span>
+                  <span className="font-semibold text-gray-800">PaddleOCR PP-OCRv6</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Optical Calibration:</span>
+                  <span className="font-semibold text-gray-800">zxingcpp EAN-13/GS1</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Offline Storage:</span>
+                  <span className="font-semibold text-gray-800">IndexedDB (Dexie)</span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-gray-600 leading-relaxed bg-[#EAE7DC]/60 p-2.5 rounded border border-[#D1CDC2]">
+                An offline-capable inspector-first platform developed for the Department of Consumer Affairs (DoCA), Ministry of Consumer Affairs, Food & Public Distribution, Government of India.
+              </p>
+
+              <button
+                onClick={() => setIsAboutOpen(false)}
+                className="w-full py-2 bg-[#333E50] hover:bg-[#27303E] text-white rounded font-bold transition-all active:scale-95"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

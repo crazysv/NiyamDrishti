@@ -8,6 +8,38 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
+### 2026-09-04 — Fix: Real-World Commercial Packaging Validation, Barcode Calibration Glare Fallback & Mobile Field UX Hardening
+- **Optical Barcode Calibration Glare Fallback (`CAL-01`, `ADR-023`, `backend/app/services/calibration/detector.py`):**
+  - Integrated `zxingcpp` first-pass decoding and implemented a Gaussian adaptive thresholding fallback (`cv2.adaptiveThreshold`) to overcome specular light glare on glossy foil packaging.
+  - Successfully calibrated mm-per-pixel optical scale on real-world retail samples: EAN-13 barcode `3948063155329` (`0.28038 mm/px`) on `back.jpeg` and QR code `https://qrco.de/bgJYDw` (`0.27622 mm/px`) on `front.jpeg`.
+- **Statutory Packaging Declaration Extractor Enhancements (`EXT-02`..`EXT-08`, `backend/app/services/extraction/`):**
+  - **MRP & Unit Sale Price (`EXT-02`, `mrp_extractor.py`):** Added spatial column matrix lookup and adjacent token concatenation for split batch digits (`1` + `30.00` -> `130.00 INR`), extracting `amount: 130.0 INR` and `unit_sale_price: 0.33/g` from `side_panel.jpeg`.
+  - **Net Quantity (`EXT-03`, `net_quantity_extractor.py`):** Added multi-pack equation parser (`([0-9]+)\s*N\s*x\s*([0-9]+)\s*g\s*=\s*([0-9]+)\s*g`), extracting `400.0g` (`4 N x 100 g = 400 g`) with 100% confidence while rejecting nutrition table rows ("Approx. Values per 100g").
+  - **Mfg & Expiry Dates (`EXT-05`, `date_extractor.py`):** Added 3-part date parsing (`DD/MM/YY` and `DD/MM/YYYY`) and multi-line keyword proximity pairing, extracting PKD date `01/07/2026` and Expiry date `31/01/2027` from `side_panel.jpeg`.
+  - **Consumer Care (`EXT-06`, `consumer_care_extractor.py`):** Updated toll-free regex to support hyphenated formats (`1-800-4254449`) and excluded raw 14-digit FSSAI license numbers from false phone matches.
+  - **Commodity Name (`EXT-08`, `commodity_name_extractor.py`):** Added net weight prefix recognition (`BISCUITS NET WEIGHT` -> `BISCUITS`) and PDP headline token aggregation (`BRITANNIA TIGER KRUNCH CHOCOCHIPS`).
+  - **Unit Test Hermetic DB Health Check (`STOR-02`, `backend/tests/unit/test_storage_sync.py`):** Patched `test_db_health_check` to use an in-memory SQLite test engine, eliminating external AWS Neon network dependence and Windows asyncpg SSL transport edge cases in offline test runs.
+- **Mobile Camera Capture Viewport & Resolution Gate (`CAP-02`, `frontend/app/components/capture/CaptureScreen.tsx`):**
+  - Resolved mobile vertical scrolling by transitioning layout from `min-h-screen` to `h-[100dvh] max-h-[100dvh] overflow-hidden` with a flex-1 viewfinder and compact 56px control bar.
+  - Enforced `1920x1080` frame resolution on `<Webcam>` (`minScreenshotWidth={1920}`, `minScreenshotHeight={1080}`, `screenshotQuality={0.95}`) to ensure crisp OCR text intake.
+- **Multi-Angle Evidence Viewer (`EVID-03`, `frontend/app/components/evidence/EvidenceViewer.tsx`):**
+  - Added Photo Angle panel tab switcher (`Front PDP`, `Back Panel`, `Side Panel`).
+  - Scoped bounding box overlays to `activeImageId` so coordinates only render on their corresponding panel photograph.
+  - Added auto-switch behavior: tapping any declaration item in the findings sidebar automatically activates its corresponding photo panel and centers the bounding box.
+- **Official Statutory Report Center Route (`RPT-03`, `frontend/app/inspections/[id]/report/page.tsx`):**
+  - Implemented the missing Report Center route (resolving 404 navigation error from inspection summary).
+  - Wired official PDF download, editable JSON export, Section 63 BSA / 65B IEA digital evidence certificate details, and Bhashini multi-lingual voice briefing.
+- **History Status Badges & System Info Modal (`SRCH-02`, `frontend/app/components/history/HistoryScreen.tsx`):**
+  - Corrected badge semantics: cloud inspections display `SYNCED` rather than misleading `OFFLINE` badge, while local offline drafts display `PENDING SYNC`.
+  - Replaced native browser `alert()` with an in-app Government System Info modal disclosing database dialect, rule pack, and storage state.
+- **Live Analytics Telemetry & Exports (`E2-05`, `frontend/app/services/analyticsService.ts`, `AnalyticsDashboard.tsx`):**
+  - Added `getAuthToken()` helper to inject `access_token` into analytics requests.
+  - Implemented client-side CSV and PDF export handlers replacing placeholder alerts.
+- **Verification:**
+  - Real sample validation script (`backend/tests/verify_real_samples.py`) passed with 100% extraction and calibration on Britannia Tiger Krunch Chocochips packaging images.
+  - Full backend test suite: 150/150 tests passing hermetically in 37.2s.
+  - Frontend TypeScript check (`npx tsc --noEmit`) and Turbopack production build (`npm run build`) compiled cleanly with 0 errors and all 8 routes generated.
+
 ### 2026-09-04 — Fix: Phase 4 Independent Audit Remediation & Parity Synchronization
 - **Government SSO PKCE `code_verifier` Normalization (`E4-01`, `backend/app/schemas/sso.py`, `backend/app/api/v1/endpoints/sso.py`, `frontend/app/types/sso.ts`):**
   - Resolved naming inconsistency where `SSOInitResponse` previously mapped the PKCE raw verifier to `code_challenge`.

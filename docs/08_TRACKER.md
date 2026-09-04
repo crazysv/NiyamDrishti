@@ -3,7 +3,7 @@
 **This file is a status mirror of `07_IMPLEMENTATION_PLAN.md`. Every task ID here must exist there, and every task ID there must exist here — no exceptions, no "minor" ones left off.** This 1:1 parity is enforced process, not a suggestion: see `AGENTS.md` rule 3 and `12_GUARDRAILS.md` §"Tracker/Plan parity procedure." The failure that prompted this entire documentation system was exactly this file silently containing fewer tasks than the plan did — do not let it happen again.
 
 **Status values:** `Not Started` · `In Progress` · `Blocked` · `Done`
-**Last updated:** 2026-09-04 — Phase 4 Audit Parity Synchronized (SSO code_verifier normalization, eMaap AuditLog ADR-020 verification, 150/150 Backend Tests Passing, Frontend Build Clean)
+**Last updated:** 2026-09-04 — Real-World Commercial Packaging Validation & Mobile Viewport / Evidence Switcher Hardening (ADR-023, 150/150 Backend Tests Passing, Frontend Build Clean)
 
 ---
 
@@ -38,7 +38,7 @@
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | CAP-01 | STOP — Stitch design checkpoint: Capture screen | Done | Stitch screen 7c1d0b5bf34e4e778541c8a99af1a10e verified & layout fetched | |
-| CAP-02 | Camera capture logic + multi-image state | Done | react-webcam + multi-image state + gallery upload fallback + Stitch styling in CaptureScreen.tsx | |
+| CAP-02 | Camera capture logic + multi-image state | Done | react-webcam + multi-image state + gallery upload fallback + Stitch styling in CaptureScreen.tsx; hardened with 100dvh mobile overflow-hidden viewport and 1080p capture resolution | |
 | CAP-03 | Quality gate: blur detection | Done | Laplacian edge variance operator in qualityGate.ts; threshold=120 | |
 | CAP-04 | Quality gate: glare/lighting detection | Done | Rec. 601 luminance + center-region saturated pixel ratio in qualityGate.ts | |
 | CAP-05 | Quality gate: perspective/crop/resolution/occlusion | Done | 600x600px minimum resolution, extreme aspect ratio/perspective heuristic, and center occlusion histogram checks in qualityGate.ts | |
@@ -65,19 +65,19 @@
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | EXT-01 | Field extractor scaffold + persistence | Done | DeclarationExtractionService orchestrator + DB persistence to extracted_fields + POST /inspections/{id}/extract |
-| EXT-02 | Extract: MRP | Done | MRPExtractor with numeric price parsing, INR currency, and inclusive of all taxes verification |
-| EXT-03 | Extract: net quantity | Done | NetQuantityExtractor with magnitude parsing and SI metric unit standardization (g, kg, ml, l, pieces) |
+| EXT-02 | Extract: MRP | Done | MRPExtractor with numeric price parsing, tabular matrix spatial column matching, split-digit stitching, and unit sale price parsing |
+| EXT-03 | Extract: net quantity | Done | NetQuantityExtractor with magnitude parsing, SI metric unit standardization, multi-pack equations, and nutrition table exclusion |
 | EXT-04 | Extract: manufacturer/packer/importer address | Done | ManufacturerAddressExtractor with role mapping, multi-line address lookahead, and 6-digit Indian PIN code validation |
-| EXT-05 | Extract: month/year of manufacture | Done | MfgDateExtractor with MM/YYYY and Month YYYY date parsing and normalization |
-| EXT-06 | Extract: consumer care details | Done | ConsumerCareExtractor with toll-free, phone, and email regex extraction |
+| EXT-05 | Extract: month/year of manufacture | Done | MfgDateExtractor with MM/YYYY, Month YYYY, 3-part DD/MM/YY date parsing, and proximity sorting |
+| EXT-06 | Extract: consumer care details | Done | ConsumerCareExtractor with hyphenated toll-free (1-800), phone, and email regex extraction, excluding FSSAI IDs |
 | EXT-07 | Extract: country of origin | Done | CountryOfOriginExtractor with country normalization |
-| EXT-08 | Extract: commodity name | Done | CommodityNameExtractor with explicit declaration headers and prominent headline heuristics |
+| EXT-08 | Extract: commodity name | Done | CommodityNameExtractor with net weight prefix stripping and PDP headline heuristics |
 | EXT-09 | Commodity-category selection | Done | Commodity category registry + GET /inspections/categories endpoint |
 
 ### Optical Calibration
 | ID | Task | Status | Notes |
 |---|---|---|---|
-| CAL-01 | Barcode detection + known-width lookup | Done | BarcodeCalibrationDetector with GS1 retail barcode dimensions (EAN-13, EAN-8, UPC-A) via OpenCV + pyzbar fallback |
+| CAL-01 | Barcode detection + known-width lookup | Done | BarcodeCalibrationDetector with GS1 retail barcode dimensions (EAN-13, EAN-8, UPC-A, QR) via zxingcpp + OpenCV adaptive thresholding fallback (ADR-023) |
 | CAL-02 | mm-per-pixel scale derivation + persistence | Done | OpticalCalibrationService with persistence to inspection_images.calibration_scale_mm_per_px and automatic derivation on upload/extract |
 | CAL-03 | Uncalibrated fallback path | Done | uncalibrated_pdp_ratio fallback with explicit measurement warning flag and non-asserted precision |
 
@@ -97,7 +97,7 @@
 |---|---|---|---|
 | EVID-01 | Bind fields + violations to bounding boxes | Done | GET /inspections/{id}/evidence returning normalized bounding box percentages and pixel coordinates |
 | EVID-02 | `violations` table population from rule engine | Done | violations table auto-populated on POST /inspections/{id}/extract and /evaluate |
-| EVID-03 | STOP — Stitch design checkpoint: Evidence viewer | Done | EvidenceViewer component built against Stitch screen aadbc3ef68594817a4d6c6cde22383c1 with zoom/pan and sync |
+| EVID-03 | STOP — Stitch design checkpoint: Evidence viewer | Done | EvidenceViewer component built against Stitch screen aadbc3ef68594817a4d6c6cde22383c1 with zoom/pan, panel switcher tabs, active panel box filtering, and declaration auto-switch |
 
 ### Human Review
 | ID | Task | Status | Notes |
@@ -112,7 +112,7 @@
 |---|---|---|---|
 | RPT-01 | WeasyPrint PDF report template | Done | inspection_report.html Jinja2 template created with full official layout, findings table, violations, and FPDF2 fallback engine |
 | RPT-02 | Shared, un-omittable legal disclaimer partial | Done | _legal_disclaimer.html created; mandatory disclaimer module wired into PDF generator and editable JSON export |
-| RPT-03 | `POST /inspections/{id}/report` + R2 upload | Done | POST /inspections/{id}/report, GET reports list, and GET download endpoint implemented with R2 upload & local storage fallback |
+| RPT-03 | `POST /inspections/{id}/report` + R2 upload | Done | POST /inspections/{id}/report, GET reports list, and GET download endpoint implemented with R2 upload & local storage fallback; /inspections/[id]/report statutory Report Center frontend page created |
 | RPT-04 | Editable-format export | Done | JSON structured export implemented containing full declaration metadata, violations, audit logs, and mandatory disclaimer |
 
 ### Storage & Sync
@@ -126,7 +126,7 @@
 | ID | Task | Status | Notes |
 |---|---|---|---|
 | SRCH-01 | `GET /inspections` with filters | Done | Implemented GET /api/v1/inspections with officer scoping RBAC, date range, region, category, status, violation existence/type, product full-text query, and thumbnail signed URL resolution |
-| SRCH-02 | STOP — Stitch design checkpoint: Search/History screen | Done | Screen 12ee7aa2ba624f5d914146be76b8f3ef inspected in Stitch project 8675458162299902219; HistoryScreen.tsx and /history route implemented matching design with search, filter chips, feed, and offline IndexedDB support |
+| SRCH-02 | STOP — Stitch design checkpoint: Search/History screen | Done | Screen 12ee7aa2ba624f5d914146be76b8f3ef inspected in Stitch project 8675458162299902219; HistoryScreen.tsx and /history route implemented with search, filter chips, feed, offline IndexedDB support, corrected SYNCED/PENDING SYNC badges, and in-app Government System Info modal |
 
 ### Testing & Acceptance
 | ID | Task | Status | Notes |
@@ -152,7 +152,7 @@
 | E2-02 | Full font/legibility rule set (all variants) | Done | Verified Rule 7 Table 1 and Rule 7(1) proviso figures, resolved OQ-04; added font_height_blown_embossed and legibility_contrast to RuleType schema, core_pack_v1.json, and RuleEngine; 4 unit tests passing |
 | E2-03 | Multi-image cross-matching | Done | Implemented MultiImageCrossMatchingService checking front/back/sticker declarations for altered price stickers (Rule 18(2)), panel discrepancies (Rule 6(1)(c)), and DB violation generation; 7 unit tests passing (includes 4 e-commerce cross-match tests shared with E3-02) |
 | E2-04 | Full human review workflow polish | Done | Implemented POST /inspections/{id}/fields/batch-review and GET /inspections/{id}/review-history; added batch confirm high-confidence and audit history drawer in ReviewQueue.tsx; integration test passing |
-| E2-05 | Analytics dashboard | Done | Implemented /analytics/summary, /compliance-trends, /violation-hotspots, and /officer-throughput backend APIs, Pydantic schemas, and client service; 4 integration tests passing (100/100 backend suite) |
+| E2-05 | Analytics dashboard | Done | Implemented /analytics/summary, /compliance-trends, /violation-hotspots, and /officer-throughput backend APIs, Pydantic schemas, client service with JWT auth forwarding, and CSV/PDF exports; 4 integration tests passing |
 | E2-06 | STOP — Stitch design checkpoint: Supervisor/Admin dashboard | Done | Google Stitch screen bfa11fc4dfe54a008099093e84576202 faithfully implemented in AnalyticsDashboard.tsx; /dashboard route created; wired to live analytics service with graceful demo fallback when API is unreachable; frontend build passing |
 | E2-07 | Rule-pack management UI (Admin) | Done | Google Stitch screen 584c874f57984b36b209eb604a1dcdf1 implemented in RulePackManagement.tsx; /admin/rule-packs & /admin routes created; schema validation upload, side-by-side version diff viewer, Section 36 confirmation PIN modal, and admin JWT authorization verification; frontend build passing |
 | E2-08 | Confidence-threshold tuning from pilot data | Done | Calibrated per-field confidence thresholds (ADR-012) in config.py, extraction/service.py, rules/engine.py, and inspections.py with canonical extractor field_types and aliases (net_quantity 0.80, mfg_date 0.80, address 0.78, mrp 0.82, origin 0.85); 6 dedicated unit tests passing; 150/150 backend tests passing |

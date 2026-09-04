@@ -358,7 +358,7 @@ export default function CaptureScreen() {
   const isRequiredComplete = !!(images.front_pdp && images.back_panel);
 
   return (
-    <div className="flex flex-col w-full max-w-md mx-auto min-h-screen bg-[#F9F7F2] text-[#1A1C1E] shadow-2xl relative select-none">
+    <div className="flex flex-col w-full max-w-md mx-auto h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#F9F7F2] text-[#1A1C1E] shadow-2xl relative select-none">
       {/* Hidden File Input for Gallery / Upload Fallback */}
       <input
         ref={fileInputRef}
@@ -506,8 +506,8 @@ export default function CaptureScreen() {
         </select>
       </div>
 
-      {/* Live Viewfinder Section (Aspect 3:4) */}
-      <div className="relative w-full aspect-[3/4] bg-[#2F3133] overflow-hidden flex items-center justify-center">
+      {/* Live Viewfinder Section (Flexible Full-Height Viewport) */}
+      <div className="relative w-full flex-1 min-h-0 bg-[#2F3133] overflow-hidden flex items-center justify-center">
         {/* Assessing Loader Overlay */}
         {isAssessing && (
           <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-30 flex flex-col items-center justify-center text-white">
@@ -525,7 +525,7 @@ export default function CaptureScreen() {
             <img
               src={activeImage.dataUrl}
               alt={`Captured ${activeSlot}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain bg-black"
             />
 
             {/* Quality Status Banner (Top) */}
@@ -634,6 +634,9 @@ export default function CaptureScreen() {
               ref={webcamRef}
               audio={false}
               screenshotFormat="image/jpeg"
+              minScreenshotWidth={1920}
+              minScreenshotHeight={1080}
+              screenshotQuality={0.95}
               videoConstraints={videoConstraints}
               onUserMediaError={(err) => {
                 setCameraError(typeof err === "string" ? err : "Camera access unavailable");
@@ -725,8 +728,8 @@ export default function CaptureScreen() {
       </div>
 
       {/* Evidence Tray (Multi-Image Carousel) */}
-      <div className="bg-[#F0EDE5] border-y border-[#D1CDC2] p-4 flex-1">
-        <div className="flex items-center justify-between mb-2.5">
+      <div className="bg-[#F0EDE5] border-y border-[#D1CDC2] px-4 py-2 shrink-0">
+        <div className="flex items-center justify-between mb-1.5">
           <h3 className="font-mono-data text-xs font-semibold text-[#4A5568] tracking-wider uppercase">
             Evidence Index
           </h3>
@@ -735,7 +738,7 @@ export default function CaptureScreen() {
           </span>
         </div>
 
-        <div className="flex gap-2.5 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-0.5">
           {CAPTURE_SLOTS.map((slot) => {
             const img = images[slot.role];
             const isActive = activeSlot === slot.role;
@@ -745,7 +748,7 @@ export default function CaptureScreen() {
               <button
                 key={slot.role}
                 onClick={() => setActiveSlot(slot.role)}
-                className={`relative shrink-0 w-24 aspect-square rounded-sm overflow-hidden flex flex-col items-center justify-center transition-all ${
+                className={`relative shrink-0 w-20 aspect-square rounded-sm overflow-hidden flex flex-col items-center justify-center transition-all ${
                   isActive
                     ? "border-2 border-[#4A5568] shadow-md bg-white scale-[1.02]"
                     : "border border-[#D1CDC2] bg-[#F9F7F2] hover:bg-white"

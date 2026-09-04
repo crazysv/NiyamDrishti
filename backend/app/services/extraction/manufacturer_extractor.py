@@ -14,11 +14,11 @@ class ManufacturerAddressExtractor(BaseFieldExtractor):
     """
 
     ROLE_PATTERN = re.compile(
-        r"(?i)\b(MANUFACTURED\s*(?:&|AND)?\s*PACKED|MANUFACTURED|MFD\.?|MFG\.?|PACKED|PKD\.?|IMPORTED|IMP\.?|MARKETED|MKT\.?)\s*(?:BY|AT)?[:\s]*(.*)",
+        r"(?i)\b(MANUFACTURED\s*(?:&|AND)?\s*PACKED|MANUFACTURED|MFD\.?|MFG\.?|PACKED|PKD\.?|IMPORTED|IMP\.?|MARKETED|MKT\.?)\s*(?:BY\b|BY(?=[A-Z])|AT\b)?[:\s]*(.*)",
         re.IGNORECASE,
     )
 
-    PINCODE_PATTERN = re.compile(r"\b([1-9][0-9]{2}\s?[0-9]{3})\b")
+    PINCODE_PATTERN = re.compile(r"(?<!\d)([1-9][0-9]{2}\s?[0-9]{3})(?!\d)")
 
     ROLE_MAP = {
         "mfd": "manufacturer",
@@ -84,6 +84,10 @@ class ManufacturerAddressExtractor(BaseFieldExtractor):
                     lookahead_idx += 1
 
                 combined_address = ", ".join(address_parts)
+                # Ignore isolated keyword matches (e.g. standalone "PKD." packing date header)
+                if len(combined_address.strip()) <= 6 or not any(c.isalpha() for c in combined_address[len(raw_role):]):
+                    continue
+
                 has_complete_pin = found_pincode is not None
 
                 # Rule requires complete address with pincode

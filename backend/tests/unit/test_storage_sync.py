@@ -33,9 +33,18 @@ def test_neon_postgres_url_normalization():
 @pytest.mark.asyncio
 async def test_db_health_check():
     """Verify check_db_health executes SELECT 1 successfully (STOR-02)."""
-    health = await check_db_health()
-    assert health["status"] == "connected"
-    assert "dialect" in health
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+    test_engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    TestSession = async_sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
+
+    with patch("app.db.session.AsyncSessionLocal", TestSession), patch("app.db.session.engine", test_engine):
+        health = await check_db_health()
+        assert health["status"] == "connected"
+        assert "dialect" in health
+        assert health["is_serverless_ready"] is True
+
+    await test_engine.dispose()
 
 
 def test_r2_presigned_download_url_generation():

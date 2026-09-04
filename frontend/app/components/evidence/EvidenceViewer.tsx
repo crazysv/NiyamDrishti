@@ -30,6 +30,42 @@ export default function EvidenceViewer({
   onReviewQueueClick,
   onGenerateReportClick,
 }: EvidenceViewerProps) {
+  // Extract all distinct photo panels from items and primary image
+  const imagePanels = React.useMemo(() => {
+    const panelMap = new Map<string, { id: string; url: string; label: string; count: number }>();
+
+    if (evidence.primary_image_url) {
+      panelMap.set("front_pdp", {
+        id: "front_pdp",
+        url: evidence.primary_image_url,
+        label: "Front PDP",
+        count: 0,
+      });
+    }
+
+    evidence.items.forEach((item, index) => {
+      const imgId = item.source_image_id || `panel_${index}`;
+      const imgUrl = item.source_image_url || evidence.primary_image_url || "";
+      if (imgUrl) {
+        if (!panelMap.has(imgId)) {
+          let label = `Panel ${panelMap.size + 1}`;
+          const lower = imgId.toLowerCase();
+          if (lower.includes("front") || lower.includes("pdp")) label = "Front PDP";
+          else if (lower.includes("back")) label = "Back Panel";
+          else if (lower.includes("side")) label = "Side Panel";
+          else if (lower.includes("sticker")) label = "Sticker";
+          panelMap.set(imgId, { id: imgId, url: imgUrl, label, count: 0 });
+        }
+        panelMap.get(imgId)!.count += 1;
+      }
+    });
+
+    return Array.from(panelMap.values());
+  }, [evidence]);
+
+  const [activeImageId, setActiveImageId] = useState<string>(
+    imagePanels[0]?.id || "front_pdp"
+  );
   const [selectedItemId, setSelectedItemId] = useState<string>(
     evidence.items[0]?.item_id || "E01"
   );
@@ -41,9 +77,15 @@ export default function EvidenceViewer({
   const panStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement>(null);
 
+  const activePanel = imagePanels.find((p) => p.id === activeImageId) || imagePanels[0];
+  const activeImageUrl = activePanel?.url || evidence.primary_image_url;
+
   // Auto-focus zoom & pan on the selected declaration
   const focusOnItem = (item: EvidenceItem) => {
     setSelectedItemId(item.item_id);
+    if (item.source_image_id && item.source_image_id !== activeImageId) {
+      setActiveImageId(item.source_image_id);
+    }
     if (onSelectField) onSelectField(item);
 
     // Center on the item's bounding box center
@@ -215,6 +257,32 @@ export default function EvidenceViewer({
 
         {/* Evidence Interactive Viewport Section */}
         <section className="relative w-full bg-[#1a1c1e] border-b border-[#e2e2e5] overflow-hidden select-none">
+          {/* Photo Panel / Angle Selector Bar */}
+          {imagePanels.length > 1 && (
+            <div className="bg-[#242628] border-b border-white/10 px-3 py-1.5 flex items-center gap-2 overflow-x-auto">
+              <span className="text-[10px] font-mono text-gray-400 uppercase mr-1 shrink-0">Photo Angle:</span>
+              {imagePanels.map((panel) => (
+                <button
+                  key={panel.id}
+                  type="button"
+                  onClick={() => setActiveImageId(panel.id)}
+                  className={`px-2.5 py-1 rounded text-xs font-mono transition-all flex items-center gap-1.5 shrink-0 ${
+                    activeImageId === panel.id
+                      ? "bg-[#333e50] text-white font-bold border border-white/30 shadow-sm"
+                      : "bg-black/30 text-gray-300 hover:text-white hover:bg-black/50 border border-transparent"
+                  }`}
+                >
+                  <span>{panel.label}</span>
+                  {panel.count > 0 && (
+                    <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full font-bold">
+                      {panel.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div
             ref={viewportRef}
             className={`relative w-full h-[360px] sm:h-[420px] overflow-hidden ${
@@ -236,10 +304,10 @@ export default function EvidenceViewer({
               }}
             >
               {/* Product Photo */}
-              {evidence.primary_image_url ? (
+              {activeImageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={evidence.primary_image_url}
+                  src={activeImageUrl}
                   alt={evidence.product_name}
                   className={`w-full h-full object-contain pointer-events-none transition-all duration-300 ${
                     isContrastMode ? "grayscale contrast-200 brightness-110" : ""
@@ -252,10 +320,17 @@ export default function EvidenceViewer({
                 </div>
               )}
 
-              {/* Bounding Box Overlays */}
+              {/* Bounding Box Overlays (Filtered to current active panel) */}
               <div className="absolute inset-0 w-full h-full pointer-events-none">
-                {evidence.items.map((item) => {
-                  const isSelected = item.item_id === selectedItemId;
+                {evidence.items
+                  .filter(
+                    (item) =>
+                      !item.source_image_id ||
+                      item.source_image_id === activeImageId ||
+                      imagePanels.length <= 1
+                  )
+                  .map((item) => {
+                    const isSelected = item.item_id === selectedItemId;
                   const bbox = item.bounding_box;
 
                   return (
@@ -435,6 +510,19 @@ export default function EvidenceViewer({
                     <span className="text-sm font-semibold text-[#1a1c1e] truncate uppercase">
                       {item.field_label}
                     </span>
+                    {item.source_image_id && (
+                      <span className="text-[9px] font-mono font-medium px-1.5 py-0.5 rounded bg-[#e8eef6] text-[#2c3e50] uppercase border border-[#c4d6eb]">
+                        {item.source_image_id.includes("front") || item.source_image_id.includes("pdp")
+                          ? "Front PDP"
+                          : item.source_image_id.includes("back")
+                          ? "Back Panel"
+                          : item.source_image_id.includes("side")
+                          ? "Side Panel"
+                          : item.source_image_id.includes("sticker")
+                          ? "Sticker"
+                          : "Panel"}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 pl-9 text-xs">
