@@ -8,7 +8,15 @@ Format per entry: ### YYYY-MM-DD — <short summary> followed by bullet points o
 
 ## [Unreleased]
 
-### 2026-09-04 — Fix: Server-Side Low-Memory Optimization, Verified PCR 2011 Citations & Hugging Face Spaces 16GB Docker Host Provisioning
+### 2026-09-04 — Fix: Offline Mobile Sync Remote Target Resolution & Auto-Authentication
+- **Dynamic Remote Deployment URL Resolution (`frontend/app/utils/apiConfig.ts`):**
+  - Updated `resolveBaseUrl()` to detect non-localhost hostnames at runtime (`window.location.hostname !== 'localhost'`), automatically routing mobile and cloud clients on Vercel/Cloudflare Pages to the live Render backend (`https://niyamdrishti-api.onrender.com`).
+  - Resolved the failure where offline inspections remained perpetually in "PENDING SYNC" due to failed uplink attempts to `http://localhost:8000`.
+- **Auto-Authentication Recovery for Field Sync (`frontend/app/services/syncService.ts`):**
+  - Added `ensureAuthToken()` in `syncService.ts` with automated fallback to the default sandbox officer persona (`officer_suresh`), preventing unauthenticated offline sync drops with HTTP 401.
+- **History Screen Auto-Sync & Live Progress Indicators (`frontend/app/components/history/HistoryScreen.tsx`):**
+  - Added auto-sync trigger on mount when pending offline inspections exist and the device is connected to the network.
+  - Wired live `SYNCING...` progress spinners on pending inspection cards and auto-refresh of the history archive upon sync completion.
 - **In-Code Memory Optimization & Zero Quality Degradation (ADR-024):**
   - Configured low-memory flags for PaddlePaddle's C++ memory manager (`FLAGS_allocator_strategy=naive_best_fit`, `FLAGS_fraction_of_gpu_memory_to_use=0.0`, `FLAGS_eager_delete_tensor_gb=0.0`) in `backend/app/main.py`, `paddle_engine.py`, and `Dockerfile`.
   - Added explicit buffer release (`del img_bytes`, `del image_array`) and `gc.collect()` per image and at batch completion in `OCRService.process_image` and `inspections.py`.

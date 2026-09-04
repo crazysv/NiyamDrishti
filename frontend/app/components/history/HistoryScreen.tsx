@@ -164,6 +164,24 @@ export default function HistoryScreen() {
     });
   }, [loadData]);
 
+  // Auto-sync on mount or reconnect if pending inspections exist
+  useEffect(() => {
+    if (isOnline && pendingCount > 0 && !isSyncing) {
+      syncNow().then(() => {
+        loadData();
+      });
+    }
+  }, [isOnline, pendingCount, isSyncing, syncNow, loadData]);
+
+  // Automatically refresh inspection feed when sync finishes
+  const prevSyncingRef = React.useRef(isSyncing);
+  useEffect(() => {
+    if (prevSyncingRef.current && !isSyncing) {
+      loadData();
+    }
+    prevSyncingRef.current = isSyncing;
+  }, [isSyncing, loadData]);
+
   return (
     <div className="flex flex-col w-full max-w-md mx-auto min-h-screen bg-[#F9F7F2] text-[#1A1C1E] shadow-2xl relative select-none">
       {/* Top App Header */}
@@ -404,9 +422,16 @@ export default function HistoryScreen() {
                             </span>
                           ) : null}
 
-                          {insp.status === "sync_pending" || insp.id.startsWith("local_") ? (
-                            <span className="px-1.5 py-0.5 bg-[#FFDAD6] text-[#BA1A1A] rounded font-mono text-[10px] font-bold">
-                              PENDING SYNC
+                          {insp.status === "sync_pending" || insp.status === "failed" || insp.status === "syncing" || insp.id.startsWith("insp_") ? (
+                            <span className="px-1.5 py-0.5 bg-[#FFDAD6] text-[#BA1A1A] rounded font-mono text-[10px] font-bold flex items-center gap-1">
+                              {isSyncing ? (
+                                <>
+                                  <RotateCw className="w-2.5 h-2.5 animate-spin" />
+                                  <span>SYNCING...</span>
+                                </>
+                              ) : (
+                                <span>PENDING SYNC</span>
+                              )}
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.5 bg-[#D6E3D3] text-[#3E4A3E] rounded font-mono text-[10px] font-bold flex items-center gap-0.5">
@@ -466,11 +491,15 @@ export default function HistoryScreen() {
 
             <button
               type="button"
-              onClick={() => syncNow()}
+              onClick={async () => {
+                await syncNow();
+                loadData();
+              }}
               disabled={isSyncing || !isOnline}
-              className="px-3 py-1.5 bg-[#333E50] hover:bg-[#4A5568] text-white rounded font-mono text-[11px] font-bold shadow-2xs transition disabled:opacity-50"
+              className="px-3 py-1.5 bg-[#333E50] hover:bg-[#4A5568] text-white rounded font-mono text-[11px] font-bold shadow-2xs transition disabled:opacity-50 flex items-center gap-1.5"
             >
-              {isSyncing ? "SYNCING..." : "SYNC NOW"}
+              {isSyncing && <RotateCw className="w-3 h-3 animate-spin" />}
+              <span>{isSyncing ? "SYNCING..." : "SYNC NOW"}</span>
             </button>
           </div>
         )}
