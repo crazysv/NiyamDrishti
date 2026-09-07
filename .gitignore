@@ -7,6 +7,7 @@ backend/*.pyc
 backend/.mypy_cache/
 backend/.ruff_cache/
 backend/.pytest_cache/
+backend/.venv*/
 backend/*.db
 *.db
 backend/.paddleocr/
