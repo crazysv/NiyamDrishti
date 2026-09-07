@@ -1,0 +1,11 @@
+{# Shared, un-omittable legal disclaimer partial (RPT-02) #}
+{# Product requirement per MASTER_CONTENT.md §10.9/§14.2 & 01_PRD.md US-07 #}
+<div class="legal-disclaimer-box">
+  <div class="legal-disclaimer-header">
+    <span class="gavel-symbol">&#9878;</span>
+    <span class="legal-disclaimer-title">{{ disclaimer_title or "STATUTORY NOTICE & LEGAL DISCLAIMER" }}</span>
+  </div>
+  <p class="legal-disclaimer-content">
+    {{ disclaimer_text or "This report is an automated, AI-assisted compliance decision-support document generated under the Legal Metrology (Packaged Commodities) Rules, 2011 and the Legal Metrology Act, 2009. This document does NOT constitute a judicial ruling, final legal determination, compounding order, or formal penalty notice. All automated findings, optical character extractions, and dimensional measurements must be reviewed and verified by an authorized Legal Metrology Officer. The designated enforcement official bears sole statutory authority for inspection determinations, evidentiary verification, and compounding proceedings under applicable law." }}
+  </p>
+</div>

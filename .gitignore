@@ -1,0 +1,39 @@
+# Environment files
+.env
+*.env
+backend/.env
+backend/__pycache__/
+backend/*.pyc
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.pytest_cache/
+backend/*.db
+*.db
+backend/.paddleocr/
+backend/uploads/
+uploads/
+backend/htmlcov/
+backend/.coverage
+backend/.coverage.*
+*.coverage
+*.coverage.*
+
+# Node
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.production
+
+# Docker
+docker/*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test data / spike outputs (keep photos, exclude results)
+test_data/spike_01_results/
+test_data/spike_02_results/
+
+# Private project documentation remains local and is not published to GitHub.
+docs/

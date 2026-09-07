@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f9f7f2;
+  --surface: #f9f7f2;
+  --surface-container: #f0ede5;
+  --foreground: #1a1c1e;
+  --primary: #333e50;
+  --primary-container: #4a5568;
+  --secondary: #566155;
+  --border: #d1cdc2;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  overscroll-behavior: none;
+}
+
+/* Custom font utilities */
+.font-mono-data {
+  font-family: var(--font-jetbrains-mono), monospace;
+}

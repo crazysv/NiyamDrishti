@@ -1,0 +1,57 @@
+# Prometheus alert rules for NiyamDrishti Legal Metrology Platform
+
+groups:
+  - name: niyamdrishti_service_alerts
+    rules:
+      - alert: BackendApiDown
+        expr: up{job="niyamdrishti-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "NiyamDrishti FastAPI backend is unreachable"
+          description: "Prometheus failed to scrape the backend API at api:8000/metrics for more than 1 minute."
+
+      - alert: HighHttp5xxErrorRate
+        expr: >
+          sum(rate(niyamdrishti_http_requests_total{status_code=~"5.."}[2m]))
+          /
+          sum(rate(niyamdrishti_http_requests_total[2m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Elevated HTTP 5xx error rate (> 5%)"
+          description: "More than 5% of API requests are returning HTTP 5xx internal server errors over the last 2 minutes."
+
+      - alert: HighP95Latency
+        expr: >
+          histogram_quantile(0.95, sum(rate(niyamdrishti_http_request_duration_seconds_bucket[5m])) by (le)) > 3.0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated P95 request latency (> 3.0s)"
+          description: "95th percentile request latency exceeds 3.0 seconds over a 5-minute window."
+
+      - alert: SlowOcrEngineProcessing
+        expr: >
+          histogram_quantile(0.95, sum(rate(niyamdrishti_ocr_processing_duration_seconds_bucket[5m])) by (le)) > 8.0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow OCR image processing (> 8.0s)"
+          description: "OCR processing is taking longer than 8 seconds at P95."
+
+      - alert: HighOfflineSyncConflictRate
+        expr: >
+          sum(rate(niyamdrishti_offline_sync_operations_total{status="conflict"}[5m]))
+          /
+          clamp_min(sum(rate(niyamdrishti_offline_sync_operations_total[5m])), 0.001) > 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High offline sync conflict rate (> 15%)"
+          description: "Over 15% of offline sync items encountered HTTP 409 conflicts against finalized records."
