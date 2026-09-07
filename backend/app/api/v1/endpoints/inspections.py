@@ -1284,9 +1284,8 @@ async def get_inspection_evidence(
             # A duplicate commodity extractor can mistake storage, pricing, or
             # packaging instructions for a product title. Prefer no title over
             # presenting those instructions as the inspected commodity.
-            if (
-                len(normalized_cname) >= 3
-                and not any(phrase in normalized_cname.lower() for phrase in non_product_phrases)
+            if len(normalized_cname) >= 3 and not any(
+                phrase in normalized_cname.lower() for phrase in non_product_phrases
             ):
                 candidate_score = float(f.confidence or 0)
                 if front_img and f.source_image_id == front_img.id:

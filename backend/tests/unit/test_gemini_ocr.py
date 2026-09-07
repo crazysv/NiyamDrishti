@@ -441,7 +441,9 @@ def test_gemini_model_fallback_on_model_quota(dummy_image, mock_gemini_response_
 
     def side_effect(model, contents, config):
         if model == "gemini-3.7-flash":
-            raise Exception("429 RESOURCE_EXHAUSTED. Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests")
+            raise Exception(
+                "429 RESOURCE_EXHAUSTED. Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests"
+            )
         return mock_resp
 
     client.models.generate_content.side_effect = side_effect
