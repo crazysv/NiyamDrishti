@@ -29,7 +29,7 @@ class MRPExtractor(BaseFieldExtractor):
     # header by a table column or a second OCR region.  Accept only explicit
     # currency/price labels here; unit prices such as "₹1.89/g" are excluded.
     STANDALONE_PRICE_PATTERN = re.compile(
-        r"(?i)(?:\bRS\.?\s*|₹\s*|\bINR\s*|\bP\s*[:.]?\s*)([0-9]{1,5}(?:\.[0-9]{1,2})?)"
+        r"(?i)(?:\bRS\.?\s*|₹\s*|\bINR\s*|\bPRICE\s*[:.]?\s*)([0-9]{1,5}(?:\.[0-9]{1,2})?)"
     )
     BARE_DECIMAL_PATTERN = re.compile(r"^\s*([0-9]{1,5}\.[0-9]{2})\s*$")
 

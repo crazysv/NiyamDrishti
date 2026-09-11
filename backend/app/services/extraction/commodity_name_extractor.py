@@ -56,6 +56,11 @@ class CommodityNameExtractor(BaseFieldExtractor):
         "nutrient",
         "nutrients",
         "snf",
+        "starts",
+        "whitening",
+        "week",
+        "accelerator",
+        "accelerators",
     ]
 
     # These are package-production or storage instructions, not a generic

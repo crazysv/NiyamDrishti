@@ -45,6 +45,17 @@ def test_mrp_extractor_with_inclusive_taxes():
     assert data["inclusive_of_all_taxes"] is True
 
 
+def test_mrp_extractor_does_not_treat_address_abbreviation_as_price_label():
+    """A pincode following H.P. must never become a synthetic MRP value."""
+    extractor = MRPExtractor()
+    lines = [
+        create_ocr_line("For MRP incl. of all taxes, refer coding panel", 1),
+        create_ocr_line("Plot No. 78, Baddi, H.P. 174103", 2),
+    ]
+
+    assert extractor.extract(lines, "img_test_123") == []
+
+
 def test_mrp_extractor_without_inclusive_taxes():
     """Verify MRP extraction flags needs_review when tax statement is missing (EXT-02)."""
     extractor = MRPExtractor()
@@ -215,6 +226,20 @@ def test_commodity_name_extractor_rejects_guarantee_and_nutrition_claims():
     ]
 
     assert extractor.extract(lines, "img_test_123") == []
+
+
+def test_commodity_name_extractor_rejects_marketing_claim_suffix():
+    """A product title must not absorb nearby performance-marketing copy."""
+    extractor = CommodityNameExtractor()
+    lines = [
+        create_ocr_line("Colgate Anticavity Fluoride Toothpaste", 1),
+        create_ocr_line("Starts Whitening in 1 Week with Whitening Accelerators", 2),
+    ]
+
+    decls = extractor.extract(lines, "img_test_123")
+
+    assert len(decls) == 1
+    assert json.loads(decls[0].parsed_value)["commodity_name"] == "Colgate Anticavity Fluoride Toothpaste"
 
 
 def test_declaration_extraction_service_orchestration():
