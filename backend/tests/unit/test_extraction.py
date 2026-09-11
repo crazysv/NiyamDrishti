@@ -87,6 +87,22 @@ def test_mrp_extractor_associates_header_and_currency_value_across_panels():
     assert declarations[0].source_image_id == "front-panel"
 
 
+def test_mrp_extractor_does_not_treat_coding_license_as_unit_sale_price():
+    """A slash in a manufacturing code must not create a fake USP value."""
+    extractor = MRPExtractor()
+    lines = [
+        create_ocr_line("MRP Rs. 200.00 (Incl. of all taxes)", 1),
+        create_ocr_line("M. LIC. NO. M 20/C/UA/2006", 2),
+    ]
+
+    declarations = extractor.extract(lines, "img_test_123")
+
+    assert len(declarations) == 1
+    data = json.loads(declarations[0].parsed_value)
+    assert data["amount"] == 200.0
+    assert "unit_sale_price" not in data
+
+
 def test_net_quantity_extractor_standardization():
     """Verify net quantity extraction and metric unit standardization (EXT-03)."""
     extractor = NetQuantityExtractor()
@@ -259,6 +275,17 @@ def test_commodity_name_extractor_rejects_net_content_caution_block():
     """A statutory quantity plus safety warning is not a product title."""
     extractor = CommodityNameExtractor()
     lines = [create_ocr_line("NET CONTENT: 100 ml CAUTION: INFLAMMABLE", 1)]
+
+    assert extractor.extract(lines, "img_test_123") == []
+
+
+def test_commodity_name_extractor_rejects_safety_instruction_fragments():
+    """Safety directions from a back panel cannot become a second product title."""
+    extractor = CommodityNameExtractor()
+    lines = [
+        create_ocr_line("KEEP AWAY FROM HEAT OR FLAME. KEEP OUT OF REACH OF CHILDREN.", 1),
+        create_ocr_line("HARMFUL IF TAKEN INTERNALLY.", 2),
+    ]
 
     assert extractor.extract(lines, "img_test_123") == []
 

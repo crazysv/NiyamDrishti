@@ -72,7 +72,9 @@ class CommodityNameExtractor(BaseFieldExtractor):
     # expressions describe packaging language, never a particular product.
     PACKAGING_PREFIX_PATTERN = re.compile(r"^\s*(?:cut|tear)\s+here\s*[:|\-]*\s*", re.IGNORECASE)
     INSTRUCTION_PATTERN = re.compile(
-        r"\b(?:stored?\s+refrigerated|refrigerated\s+below|use\s+by\s+date|batch\s*(?:no|number))\b",
+        r"\b(?:stored?\s+refrigerated|refrigerated\s+below|use\s+by\s+date|batch\s*(?:no|number)|"
+        r"keep\s+away\s+from|keep\s+out\s+of\s+reach|harmful\s+if\s+taken|"
+        r"do\s+not\s+(?:consume|use))\b",
         re.IGNORECASE,
     )
     PROMOTIONAL_PREFIX_PATTERN = re.compile(

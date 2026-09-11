@@ -34,9 +34,10 @@ class MRPExtractor(BaseFieldExtractor):
     BARE_DECIMAL_PATTERN = re.compile(r"^\s*([0-9]{1,5}\.[0-9]{2})\s*$")
 
     USP_PATTERN = re.compile(
-        r"(?:(?:UNIT\s+SALE\s+PRICE|USP)[\s:.-]*)?(?:RS\.?|₹|INR)?\s*([0-9]+(?:\.[0-9]+)?)\s*[\/]\s*([a-zA-Z]+)",
+        r"(?:RS\.?|₹|INR)?\s*([0-9]+(?:\.[0-9]+)?)\s*[\/]\s*(g|kg|ml|l)\b",
         re.IGNORECASE,
     )
+    USP_HEADER_PATTERN = re.compile(r"\b(?:UNIT\s+SALE\s+PRICE|USP)\b", re.IGNORECASE)
 
     @property
     def field_type(self) -> str:
@@ -121,6 +122,11 @@ class MRPExtractor(BaseFieldExtractor):
                 # Check for unit sale price first
                 usp_info = None
                 for _, cand_line in nearby_candidates:
+                    # A bare value such as "20/C" in a manufacturing code is
+                    # not a unit-sale price. The declaration must explicitly
+                    # identify the accompanying value as USP/unit sale price.
+                    if not self.USP_HEADER_PATTERN.search(cand_line.text):
+                        continue
                     usp_m = self.USP_PATTERN.search(cand_line.text)
                     if usp_m:
                         try:
