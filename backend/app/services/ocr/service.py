@@ -155,11 +155,17 @@ class OCRService:
             if self.is_gemini_available():
                 try:
                     logger.info("Executing Gemini Vision OCR provider (OCR-04)")
-                    gemini_result = self.gemini_engine.extract(
-                        image_array,
-                        source_image_id=source_image_id,
-                        instruction_override=gemini_instruction,
-                    )
+                    # Keep the established invocation unchanged for ordinary
+                    # OCR. The optional override is only for a deliberate,
+                    # targeted declaration retry.
+                    if gemini_instruction:
+                        gemini_result = self.gemini_engine.extract(
+                            image_array,
+                            source_image_id=source_image_id,
+                            instruction_override=gemini_instruction,
+                        )
+                    else:
+                        gemini_result = self.gemini_engine.extract(image_array, source_image_id=source_image_id)
                     gemini_result.preprocessing_steps = applied_steps
                     if preprocessed and len(gemini_result.lines) > 0:
                         gemini_result.lines = self._map_lines_to_original(gemini_result.lines, preprocessed)
