@@ -1,8 +1,10 @@
 import base64
+import io
 import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.api import deps
@@ -97,7 +99,12 @@ async def test_idempotent_image_upload(test_db):
         )
         insp_id = create_resp.json()["id"]
 
-        dummy_b64 = base64.b64encode(b"test image bytes for offline idempotency").decode("utf-8")
+        # Upload validation derives canonical source dimensions from the
+        # stored bytes, so the idempotency fixture must be a real image rather
+        # than arbitrary placeholder bytes.
+        image_buffer = io.BytesIO()
+        Image.new("RGB", (8, 6), color="white").save(image_buffer, format="JPEG")
+        dummy_b64 = base64.b64encode(image_buffer.getvalue()).decode("utf-8")
         data_url = f"data:image/jpeg;base64,{dummy_b64}"
         img_client_id = f"img_client_{uuid.uuid4().hex[:8]}"
 
