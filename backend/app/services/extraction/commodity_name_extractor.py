@@ -77,6 +77,17 @@ class CommodityNameExtractor(BaseFieldExtractor):
         r"do\s+not\s+(?:consume|use))\b",
         re.IGNORECASE,
     )
+    # Manufacturer, marketer and importer blocks are mandatory declarations,
+    # but never a commodity name.  Vision OCR commonly returns such a block as
+    # a highly confident, multi-line candidate from a back panel.  Excluding
+    # the declaration headers here prevents it becoming a second product name
+    # while the manufacturer extractor still receives the same OCR line.
+    BUSINESS_DECLARATION_PATTERN = re.compile(
+        r"\b(?:manufactured|marketed|packed|imported)\s+(?:&\s+\w+\s+)?(?:in\s+india\s+)?by\b|"
+        r"\b(?:regd\.?\s*off(?:ice)?|mfg\.?\s*lic(?:ence)?\s*(?:no|number)|"
+        r"consumer\s+products\s+(?:pvt|private|ltd|limited))\b",
+        re.IGNORECASE,
+    )
     PROMOTIONAL_PREFIX_PATTERN = re.compile(
         r"^\s*(?:(?:\d+%?\s*)?(?:quality|guaranteed|premium|new|best|fresh)\s+)+",
         re.IGNORECASE,
@@ -102,7 +113,11 @@ class CommodityNameExtractor(BaseFieldExtractor):
                 # "when product is stored ..." is prose, not an explicit
                 # declaration, despite matching the deliberately permissive
                 # legacy PRODUCT pattern.
-                if commodity_name and not self.INSTRUCTION_PATTERN.search(commodity_name):
+                if (
+                    commodity_name
+                    and not self.INSTRUCTION_PATTERN.search(commodity_name)
+                    and not self.BUSINESS_DECLARATION_PATTERN.search(commodity_name)
+                ):
                     parsed_payload: dict[str, Any] = {
                         "commodity_name": commodity_name,
                         "detection_method": "explicit_header",
@@ -185,7 +200,11 @@ class CommodityNameExtractor(BaseFieldExtractor):
                     continue
                 if any(kw in text_lower for kw in self.MARKETING_EXCLUSIONS):
                     continue
-                if self.INSTRUCTION_PATTERN.search(text) or self.PRICE_OR_DATE_PATTERN.search(text):
+                if (
+                    self.INSTRUCTION_PATTERN.search(text)
+                    or self.BUSINESS_DECLARATION_PATTERN.search(text)
+                    or self.PRICE_OR_DATE_PATTERN.search(text)
+                ):
                     continue
                 if not re.search(r"[A-Za-z]{3,}", text):
                     continue

@@ -290,6 +290,20 @@ def test_commodity_name_extractor_rejects_safety_instruction_fragments():
     assert extractor.extract(lines, "img_test_123") == []
 
 
+def test_commodity_name_extractor_rejects_manufacturer_address_block():
+    """A back-panel manufacturer declaration cannot become another product title."""
+    extractor = CommodityNameExtractor()
+    lines = [
+        create_ocr_line(
+            "MANUFACTURED IN INDIA BY: Example Consumer Products Pvt. Ltd., "
+            "REGD. OFF.: Industrial Estate, Kolkata 700091",
+            1,
+        )
+    ]
+
+    assert extractor.extract(lines, "img_test_123") == []
+
+
 def test_commodity_name_extractor_does_not_use_total_net_weight_as_title():
     """A net-quantity declaration is not a fallback commodity name."""
     extractor = CommodityNameExtractor()
