@@ -16,6 +16,11 @@ export interface CapturedImage {
   capturedAt: string;
   fileName?: string;
   fileSize?: number;
+  /** Original browser-decoded dimensions before canonical OCR normalization. */
+  originalWidth?: number;
+  originalHeight?: number;
+  /** Versioned marker proving dataUrl is an upright, canonical OCR source. */
+  normalizationVersion?: 1;
   width?: number;
   height?: number;
   isAuthoritative?: boolean;

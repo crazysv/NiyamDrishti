@@ -169,6 +169,10 @@ async def test_get_inspection_evidence_mapping(test_evidence_db):
         assert bbox["top_pct"] == 31.0
         assert bbox["width_pct"] == 22.0
         assert bbox["height_pct"] == 5.0
+        assert bbox["coordinate_space"] == "source_image_px"
+        assert bbox["source_width_px"] == 1000.0
+        assert bbox["source_height_px"] == 1500.0
+        assert bbox["polygon"] == [[260.0, 465.0], [480.0, 465.0], [480.0, 540.0], [260.0, 540.0]]
 
         # E02: Net Quantity with calibrated font height
         e02 = items[1]

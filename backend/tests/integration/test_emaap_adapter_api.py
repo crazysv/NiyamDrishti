@@ -1,5 +1,6 @@
 """Integration tests for the National Legal Metrology eMaap Portal Adapter API (E4-05, ADR-020)."""
 
+import base64
 import uuid
 
 import pytest
@@ -13,6 +14,9 @@ from app.main import app
 from app.models.base import AuditLog, ExtractedField, User, Violation
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
+TINY_PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+)
 
 
 @pytest.fixture
@@ -135,8 +139,7 @@ async def test_emaap_enforcement_docket_submission(test_client_and_db):
     insp_id = create_resp.json()["id"]
 
     # 2. Upload image with cryptographic hash
-    dummy_jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00" + b"TEST_BYTES" * 10
-    files = {"file": ("front.jpg", dummy_jpeg, "image/jpeg")}
+    files = {"file": ("front.png", TINY_PNG_BYTES, "image/png")}
     data = {"image_role": "front_pdp", "quality_check_passed": "true"}
     img_resp = await client.post(f"/api/v1/inspections/{insp_id}/images", data=data, files=files)
     assert img_resp.status_code == 201

@@ -266,6 +266,10 @@ export async function syncSingleInspection(
       formData.append('client_id', img.id);
       formData.append('image_role', img.imageRole);
       formData.append('quality_check_passed', String(img.qualityAssessment?.passed ?? true));
+      if (img.width && img.height) {
+        formData.append('width_px', String(img.width));
+        formData.append('height_px', String(img.height));
+      }
       formData.append('file', imageBlob, `${img.imageRole}.jpg`);
       const headers = getAuthHeaders(currentToken, img.id);
       delete headers['Content-Type'];

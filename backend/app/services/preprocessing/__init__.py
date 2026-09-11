@@ -3,6 +3,7 @@ from app.services.preprocessing.pipeline import (
     PreprocessedImage,
     PreprocessingPipeline,
     map_bbox_to_original,
+    map_polygon_to_original,
     map_point_to_original,
 )
 
@@ -11,5 +12,6 @@ __all__ = [
     "PreprocessingPipeline",
     "PreprocessedImage",
     "map_bbox_to_original",
+    "map_polygon_to_original",
     "map_point_to_original",
 ]

@@ -212,3 +212,7 @@ def test_ocr_service_preserves_all_metadata_and_maps_coordinates(mock_paddle_ins
     assert line1.bounding_box.y == 200.0
     assert line1.bounding_box.w == 500.0
     assert line1.bounding_box.h == 80.0
+    # The polygon is also mapped to original pixels, not left in the
+    # preprocessed 1200px coordinate space.
+    assert line1.bounding_box.polygon == [[100.0, 200.0], [600.0, 200.0], [600.0, 280.0], [100.0, 280.0]]
+    assert line1.bounding_box.coordinate_space == "source_image_px"

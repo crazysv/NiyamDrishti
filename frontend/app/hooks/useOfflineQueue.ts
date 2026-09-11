@@ -174,7 +174,16 @@ export function useOfflineQueue() {
   const queueInspection = async (
     inspectionId: string,
     category: CommodityCategory,
-    images: { role: ImageRole; dataUrl: string; qualityAssessment?: QualityAssessment }[],
+    images: {
+      role: ImageRole;
+      dataUrl: string;
+      width?: number;
+      height?: number;
+      originalWidth?: number;
+      originalHeight?: number;
+      normalizationVersion?: 1;
+      qualityAssessment?: QualityAssessment;
+    }[],
     isOffline: boolean
   ): Promise<OfflineInspection> => {
     const health = await checkStorageHealth();

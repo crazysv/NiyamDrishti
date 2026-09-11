@@ -12,6 +12,10 @@ from app.main import app
 from app.models.base import User
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
+TINY_PNG_DATA_URL = (
+    "data:image/png;base64,"
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+)
 
 
 @pytest.fixture
@@ -99,8 +103,7 @@ async def test_inspection_create_and_upload_images(test_db):
         assert pending_evidence_resp.status_code == 409
 
         # 3. POST /api/v1/inspections/{id}/images via JSON Data URL (Front PDP)
-        dummy_base64 = base64.b64encode(b"dummy image bytes for testing").decode("utf-8")
-        data_url = f"data:image/jpeg;base64,{dummy_base64}"
+        data_url = TINY_PNG_DATA_URL
 
         img_payload = {
             "image_role": "front_pdp",
@@ -120,10 +123,16 @@ async def test_inspection_create_and_upload_images(test_db):
         assert img_data["image_role"] == "front_pdp"
         assert img_data["quality_check_passed"] is True
         assert "/uploads/" in img_data["storage_url"]
-        assert img_data["width_px"] == 1080
+        assert img_data["width_px"] == 1
 
         # 4. POST /api/v1/inspections/{id}/images via multipart file upload (Back Panel)
-        files = {"file": ("back_panel.jpg", b"fake binary back panel content", "image/jpeg")}
+        files = {
+            "file": (
+                "back_panel.png",
+                base64.b64decode(TINY_PNG_DATA_URL.split(",", 1)[1]),
+                "image/png",
+            )
+        }
         form_data = {"image_role": "back_panel"}
 
         upload_file_resp = await ac.post(

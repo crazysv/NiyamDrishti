@@ -3,6 +3,11 @@ export interface BoundingBox {
   y: number;
   w: number;
   h: number;
+  /** Clockwise source-image pixels; all engines are normalized to this contract. */
+  polygon: Array<[number, number]>;
+  coordinate_space: "source_image_px";
+  source_width_px: number;
+  source_height_px: number;
   left_pct: number;
   top_pct: number;
   width_pct: number;

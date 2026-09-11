@@ -390,16 +390,6 @@ async def upload_inspection_image(
                 detail=f"Invalid image data_url: {e}",
             )
         filename = f"{role}_{uuid.uuid4().hex[:8]}.{ext}"
-        if width_px is None or height_px is None:
-            try:
-                import io
-
-                from PIL import Image as PILImage
-
-                with PILImage.open(io.BytesIO(file_bytes)) as pil_img:
-                    width_px, height_px = pil_img.size
-            except Exception:
-                pass
 
     elif "multipart/form-data" in content_type:
         form = await request.form()
@@ -437,6 +427,19 @@ async def upload_inspection_image(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid image_role '{role}'. Allowed roles: {', '.join(sorted(ALLOWED_IMAGE_ROLES))}",
         )
+
+    # The stored byte stream is the sole source-image coordinate space. Decode
+    # it rather than trusting client dimensions, so evidence percentages cannot
+    # be calculated against a pre-rotation or stale canvas size.
+    try:
+        import io
+
+        from PIL import Image as PILImage
+
+        with PILImage.open(io.BytesIO(file_bytes)) as pil_img:
+            width_px, height_px = pil_img.size
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is not a readable image") from exc
 
     # Idempotency check: if image with client_id already attached, return existing image (E4-02)
     if img_client_id:
@@ -1317,6 +1320,18 @@ async def get_inspection_evidence(
             "y": y_px,
             "w": w_px,
             "h": h_px,
+            "polygon": raw_box.get(
+                "polygon",
+                [
+                    [x_px, y_px],
+                    [x_px + w_px, y_px],
+                    [x_px + w_px, y_px + h_px],
+                    [x_px, y_px + h_px],
+                ],
+            ),
+            "coordinate_space": raw_box.get("coordinate_space", "source_image_px"),
+            "source_width_px": cur_w,
+            "source_height_px": cur_h,
             "left_pct": left_pct,
             "top_pct": top_pct,
             "width_pct": width_pct,

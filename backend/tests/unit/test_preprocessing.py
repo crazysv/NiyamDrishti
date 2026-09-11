@@ -9,6 +9,7 @@ from app.services.preprocessing import (
     PipelineConfig,
     PreprocessingPipeline,
     map_bbox_to_original,
+    map_polygon_to_original,
     map_point_to_original,
 )
 
@@ -315,6 +316,18 @@ def test_bounding_box_coordinate_inverse_mapping_simple():
     assert mapped["y"] == 300.0
     assert mapped["w"] == 500.0
     assert mapped["h"] == 100.0
+
+
+def test_polygon_coordinate_inverse_mapping_clips_to_source_image():
+    """All four evidence points must return to the stored source image space."""
+    polygon = [[-10.0, 20.0], [110.0, 20.0], [110.0, 70.0], [-10.0, 70.0]]
+    mapped = map_polygon_to_original(
+        polygon,
+        scale_factor=0.5,
+        original_shape=(120, 200),
+    )
+
+    assert mapped == [[0.0, 40.0], [199.0, 40.0], [199.0, 119.0], [0.0, 119.0]]
 
 
 def test_output_conversions(sample_test_image: np.ndarray):

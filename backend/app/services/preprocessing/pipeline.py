@@ -473,3 +473,35 @@ def map_bbox_to_original(
         "w": round(box["w"] * inv_scale, round_digits),
         "h": round(box["h"] * inv_scale, round_digits),
     }
+
+
+def map_polygon_to_original(
+    polygon: list[list[float]],
+    scale_factor: float,
+    transforms: list[dict[str, Any]] | None = None,
+    original_shape: tuple[int, int] | None = None,
+    round_digits: int = 1,
+) -> list[list[float]]:
+    """Map an OCR quadrilateral back to the persisted source-image pixels.
+
+    Mapping only an axis-aligned envelope is insufficient after rotation or a
+    perspective warp.  Retaining the transformed quadrilateral makes the
+    evidence region and its rectangle agree in the same coordinate space.
+    """
+    if len(polygon) != 4 or any(len(point) != 2 for point in polygon):
+        raise ValueError("polygon must contain exactly four [x, y] points")
+    if scale_factor <= 0:
+        raise ValueError(f"scale_factor must be positive, got {scale_factor}")
+
+    mapped: list[list[float]] = []
+    for point in polygon:
+        if transforms:
+            x, y = map_point_to_original(float(point[0]), float(point[1]), transforms)
+        else:
+            x, y = float(point[0]) / scale_factor, float(point[1]) / scale_factor
+        if original_shape:
+            height, width = original_shape
+            x = min(max(x, 0.0), float(max(width - 1, 0)))
+            y = min(max(y, 0.0), float(max(height - 1, 0)))
+        mapped.append([round(x, round_digits), round(y, round_digits)])
+    return mapped

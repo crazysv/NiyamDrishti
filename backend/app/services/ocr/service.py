@@ -9,7 +9,7 @@ from app.services.ocr.paddle_engine import PaddleOCREngine
 from app.services.ocr.schemas import BoundingBox, OCRLine, OCRResult
 from app.services.ocr.tesseract_engine import TesseractEngine
 from app.services.preprocessing import PreprocessedImage, PreprocessingPipeline
-from app.services.preprocessing.pipeline import map_bbox_to_original
+from app.services.preprocessing.pipeline import map_polygon_to_original
 
 logger = logging.getLogger(__name__)
 
@@ -65,23 +65,27 @@ class OCRService:
         """
         mapped_lines: list[OCRLine] = []
         for line in lines:
-            orig_box_dict = map_bbox_to_original(
-                {
-                    "x": line.bounding_box.x,
-                    "y": line.bounding_box.y,
-                    "w": line.bounding_box.w,
-                    "h": line.bounding_box.h,
-                },
+            processed_polygon = line.bounding_box.polygon or [
+                [line.bounding_box.x, line.bounding_box.y],
+                [line.bounding_box.x + line.bounding_box.w, line.bounding_box.y],
+                [line.bounding_box.x + line.bounding_box.w, line.bounding_box.y + line.bounding_box.h],
+                [line.bounding_box.x, line.bounding_box.y + line.bounding_box.h],
+            ]
+            original_polygon = map_polygon_to_original(
+                processed_polygon,
                 scale_factor=preprocessed.scale_factor,
                 transforms=preprocessed.transforms,
+                original_shape=preprocessed.original_shape,
             )
+            xs = [point[0] for point in original_polygon]
+            ys = [point[1] for point in original_polygon]
 
             orig_bbox = BoundingBox(
-                x=orig_box_dict["x"],
-                y=orig_box_dict["y"],
-                w=orig_box_dict["w"],
-                h=orig_box_dict["h"],
-                polygon=line.bounding_box.polygon,
+                x=min(xs),
+                y=min(ys),
+                w=max(xs) - min(xs),
+                h=max(ys) - min(ys),
+                polygon=original_polygon,
             )
 
             mapped_lines.append(

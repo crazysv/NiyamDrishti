@@ -99,8 +99,10 @@ async def test_ecommerce_listing_json_data_url_ingestion(ecom_test_db):
 
         assert data["image_role"] == "ecommerce_listing"
         assert data["inspection_id"] == str(insp_id)
-        assert data["width_px"] == 1080
-        assert data["height_px"] == 1920
+        # The API derives source dimensions from stored bytes rather than
+        # trusting caller metadata. TINY_PNG_DATA_URL is a one-pixel fixture.
+        assert data["width_px"] == 1
+        assert data["height_px"] == 1
         assert data["quality_check_passed"] is True
         assert (
             data["storage_url"].startswith("/uploads")

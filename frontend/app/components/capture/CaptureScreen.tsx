@@ -38,6 +38,7 @@ import {
   assessImageQuality,
   QualityAssessment,
 } from "@/app/utils/qualityGate";
+import { normalizeImageForOcr } from "@/app/utils/ocrImage";
 import { useOfflineQueue } from "@/app/hooks/useOfflineQueue";
 import { StorageWarningBanner } from "../storage/StorageWarningBanner";
 import {
@@ -63,57 +64,6 @@ function useOnlineStatus() {
 
 function makeNonce(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).substring(2)}_${Date.now()}`;
-}
-
-const MAX_UPLOAD_BYTES = 420 * 1024;
-const INITIAL_UPLOAD_EDGE = 1280;
-const MIN_UPLOAD_EDGE = 640;
-
-function estimateDataUrlBytes(dataUrl: string): number {
-  const encoded = dataUrl.split(",", 2)[1] || "";
-  return Math.ceil((encoded.length * 3) / 4);
-}
-
-/**
- * Keep each photo within a real byte budget, not just a pixel budget. A detailed
- * phone frame can still be several megabytes at 1280px, which is enough to make
- * a mobile connection drop a multipart request before Render receives it.
- */
-async function optimizeCaptureForUpload(dataUrl: string): Promise<string> {
-  const image = new Image();
-  image.src = dataUrl;
-  await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error("Unable to prepare the captured photo."));
-  });
-
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  if (!context) return dataUrl;
-
-  let maxEdge = INITIAL_UPLOAD_EDGE;
-  let quality = 0.78;
-  let encoded = dataUrl;
-
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const longestEdge = Math.max(image.naturalWidth, image.naturalHeight);
-    const scale = Math.min(1, maxEdge / longestEdge);
-    const width = Math.max(1, Math.round(image.naturalWidth * scale));
-    const height = Math.max(1, Math.round(image.naturalHeight * scale));
-    canvas.width = width;
-    canvas.height = height;
-    context.drawImage(image, 0, 0, width, height);
-    encoded = canvas.toDataURL("image/jpeg", quality);
-
-    if (estimateDataUrlBytes(encoded) <= MAX_UPLOAD_BYTES || maxEdge <= MIN_UPLOAD_EDGE) {
-      return encoded;
-    }
-
-    maxEdge = Math.max(MIN_UPLOAD_EDGE, Math.round(maxEdge * 0.78));
-    quality = Math.max(0.62, quality - 0.05);
-  }
-
-  return encoded;
 }
 
 export default function CaptureScreen() {
@@ -227,16 +177,21 @@ export default function CaptureScreen() {
       fileSize?: number
     ) => {
       setIsAssessing(true);
-      const optimizedDataUrl = await optimizeCaptureForUpload(dataUrl);
-      const assessment: QualityAssessment = await assessImageQuality(optimizedDataUrl);
+      const normalized = await normalizeImageForOcr(dataUrl);
+      const assessment: QualityAssessment = await assessImageQuality(normalized.dataUrl);
 
       const newImage: CapturedImage = {
         id: `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         role,
-        dataUrl: optimizedDataUrl,
+        dataUrl: normalized.dataUrl,
         capturedAt: new Date().toISOString(),
         fileName,
         fileSize,
+        width: normalized.width,
+        height: normalized.height,
+        originalWidth: normalized.originalWidth,
+        originalHeight: normalized.originalHeight,
+        normalizationVersion: 1,
         qualityAssessment: assessment,
       };
 
@@ -325,6 +280,11 @@ export default function CaptureScreen() {
     const validImages: {
       role: ImageRole;
       dataUrl: string;
+      width?: number;
+      height?: number;
+      originalWidth?: number;
+      originalHeight?: number;
+      normalizationVersion?: 1;
       qualityAssessment?: QualityAssessment;
     }[] = [];
 
@@ -332,6 +292,11 @@ export default function CaptureScreen() {
       validImages.push({
         role: "front_pdp",
         dataUrl: images.front_pdp.dataUrl,
+        width: images.front_pdp.width,
+        height: images.front_pdp.height,
+        originalWidth: images.front_pdp.originalWidth,
+        originalHeight: images.front_pdp.originalHeight,
+        normalizationVersion: images.front_pdp.normalizationVersion,
         qualityAssessment: images.front_pdp.qualityAssessment,
       });
     }
@@ -339,6 +304,11 @@ export default function CaptureScreen() {
       validImages.push({
         role: "back_panel",
         dataUrl: images.back_panel.dataUrl,
+        width: images.back_panel.width,
+        height: images.back_panel.height,
+        originalWidth: images.back_panel.originalWidth,
+        originalHeight: images.back_panel.originalHeight,
+        normalizationVersion: images.back_panel.normalizationVersion,
         qualityAssessment: images.back_panel.qualityAssessment,
       });
     }
@@ -346,6 +316,11 @@ export default function CaptureScreen() {
       validImages.push({
         role: "sticker",
         dataUrl: images.sticker.dataUrl,
+        width: images.sticker.width,
+        height: images.sticker.height,
+        originalWidth: images.sticker.originalWidth,
+        originalHeight: images.sticker.originalHeight,
+        normalizationVersion: images.sticker.normalizationVersion,
         qualityAssessment: images.sticker.qualityAssessment,
       });
     }
@@ -353,6 +328,11 @@ export default function CaptureScreen() {
       validImages.push({
         role: "ecommerce_listing",
         dataUrl: images.ecommerce_listing.dataUrl,
+        width: images.ecommerce_listing.width,
+        height: images.ecommerce_listing.height,
+        originalWidth: images.ecommerce_listing.originalWidth,
+        originalHeight: images.ecommerce_listing.originalHeight,
+        normalizationVersion: images.ecommerce_listing.normalizationVersion,
         qualityAssessment: images.ecommerce_listing.qualityAssessment,
       });
     }

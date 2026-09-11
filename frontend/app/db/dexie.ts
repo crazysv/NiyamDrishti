@@ -36,6 +36,12 @@ export interface OfflineImage {
   inspectionId: string;
   imageRole: ImageRole;
   dataUrl: string;
+  /** Dimensions of the canonical upright dataUrl used for upload/OCR. */
+  width?: number;
+  height?: number;
+  originalWidth?: number;
+  originalHeight?: number;
+  normalizationVersion?: 1;
   qualityAssessment?: QualityAssessment;
   isSynced?: boolean;
   backendImageId?: string;
@@ -75,7 +81,16 @@ export const db = new NiyamDrishtiDatabase();
 export async function queueInspectionForSync(
   inspectionId: string,
   category: CommodityCategory,
-  images: { role: ImageRole; dataUrl: string; qualityAssessment?: QualityAssessment }[],
+  images: {
+    role: ImageRole;
+    dataUrl: string;
+    width?: number;
+    height?: number;
+    originalWidth?: number;
+    originalHeight?: number;
+    normalizationVersion?: 1;
+    qualityAssessment?: QualityAssessment;
+  }[],
   isOffline: boolean
 ): Promise<OfflineInspection> {
   const now = new Date().toISOString();
@@ -95,6 +110,11 @@ export async function queueInspectionForSync(
     inspectionId,
     imageRole: img.role,
     dataUrl: img.dataUrl,
+    width: img.width,
+    height: img.height,
+    originalWidth: img.originalWidth,
+    originalHeight: img.originalHeight,
+    normalizationVersion: img.normalizationVersion,
     qualityAssessment: img.qualityAssessment,
     isSynced: false,
     createdAt: now,
@@ -287,4 +307,3 @@ export async function discardOfflineInspection(inspectionId: string): Promise<vo
     await db.inspections.delete(inspectionId);
   });
 }
-

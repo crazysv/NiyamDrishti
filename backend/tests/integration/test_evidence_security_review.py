@@ -1,5 +1,6 @@
 """Security and evidentiary integrity tests for audit logs and evidence chain of custody (E4-04)."""
 
+import base64
 import hashlib
 import uuid
 
@@ -14,6 +15,9 @@ from app.main import app
 from app.models.base import AuditLog, InspectionImage, User
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
+TINY_PNG_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+)
 
 
 @pytest.fixture
@@ -128,10 +132,9 @@ async def test_evidence_verification_and_section_65b_certificate(test_client_and
     insp_id = create_resp.json()["id"]
 
     # 2. Upload image with binary payload
-    dummy_jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00\xff\xdb\x00C\x00" + b"A" * 100
-    expected_hash = hashlib.sha256(dummy_jpeg).hexdigest()
+    expected_hash = hashlib.sha256(TINY_PNG_BYTES).hexdigest()
 
-    files = {"file": ("front_label.jpg", dummy_jpeg, "image/jpeg")}
+    files = {"file": ("front_label.png", TINY_PNG_BYTES, "image/png")}
     data = {
         "image_role": "front_pdp",
         "quality_check_passed": "true",
@@ -194,7 +197,7 @@ async def test_tamper_detection_in_evidence_chain(test_client_and_db):
     insp_id = create_resp.json()["id"]
 
     # Upload image
-    files = {"file": ("panel.jpg", b"valid_image_bytes_content_123", "image/jpeg")}
+    files = {"file": ("panel.png", TINY_PNG_BYTES, "image/png")}
     img_resp = await client.post(
         f"/api/v1/inspections/{insp_id}/images",
         data={"image_role": "back_panel", "quality_check_passed": "true"},
