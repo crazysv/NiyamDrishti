@@ -191,6 +191,21 @@ def test_commodity_name_extractor_removes_trim_instruction_and_ignores_storage_t
     assert data["commodity_name"] == "Mother Dairy Full Cream Milk"
 
 
+def test_commodity_name_extractor_ignores_promotion_price_and_prose_blocks():
+    """Merged Gemini blocks must retain only plausible visual title fragments."""
+    extractor = CommodityNameExtractor()
+    lines = [
+        create_ocr_line("100% QUALITY GUARANTEED MOTHER\nDAIRY Full cream\nmilk Rs.36.00, Rs.0.07/ml", 1),
+        create_ocr_line("when product is stored refrigerated below 8 C", 2),
+    ]
+
+    decls = extractor.extract(lines, "img_test_123")
+
+    assert len(decls) == 1
+    data = json.loads(decls[0].parsed_value)
+    assert data["commodity_name"] == "MOTHER DAIRY Full cream"
+
+
 def test_declaration_extraction_service_orchestration():
     """Verify end-to-end multi-field extraction across a realistic label (EXT-01)."""
     service = DeclarationExtractionService()

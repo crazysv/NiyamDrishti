@@ -61,6 +61,14 @@ class CommodityNameExtractor(BaseFieldExtractor):
         r"\b(?:stored?\s+refrigerated|refrigerated\s+below|use\s+by\s+date|batch\s*(?:no|number))\b",
         re.IGNORECASE,
     )
+    PROMOTIONAL_PREFIX_PATTERN = re.compile(
+        r"^\s*(?:(?:\d+%?\s*)?(?:quality|guaranteed|premium|new|best|fresh)\s+)+",
+        re.IGNORECASE,
+    )
+    PRICE_OR_DATE_PATTERN = re.compile(
+        r"(?:\b(?:mrp|rs\.?|inr)\s*\d|₹\s*\d|\b\d{1,2}(?:/|-)[a-z]{3,9}(?:/|-)?\d{0,4}\b)",
+        re.IGNORECASE,
+    )
 
     @property
     def field_type(self) -> str:
@@ -74,8 +82,11 @@ class CommodityNameExtractor(BaseFieldExtractor):
             text = line.text
             match = self.EXPLICIT_NAME_PATTERN.search(text)
             if match:
-                commodity_name = match.group(1).strip()
-                if commodity_name:
+                commodity_name = self.PACKAGING_PREFIX_PATTERN.sub("", match.group(1).strip())
+                # "when product is stored ..." is prose, not an explicit
+                # declaration, despite matching the deliberately permissive
+                # legacy PRODUCT pattern.
+                if commodity_name and not self.INSTRUCTION_PATTERN.search(commodity_name):
                     parsed_payload: dict[str, Any] = {
                         "commodity_name": commodity_name,
                         "detection_method": "explicit_header",
@@ -131,25 +142,31 @@ class CommodityNameExtractor(BaseFieldExtractor):
         # 3. Prominent headline aggregation on PDP (e.g. BRITANNIA TIGER KRUNCH CHOCOCHIPS)
         candidates: list[tuple[str, OCRLine]] = []
         for line in lines[:10]:
-            # Printer trim marks such as "CUT HERE" are frequently merged
-            # with the nearby product title by OCR. Remove only that leading
-            # instruction so the remaining title keeps its source geometry.
-            text = self.PACKAGING_PREFIX_PATTERN.sub("", line.text.strip())
-            text_lower = text.lower()
-            if len(text) <= 2 or len(text) > 60:
-                continue
+            # Gemini can return a visually separate set of label lines as one
+            # OCR block. Evaluate each visual line independently so a price
+            # or date line cannot poison the nearby product-title candidate.
+            for raw_fragment in line.text.splitlines() or [line.text]:
+                # Printer trim marks such as "CUT HERE" are frequently merged
+                # with the nearby product title by OCR. Remove only that
+                # leading instruction so the remaining title keeps its source
+                # geometry.
+                text = self.PACKAGING_PREFIX_PATTERN.sub("", raw_fragment.strip())
+                text = self.PROMOTIONAL_PREFIX_PATTERN.sub("", text).strip()
+                text_lower = text.lower()
+                if len(text) <= 2 or len(text) > 60:
+                    continue
 
-            if any(kw in text_lower for kw in self.NON_COMMODITY_KEYWORDS):
-                continue
-            if any(kw in text_lower for kw in self.MARKETING_EXCLUSIONS):
-                continue
-            if self.INSTRUCTION_PATTERN.search(text):
-                continue
-            if not re.search(r"[A-Za-z]{3,}", text):
-                continue
+                if any(kw in text_lower for kw in self.NON_COMMODITY_KEYWORDS):
+                    continue
+                if any(kw in text_lower for kw in self.MARKETING_EXCLUSIONS):
+                    continue
+                if self.INSTRUCTION_PATTERN.search(text) or self.PRICE_OR_DATE_PATTERN.search(text):
+                    continue
+                if not re.search(r"[A-Za-z]{3,}", text):
+                    continue
 
-            cleaned_token = "TIGER" if text.upper() in ["NIGER", "IGER", "TIGER"] else text
-            candidates.append((cleaned_token, line))
+                cleaned_token = "TIGER" if text.upper() in ["NIGER", "IGER", "TIGER"] else text
+                candidates.append((cleaned_token, line))
 
         if candidates:
             # Reorder if brand is present (e.g. BRITANNIA first)
