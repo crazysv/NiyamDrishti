@@ -1117,6 +1117,29 @@ FIELD_LABELS: dict[str, str] = {
 }
 
 
+def _violation_requires_officer_review(violation: ViolationRead) -> bool:
+    """Whether a persisted violation is an indeterminate rather than failed check.
+
+    The current violations table predates rule-result verdict persistence. A
+    calibration-dependent rule can therefore be stored with ``major``
+    severity even when the rule engine returned ``needs_review``. Do not turn
+    that uncertainty into a false compliance failure in the evidence UI.
+    """
+    description = (violation.description or "").lower()
+    return any(
+        marker in description
+        for marker in (
+            "uncalibrated",
+            "cannot evaluate",
+            "officer review",
+            "review required",
+            "visual verification",
+            "format ambiguity",
+            "poor contrast",
+        )
+    )
+
+
 @router.get("/{inspection_id}/images/{image_id}/file")
 async def get_inspection_image_file(
     inspection_id: uuid.UUID,
@@ -1356,8 +1379,11 @@ async def get_inspection_evidence(
             }
 
         v_list = field_violations.get(f.id, [])
+        # Severity is the regulatory importance of a rule, not its outcome.
+        # An uncalibrated Rule 7 measurement is a review even though Rule 7 is
+        # major; actual failed measurements still remain failures.
         has_fail_violation = any(
-            v.severity in ("critical", "major") and "review" not in v.description.lower() for v in v_list
+            v.severity in ("critical", "major") and not _violation_requires_officer_review(v) for v in v_list
         )
 
         if f.verdict == "fail" or has_fail_violation:

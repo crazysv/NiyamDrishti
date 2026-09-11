@@ -176,6 +176,21 @@ def test_commodity_name_extractor():
     assert data["commodity_name"] == "Refined Sunflower Oil"
 
 
+def test_commodity_name_extractor_removes_trim_instruction_and_ignores_storage_text():
+    """Packaging instructions must not replace a generic commodity title."""
+    extractor = CommodityNameExtractor()
+    lines = [
+        create_ocr_line("CUT HERE Mother Dairy Full Cream Milk", 1),
+        create_ocr_line("stored refrigerated below 8 C", 2),
+    ]
+
+    decls = extractor.extract(lines, "img_test_123")
+
+    assert len(decls) == 1
+    data = json.loads(decls[0].parsed_value)
+    assert data["commodity_name"] == "Mother Dairy Full Cream Milk"
+
+
 def test_declaration_extraction_service_orchestration():
     """Verify end-to-end multi-field extraction across a realistic label (EXT-01)."""
     service = DeclarationExtractionService()

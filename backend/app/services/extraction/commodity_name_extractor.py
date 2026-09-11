@@ -52,6 +52,16 @@ class CommodityNameExtractor(BaseFieldExtractor):
         "contest",
     ]
 
+    # These are package-production or storage instructions, not a generic
+    # commodity declaration. They occur close to product titles often enough
+    # that an OCR headline heuristic must explicitly discard them. The
+    # expressions describe packaging language, never a particular product.
+    PACKAGING_PREFIX_PATTERN = re.compile(r"^\s*(?:cut|tear)\s+here\s*[:|\-]*\s*", re.IGNORECASE)
+    INSTRUCTION_PATTERN = re.compile(
+        r"\b(?:stored?\s+refrigerated|refrigerated\s+below|use\s+by\s+date|batch\s*(?:no|number))\b",
+        re.IGNORECASE,
+    )
+
     @property
     def field_type(self) -> str:
         return "commodity_name"
@@ -121,7 +131,10 @@ class CommodityNameExtractor(BaseFieldExtractor):
         # 3. Prominent headline aggregation on PDP (e.g. BRITANNIA TIGER KRUNCH CHOCOCHIPS)
         candidates: list[tuple[str, OCRLine]] = []
         for line in lines[:10]:
-            text = line.text.strip()
+            # Printer trim marks such as "CUT HERE" are frequently merged
+            # with the nearby product title by OCR. Remove only that leading
+            # instruction so the remaining title keeps its source geometry.
+            text = self.PACKAGING_PREFIX_PATTERN.sub("", line.text.strip())
             text_lower = text.lower()
             if len(text) <= 2 or len(text) > 60:
                 continue
@@ -129,6 +142,8 @@ class CommodityNameExtractor(BaseFieldExtractor):
             if any(kw in text_lower for kw in self.NON_COMMODITY_KEYWORDS):
                 continue
             if any(kw in text_lower for kw in self.MARKETING_EXCLUSIONS):
+                continue
+            if self.INSTRUCTION_PATTERN.search(text):
                 continue
             if not re.search(r"[A-Za-z]{3,}", text):
                 continue
