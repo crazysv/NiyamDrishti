@@ -161,6 +161,19 @@ def test_consumer_care_extractor():
     assert data["has_phone"] is True
 
 
+def test_consumer_care_extractor_accepts_indian_landline_with_country_code():
+    """Consumer-care labels commonly print a +91 STD-code landline."""
+    extractor = ConsumerCareExtractor()
+    lines = [create_ocr_line("Customer Care: Call +91 33 4014 2100, care@example.in", 1)]
+
+    decls = extractor.extract(lines, "img_test_123")
+
+    assert len(decls) == 1
+    data = json.loads(decls[0].parsed_value)
+    assert data["phone"] == "+91 33 4014 2100"
+    assert data["has_phone"] is True
+
+
 def test_country_of_origin_extractor():
     """Verify Country of Origin declaration extraction (EXT-07)."""
     extractor = CountryOfOriginExtractor()
@@ -240,6 +253,14 @@ def test_commodity_name_extractor_rejects_marketing_claim_suffix():
 
     assert len(decls) == 1
     assert json.loads(decls[0].parsed_value)["commodity_name"] == "Colgate Anticavity Fluoride Toothpaste"
+
+
+def test_commodity_name_extractor_rejects_net_content_caution_block():
+    """A statutory quantity plus safety warning is not a product title."""
+    extractor = CommodityNameExtractor()
+    lines = [create_ocr_line("NET CONTENT: 100 ml CAUTION: INFLAMMABLE", 1)]
+
+    assert extractor.extract(lines, "img_test_123") == []
 
 
 def test_commodity_name_extractor_does_not_use_total_net_weight_as_title():

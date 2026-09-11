@@ -31,6 +31,7 @@ class CommodityNameExtractor(BaseFieldExtractor):
         "country",
         "ingredients",
         "nutrition",
+        "net content",
     }
 
     COMMODITY_PREFIX_PATTERN = re.compile(r"\b([A-Za-z]{3,20})\s+NET\s+(?:WEIGHT|WT|QTY|CONTENT)", re.IGNORECASE)
@@ -61,6 +62,8 @@ class CommodityNameExtractor(BaseFieldExtractor):
         "week",
         "accelerator",
         "accelerators",
+        "caution",
+        "inflammable",
     ]
 
     # These are package-production or storage instructions, not a generic

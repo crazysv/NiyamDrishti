@@ -295,7 +295,12 @@ class GeminiOCREngine(BaseOCREngine):
         """Compatibility wrapper for active client."""
         return self._get_client_for_key(self.api_key)
 
-    def extract(self, image: np.ndarray, source_image_id: str) -> OCRResult:
+    def extract(
+        self,
+        image: np.ndarray,
+        source_image_id: str,
+        instruction_override: str | None = None,
+    ) -> OCRResult:
         """
         Executes Gemini Vision multimodal OCR inference on package image array.
         Enforces structured JSON response, converts normalized coordinates to source pixels,
@@ -337,10 +342,11 @@ class GeminiOCREngine(BaseOCREngine):
         )
 
         image_part = types.Part.from_bytes(data=jpeg_bytes, mime_type="image/jpeg")
-        prompt_text = (
+        default_prompt_text = (
             "Extract the required statutory declarations first, then the product name. "
             "Return 2D normalized bounding boxes (0-1000) and confidence for every returned region."
         )
+        prompt_text = instruction_override or default_prompt_text
 
         t0 = time.perf_counter()
         keys_pool = self.api_keys

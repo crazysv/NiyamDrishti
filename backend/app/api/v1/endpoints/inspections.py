@@ -885,6 +885,41 @@ async def extract_inspection_declarations(
     all_declarations = [d for d in all_declarations if d.field_type != "mrp"]
     all_declarations.extend(extraction_service.extractors[0].extract(all_ocr_lines, ""))
 
+    # The coding panel is often the only place that carries MRP. If Gemini
+    # returned useful multi-region OCR but omitted that panel, make one
+    # narrowly scoped request against the most likely legal-text image rather
+    # than treating the omission as a confirmed package violation.
+    if ocr_provider and ocr_provider.lower().strip() == "gemini" and not any(
+        declaration.field_type == "mrp" for declaration in all_declarations
+    ):
+        retry_image = next(
+            (
+                image
+                for role in ("sticker", "back_panel", "side_panel")
+                for image in inspection.images
+                if image.image_role == role
+            ),
+            None,
+        )
+        if retry_image is not None:
+            try:
+                retry_bytes = await get_image_bytes(retry_image.storage_url, inspection.id)
+                if retry_bytes:
+                    mrp_retry = await asyncio.to_thread(
+                        ocr_service.process_image,
+                        retry_bytes,
+                        source_image_id=str(retry_image.id),
+                        provider="gemini",
+                        gemini_instruction=(
+                            "Inspect the coding and price panel only. Extract every visible MRP / maximum retail price, "
+                            "currency symbol, price value, tax-inclusion statement, unit-sale price, batch and MFD text. "
+                            "Do not return marketing copy. Return normalized 2D boxes in the original image coordinates."
+                        ),
+                    )
+                    all_declarations.extend(extraction_service.extractors[0].extract(mrp_retry.lines, ""))
+            except Exception as retry_err:
+                logger.warning("Targeted Gemini MRP retry failed for inspection %s: %s", inspection.id, retry_err)
+
     # Re-processing replaces the complete extraction/rule-evaluation snapshot.
     # Violations reference extracted fields, so they must be removed before the
     # old fields are cleared.  PostgreSQL correctly rejects the reverse order.

@@ -106,6 +106,7 @@ class OCRService:
         source_image_id: str,
         run_preprocessing: bool = True,
         provider: str | None = None,
+        gemini_instruction: str | None = None,
     ) -> OCRResult:
         """
         Runs complete OCR flow on image:
@@ -154,7 +155,11 @@ class OCRService:
             if self.is_gemini_available():
                 try:
                     logger.info("Executing Gemini Vision OCR provider (OCR-04)")
-                    gemini_result = self.gemini_engine.extract(image_array, source_image_id=source_image_id)
+                    gemini_result = self.gemini_engine.extract(
+                        image_array,
+                        source_image_id=source_image_id,
+                        instruction_override=gemini_instruction,
+                    )
                     gemini_result.preprocessing_steps = applied_steps
                     if preprocessed and len(gemini_result.lines) > 0:
                         gemini_result.lines = self._map_lines_to_original(gemini_result.lines, preprocessed)
