@@ -1,14 +1,6 @@
-const CACHE_NAME = "niyamdrishti-offline-v6";
+const CACHE_NAME = "niyamdrishti-offline-v7";
 const PRECACHE_ASSETS = [
   "/",
-  "/offline-verified",
-  "/offline-verified/report",
-  "/ocr/worker.min.js",
-  "/ocr/lang/eng.traineddata.gz",
-  "/ocr/core/tesseract-core.wasm.js",
-  "/ocr/core/tesseract-core-lstm.wasm.js",
-  "/ocr/core/tesseract-core-simd.wasm.js",
-  "/ocr/core/tesseract-core-simd-lstm.wasm.js",
 ];
 
 self.addEventListener("install", (event) => {

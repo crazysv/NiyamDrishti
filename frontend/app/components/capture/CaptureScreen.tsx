@@ -21,7 +21,6 @@ import {
   Upload,
   AlertTriangle,
   AlertCircle,
-  Loader2,
   CheckCheck,
   CloudUpload,
   HardDrive,
@@ -29,7 +28,6 @@ import {
   X,
   ExternalLink,
 } from "lucide-react";
-import { useSyncExternalStore } from "react";
 import {
   CAPTURE_SLOTS,
   CapturedImage,
@@ -46,10 +44,6 @@ import {
   authorizeSandboxPersona,
   handleSSOCallback,
 } from "@/app/services/ssoService";
-import {
-  getOfflineOcrStatus,
-  subscribeOfflineOcrStatus,
-} from "@/app/services/offlineOcrStatus";
 
 // Subscribe to online/offline status using React's useSyncExternalStore
 function useOnlineStatus() {
@@ -124,11 +118,6 @@ async function optimizeCaptureForUpload(dataUrl: string): Promise<string> {
 
 export default function CaptureScreen() {
   const router = useRouter();
-  const offlineOcrStatus = useSyncExternalStore(
-    subscribeOfflineOcrStatus,
-    getOfflineOcrStatus,
-    () => "checking",
-  );
   // Multi-image state
   const [images, setImages] = useState<Record<ImageRole, CapturedImage | null>>({
     front_pdp: null,
@@ -189,13 +178,6 @@ export default function CaptureScreen() {
     };
     autoLogin();
   }, []);
-
-  // Preload the static offline route while a connection exists. The service worker
-  // then retains its route data and chunks for a later air-gapped navigation.
-  useEffect(() => {
-    router.prefetch("/offline-verified");
-    router.prefetch("/offline-verified/report");
-  }, [router]);
 
   const handleSwitchPersona = async (personaId: string) => {
     setIsSwitchingPersona(true);
@@ -403,12 +385,9 @@ export default function CaptureScreen() {
         setTimeout(() => setToastMessage(null), 6000);
         return;
       } else {
-        setToastMessage("Saved locally. Opening the offline inspection check.");
+        setToastMessage("Saved locally. It will remain queued until you choose Sync Now.");
         setTimeout(() => setToastMessage(null), 3500);
       }
-
-      sessionStorage.setItem("offline_verified_inspection_id", inspectionId);
-      router.push("/offline-verified");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save to offline storage";
       setToastMessage(msg);
@@ -508,24 +487,12 @@ export default function CaptureScreen() {
         </div>
       ) : null}
 
-      <div
-        className={`px-3 py-1.5 border-b text-[11px] font-mono-data flex items-center gap-1.5 ${
-          offlineOcrStatus === "ready"
-            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-            : offlineOcrStatus === "preparing" || offlineOcrStatus === "checking"
-              ? "bg-[#e8eef6] text-[#333e50] border-[#c4d6eb]"
-              : "bg-amber-50 text-amber-900 border-amber-200"
-        }`}
-      >
-        {offlineOcrStatus === "ready" ? <CheckCircle2 className="w-3.5 h-3.5" /> : offlineOcrStatus === "preparing" || offlineOcrStatus === "checking" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertCircle className="w-3.5 h-3.5" />}
-        <span>
-          {offlineOcrStatus === "ready"
-            ? "OFFLINE OCR READY · Safe to demonstrate without internet"
-            : offlineOcrStatus === "preparing" || offlineOcrStatus === "checking"
-              ? "OFFLINE OCR PREPARING · Keep this screen open while connected"
-              : "OFFLINE OCR NOT READY · Connect once to prepare this device"}
-        </span>
-      </div>
+      {!isOnline && (
+        <div className="px-3 py-1.5 border-b text-[11px] font-mono-data flex items-center gap-1.5 bg-[#e8eef6] text-[#333e50] border-[#c4d6eb]">
+          <CloudUpload className="w-3.5 h-3.5 shrink-0" />
+          <span>OFFLINE CAPTURE · Photos stay on this device until you choose Sync Now</span>
+        </div>
+      )}
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-[#F9F7F2]/90 backdrop-blur-md border-b border-[#D1CDC2] px-4 py-3 flex items-center justify-between">
