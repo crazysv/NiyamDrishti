@@ -41,6 +41,14 @@ GEMINI_OCR_SYSTEM_PROMPT = (
     "Return only the structured JSON. Do NOT evaluate legal compliance."
 )
 
+GEMINI_OCR_SPARSE_RETRY_PROMPT = (
+    "The previous OCR response was incomplete. A one-region result is not acceptable for this package image "
+    "unless only one text fragment is legible. Reinspect the complete image at full detail and return separate "
+    "regions for every readable statutory declaration, including small-print legal text, contact details, "
+    "net quantity, dates, price, origin, batch/barcode, and the product name. Preserve the original-image "
+    "[ymin, xmin, ymax, xmax] coordinates. Return only the structured JSON."
+)
+
 
 class GeminiRegionItem(BaseModel):
     """Structured text region extracted by Gemini Vision."""
@@ -444,19 +452,50 @@ class GeminiOCREngine(BaseOCREngine):
 
         elapsed_sec = time.perf_counter() - t0
 
-        # Parse structured response
-        parsed_data: GeminiOCRResponse
-        try:
-            response_text = raw_response.text
+        def parse_structured_response(response: Any) -> GeminiOCRResponse:
+            response_text = response.text
             if not response_text:
                 raise ValueError("Empty response text from Gemini Vision API.")
+            return GeminiOCRResponse.model_validate(json.loads(response_text))
 
-            # Attempt JSON parse and Pydantic validation
-            data_dict = json.loads(response_text)
-            parsed_data = GeminiOCRResponse.model_validate(data_dict)
+        # Parse structured response. Gemini can occasionally satisfy the JSON
+        # schema with only a brand logo, despite a declaration-rich package
+        # photo. That is not a useful OCR success: retry once with an explicit
+        # completeness instruction before downstream rules label every absent
+        # declaration as a product violation.
+        try:
+            parsed_data = parse_structured_response(raw_response)
         except Exception as parse_err:
             logger.error(f"Failed to parse Gemini structured OCR output: {parse_err}")
             raise ValueError(f"Malformed Gemini OCR output: {parse_err}") from parse_err
+
+        if len(parsed_data.regions) < 2:
+            initial_region_count = len(parsed_data.regions)
+            logger.warning(
+                "Gemini OCR returned only %s region(s) for source_id=%s; requesting a declaration-focused retry.",
+                len(parsed_data.regions),
+                source_image_id,
+            )
+            try:
+                sparse_retry_response = client.models.generate_content(
+                    model=model_name,
+                    contents=[image_part, GEMINI_OCR_SPARSE_RETRY_PROMPT],
+                    config=config,
+                )
+                sparse_retry_data = parse_structured_response(sparse_retry_response)
+                if len(sparse_retry_data.regions) > len(parsed_data.regions):
+                    parsed_data = sparse_retry_data
+                    logger.info(
+                        "Gemini declaration-focused retry improved source_id=%s from %s to %s regions.",
+                        source_image_id,
+                        initial_region_count,
+                        len(parsed_data.regions),
+                    )
+            except Exception as retry_err:
+                # Preserve a valid initial OCR response if the optional retry
+                # is unavailable; strict provider failure semantics remain in
+                # effect for the original request itself.
+                logger.warning("Gemini sparse OCR retry failed for source_id=%s: %s", source_image_id, retry_err)
 
         lines: list[OCRLine] = []
         confidences: list[float] = []

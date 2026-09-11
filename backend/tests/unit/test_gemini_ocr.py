@@ -161,6 +161,31 @@ def test_gemini_ocr_engine_extraction_success(dummy_image, mock_gemini_response_
     assert config.media_resolution == types.MediaResolution.MEDIA_RESOLUTION_HIGH
 
 
+def test_gemini_ocr_engine_retries_sparse_structured_response(dummy_image):
+    """A valid but logo-only response must get one declaration-focused retry."""
+    mock_client = MagicMock()
+    sparse_response = MagicMock()
+    sparse_response.text = json.dumps(
+        {"regions": [{"text": "Colgate", "box_2d": [10, 10, 100, 100], "confidence": 0.9}]}
+    )
+    complete_response = MagicMock()
+    complete_response.text = json.dumps(
+        {
+            "regions": [
+                {"text": "Colgate", "box_2d": [10, 10, 100, 100], "confidence": 0.9},
+                {"text": "TOTAL NET WT. 240 g", "box_2d": [200, 100, 260, 500], "confidence": 0.95},
+            ]
+        }
+    )
+    mock_client.models.generate_content.side_effect = [sparse_response, complete_response]
+
+    result = GeminiOCREngine(client=mock_client).extract(dummy_image, source_image_id="img_sparse")
+
+    assert len(result.lines) == 2
+    assert "TOTAL NET WT. 240 g" in result.full_text
+    assert mock_client.models.generate_content.call_count == 2
+
+
 def test_gemini_ocr_engine_missing_key_raises(dummy_image):
     """Calling extract on unconfigured engine raises a descriptive RuntimeError."""
     engine = GeminiOCREngine(api_key="")
