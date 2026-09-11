@@ -1117,7 +1117,7 @@ FIELD_LABELS: dict[str, str] = {
 }
 
 
-def _violation_requires_officer_review(violation: ViolationRead) -> bool:
+def _violation_requires_officer_review(violation: ViolationRead | Violation) -> bool:
     """Whether a persisted violation is an indeterminate rather than failed check.
 
     The current violations table predates rule-result verdict persistence. A
@@ -1447,7 +1447,21 @@ async def get_inspection_evidence(
         category_name = (inspection.commodity_category or "Packaged Commodity").replace("_", " ").title()
         product_name = f"Inspected {category_name}"
 
-    overall = "violations_found" if failed_count > 0 else ("needs_review" if review_count > 0 else "compliant")
+    # A missing mandatory declaration has no extracted-field ID and therefore
+    # cannot be attached to an image overlay. It is still a real rule outcome
+    # and must prevent a partial OCR result from appearing compliant.
+    unbound_violations = [v for v in inspection.violations if v.extracted_field_id is None]
+    has_unbound_failure = any(
+        v.severity in ("critical", "major") and not _violation_requires_officer_review(v)
+        for v in unbound_violations
+    )
+    has_unbound_review = bool(unbound_violations) and not has_unbound_failure
+
+    overall = (
+        "violations_found"
+        if failed_count > 0 or has_unbound_failure
+        else ("needs_review" if review_count > 0 or has_unbound_review else "compliant")
+    )
 
     primary_url = ""
     if front_img:

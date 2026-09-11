@@ -150,6 +150,9 @@ async def test_get_inspection_evidence_mapping(test_evidence_db):
         assert data["inspection_id"] == str(insp_id)
         assert data["officer_name"] == "Insp. K. Singh"
         assert data["rule_pack_version"] == "2026.02.01"
+        # Mandatory declarations missing from the fixture have no field ID or
+        # overlay, but must still prevent the summary from claiming compliance.
+        assert data["overall_status"] == "violations_found"
         assert data["primary_image_dimensions"]["width"] == 1000
         assert data["primary_image_dimensions"]["height"] == 1500
 
