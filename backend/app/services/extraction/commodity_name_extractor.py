@@ -50,6 +50,12 @@ class CommodityNameExtractor(BaseFieldExtractor):
         "chance",
         "free",
         "contest",
+        "guaranteed",
+        "test",
+        "tests",
+        "nutrient",
+        "nutrients",
+        "snf",
     ]
 
     # These are package-production or storage instructions, not a generic

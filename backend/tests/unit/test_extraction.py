@@ -206,6 +206,17 @@ def test_commodity_name_extractor_ignores_promotion_price_and_prose_blocks():
     assert data["commodity_name"] == "MOTHER DAIRY Full cream"
 
 
+def test_commodity_name_extractor_rejects_guarantee_and_nutrition_claims():
+    """A label claim is not a product title merely because it contains a brand."""
+    extractor = CommodityNameExtractor()
+    lines = [
+        create_ocr_line("MOTHER DAIRY GUARANTEED AFTER 29 TESTS", 1),
+        create_ocr_line("MOTHER DAIRY SNF: 9.0% (min.) Nutrients", 2),
+    ]
+
+    assert extractor.extract(lines, "img_test_123") == []
+
+
 def test_declaration_extraction_service_orchestration():
     """Verify end-to-end multi-field extraction across a realistic label (EXT-01)."""
     service = DeclarationExtractionService()
