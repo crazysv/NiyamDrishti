@@ -117,6 +117,13 @@ class OCRService:
         3. Execute OCR engine(s)
         4. Map bounding boxes back to original capture coordinate space (OCR-03)
         """
+        if provider:
+            effective_provider = provider.lower().strip()
+        elif self._custom_local_engines and self._gemini_engine is None:
+            effective_provider = "local"
+        else:
+            effective_provider = (settings.OCR_PROVIDER or "auto").lower().strip()
+
         applied_steps: list[str] = []
         preprocessed: PreprocessedImage | None = None
 
@@ -124,19 +131,21 @@ class OCRService:
             preprocessed = image_input
             image_array = preprocessed.image
             applied_steps = preprocessed.applied_steps
+        elif effective_provider == "gemini":
+            # Gemini Vision receives the decoded source pixels directly. The
+            # local OCR preprocessing pipeline includes glare inpainting and
+            # perspective transforms which can erase white small-print text
+            # on coloured packaging and unnecessarily complicate coordinates.
+            # The browser upload is already canonicalized upright; preserving
+            # these source pixels makes Gemini boxes directly traceable.
+            image_array = self.pipeline.load_image(image_input)
+            applied_steps = ["source_image_preserved_for_gemini"]
         elif run_preprocessing:
             preprocessed = self.pipeline.process(image_input)
             image_array = preprocessed.image
             applied_steps = preprocessed.applied_steps
         else:
             image_array = self.pipeline.load_image(image_input)
-
-        if provider:
-            effective_provider = provider.lower().strip()
-        elif self._custom_local_engines and self._gemini_engine is None:
-            effective_provider = "local"
-        else:
-            effective_provider = (settings.OCR_PROVIDER or "auto").lower().strip()
 
         # Strategy 1: Explicit or deployment-selected Gemini OCR.  This mode is
         # deliberately strict: a caller that selected Gemini must never receive

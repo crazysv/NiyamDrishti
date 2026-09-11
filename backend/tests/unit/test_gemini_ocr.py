@@ -285,6 +285,28 @@ def test_ocr_service_gemini_coordinate_mapping_to_original(mock_gemini_response_
     assert line0.source_image_id == "img_mapped_gemini"
 
 
+def test_ocr_service_preserves_source_pixels_for_explicit_gemini():
+    """Cloud vision must not receive local glare-inpainted package pixels."""
+    image = np.full((1600, 2400, 3), 200, dtype=np.uint8)
+    gemini_engine = MagicMock()
+    gemini_engine.name = "gemini"
+    gemini_engine.is_available = True
+    gemini_engine.extract.return_value = OCRResult(
+        source_image_id="img_source_pixels",
+        lines=[],
+        full_text="",
+        average_confidence=0.0,
+        engine_used="gemini",
+    )
+    pipeline = PreprocessingPipeline(PipelineConfig(max_dimension=1200))
+    service = OCRService(gemini_engine=gemini_engine, preprocessing_pipeline=pipeline)
+
+    service.process_image(image, source_image_id="img_source_pixels", provider="gemini")
+
+    received_image = gemini_engine.extract.call_args.args[0]
+    assert received_image.shape == image.shape
+
+
 def test_gemini_ocr_result_feeds_declaration_extraction(dummy_image, mock_gemini_response_payload):
     """Verify DeclarationExtractionService extracts mandatory declarations directly from Gemini OCRResult."""
     mock_client = MagicMock()

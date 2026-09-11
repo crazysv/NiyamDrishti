@@ -31,6 +31,8 @@ GEMINI_OCR_SYSTEM_PROMPT = (
     "Read the complete image, including the small-print price/date/contact panel. If a declaration spans multiple "
     "printed lines, return it as one region containing all of those lines. Exclude slogans, promotional claims, and "
     "unrelated marketing copy unless they are the only visible product-name text.\n"
+    "The photographed package may be sideways or upside down. Determine the orientation in which its text is upright "
+    "before reading it, but report every box in the original uploaded image's [ymin, xmin, ymax, xmax] coordinates.\n"
     "\n"
     "For each detected text segment, return:\n"
     "1. 'text': The exact textual content visible on the package.\n"
