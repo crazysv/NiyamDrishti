@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     GEMINI_ENABLED: bool = False
     GEMINI_TIMEOUT_SECONDS: float = 15.0
     GEMINI_MAX_RETRIES: int = 2
+    GEMINI_OCR_MAX_OUTPUT_TOKENS: int = 4096
+    GEMINI_OCR_MEDIA_RESOLUTION: Literal["low", "medium", "high"] = "high"
 
     def get_gemini_api_keys(self) -> list[str]:
         """

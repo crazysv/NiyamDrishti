@@ -154,6 +154,11 @@ def test_gemini_ocr_engine_extraction_success(dummy_image, mock_gemini_response_
     assert line0.engine == "gemini"
     assert line0.bounding_box.x > 0
     assert line0.bounding_box.y > 0
+    config = mock_client.models.generate_content.call_args.kwargs["config"]
+    assert config.max_output_tokens == 4096
+    from google.genai import types
+
+    assert config.media_resolution == types.MediaResolution.MEDIA_RESOLUTION_HIGH
 
 
 def test_gemini_ocr_engine_missing_key_raises(dummy_image):

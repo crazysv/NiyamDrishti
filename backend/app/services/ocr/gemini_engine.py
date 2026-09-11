@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 GEMINI_OCR_SYSTEM_PROMPT = (
     "You are an expert OCR and packaging text recognition engine for Legal Metrology compliance inspection.\n"
-    "Carefully inspect the provided packaged commodity image. Detect and extract every visible line of text printed "
-    "on the packaging, including mandatory statutory declarations:\n"
+    "Carefully inspect the provided packaged commodity image. Prioritize and extract every visible legally relevant "
+    "declaration as its own region. Do not stop after the brand or a marketing claim. Required regions include:\n"
     "- Maximum Retail Price (MRP)\n"
     "- Net quantity / weight / volume / count / dimensions\n"
     "- Manufacturing / packaging / import dates\n"
@@ -26,12 +26,17 @@ GEMINI_OCR_SYSTEM_PROMPT = (
     "- Country of origin\n"
     "- Common or generic commodity name\n"
     "- Barcode numbers and batch codes\n"
+    "- Product name only after the declarations above\n"
+    "\n"
+    "Read the complete image, including the small-print price/date/contact panel. If a declaration spans multiple "
+    "printed lines, return it as one region containing all of those lines. Exclude slogans, promotional claims, and "
+    "unrelated marketing copy unless they are the only visible product-name text.\n"
     "\n"
     "For each detected text segment, return:\n"
     "1. 'text': The exact textual content visible on the package.\n"
     "2. 'box_2d': Bounding box as [ymin, xmin, ymax, xmax] normalized on a 0 to 1000 scale.\n"
     "3. 'confidence': Estimated legibility confidence between 0.0 and 1.0.\n"
-    "Return only the structured JSON. Do NOT evaluate legal compliance or omit any visible text."
+    "Return only the structured JSON. Do NOT evaluate legal compliance."
 )
 
 
@@ -307,15 +312,25 @@ class GeminiOCREngine(BaseOCREngine):
         from google.genai import types
 
         # Build structured generation config
+        media_resolution = {
+            "low": types.MediaResolution.MEDIA_RESOLUTION_LOW,
+            "medium": types.MediaResolution.MEDIA_RESOLUTION_MEDIUM,
+            "high": types.MediaResolution.MEDIA_RESOLUTION_HIGH,
+        }[settings.GEMINI_OCR_MEDIA_RESOLUTION]
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=GeminiOCRResponse,
             temperature=0.0,
             system_instruction=GEMINI_OCR_SYSTEM_PROMPT,
+            max_output_tokens=settings.GEMINI_OCR_MAX_OUTPUT_TOKENS,
+            media_resolution=media_resolution,
         )
 
         image_part = types.Part.from_bytes(data=jpeg_bytes, mime_type="image/jpeg")
-        prompt_text = "Extract all packaging text lines, 2D normalized bounding boxes (0-1000), and confidence scores."
+        prompt_text = (
+            "Extract the required statutory declarations first, then the product name. "
+            "Return 2D normalized bounding boxes (0-1000) and confidence for every returned region."
+        )
 
         t0 = time.perf_counter()
         keys_pool = self.api_keys
