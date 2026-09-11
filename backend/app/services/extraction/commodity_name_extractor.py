@@ -126,7 +126,16 @@ class CommodityNameExtractor(BaseFieldExtractor):
             prefix_match = self.COMMODITY_PREFIX_PATTERN.search(line.text)
             if prefix_match:
                 commodity_word = prefix_match.group(1).strip()
-                if len(commodity_word) >= 3 and commodity_word.lower() not in ["the", "all", "our"]:
+                # A declaration such as "TOTAL NET WT. 240 g" has no
+                # commodity name before the net-weight label.  Do not turn
+                # its grammatical qualifier into a product title.
+                if len(commodity_word) >= 3 and commodity_word.lower() not in [
+                    "the",
+                    "all",
+                    "our",
+                    "total",
+                    "net",
+                ]:
                     parsed_payload = {
                         "commodity_name": commodity_word.upper(),
                         "detection_method": "net_weight_prefix",

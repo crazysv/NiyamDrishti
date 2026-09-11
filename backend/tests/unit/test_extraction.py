@@ -242,6 +242,14 @@ def test_commodity_name_extractor_rejects_marketing_claim_suffix():
     assert json.loads(decls[0].parsed_value)["commodity_name"] == "Colgate Anticavity Fluoride Toothpaste"
 
 
+def test_commodity_name_extractor_does_not_use_total_net_weight_as_title():
+    """A net-quantity declaration is not a fallback commodity name."""
+    extractor = CommodityNameExtractor()
+    lines = [create_ocr_line("TOTAL NET WT. 240 g", 1)]
+
+    assert extractor.extract(lines, "img_test_123") == []
+
+
 def test_declaration_extraction_service_orchestration():
     """Verify end-to-end multi-field extraction across a realistic label (EXT-01)."""
     service = DeclarationExtractionService()
