@@ -51,6 +51,16 @@ If attaching was interrupted after the prediction file was created, reuse that f
 
 Paddle predictions are suggestions, not ground truth: review their field labels, box placement, transcription, and barcode result before submitting an annotation. The bridge deliberately omits obvious website/contact false product names and QR/non-EAN barcode detections; add a genuine omitted declaration manually.
 
+## Visual QA sweep
+
+Render a complete set of overlay contact sheets before or after a pre-label run:
+
+```powershell
+& .\backend\.venv\Scripts\python.exe .\tools\label_studio\render_prediction_overlays.py
+```
+
+The eight local contact sheets are written to `tmp/label_studio_overlay_audit/`. They are ignored by Git and let the team quickly spot an off-target or overly broad suggestion before reviewing it in Label Studio.
+
 ## Annotation rules
 
 - One tight rectangle per visible statutory declaration.
