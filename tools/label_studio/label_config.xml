@@ -1,0 +1,33 @@
+<View>
+  <Header value="NiyamDrishti statutory-declaration ground truth" />
+  <Text name="sample" value="Sample: $sample_id" />
+  <Text name="role" value="Panel: $image_role" />
+  <Image name="image" value="$image" zoom="true" rotateControl="true" />
+
+  <Header value="Draw one tight rectangle around the declaration text, then transcribe it exactly." />
+  <RectangleLabels name="field" toName="image">
+    <Label value="product_name" background="#2563EB" />
+    <Label value="net_quantity" background="#059669" />
+    <Label value="mrp" background="#DC2626" />
+    <Label value="mfg_or_pkd_date" background="#7C3AED" />
+    <Label value="manufacturer_or_packer" background="#EA580C" />
+    <Label value="consumer_care" background="#0891B2" />
+    <Label value="country_of_origin" background="#4F46E5" />
+    <Label value="barcode" background="#374151" />
+  </RectangleLabels>
+
+  <TextArea
+    name="transcription"
+    toName="image"
+    perRegion="true"
+    required="true"
+    rows="2"
+    placeholder="Exact visible declaration text. Do not correct OCR or spelling."
+  />
+
+  <Choices name="readability" toName="image" perRegion="true" choice="single" required="true">
+    <Choice value="clear" />
+    <Choice value="partly_obscured" />
+    <Choice value="unreadable" />
+  </Choices>
+</View>

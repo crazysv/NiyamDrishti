@@ -35,6 +35,10 @@ Thumbs.db
 # Test data / spike outputs (keep photos, exclude results)
 test_data/spike_01_results/
 test_data/spike_02_results/
+test_data/benchmark_raw/
+test_data/benchmark_holdout/
+test_data/label_studio/tasks_raw.json
+test_data/label_studio/state/
 
 # Private project documentation remains local and is not published to GitHub.
 docs/
