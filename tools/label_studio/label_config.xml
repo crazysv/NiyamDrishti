@@ -4,7 +4,7 @@
   <Text name="role" value="Panel: $image_role" />
   <Image name="image" value="$image" zoom="true" rotateControl="true" />
 
-  <Header value="Draw one tight rectangle around the declaration text, then transcribe it exactly." />
+  <Header value="Draw one tight rectangle around each statutory declaration. Transcription and readability are optional during box review." />
   <RectangleLabels name="field" toName="image">
     <Label value="product_name" background="#2563EB" />
     <Label value="net_quantity" background="#059669" />
@@ -20,12 +20,12 @@
     name="transcription"
     toName="image"
     perRegion="true"
-    required="true"
+    required="false"
     rows="2"
     placeholder="Exact visible declaration text. Do not correct OCR or spelling."
   />
 
-  <Choices name="readability" toName="image" perRegion="true" choice="single" required="true">
+  <Choices name="readability" toName="image" perRegion="true" choice="single" required="false">
     <Choice value="clear" />
     <Choice value="partly_obscured" />
     <Choice value="unreadable" />

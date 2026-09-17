@@ -49,7 +49,7 @@ If attaching was interrupted after the prediction file was created, reuse that f
 & .\backend\.venv\Scripts\python.exe .\tools\label_studio\prelabel_local_paddle.py --reuse-output --apply --replace
 ```
 
-Paddle predictions are suggestions, not ground truth: review their field labels, box placement, transcription, and barcode result before submitting an annotation. The bridge deliberately omits obvious website/contact false product names and QR/non-EAN barcode detections; add a genuine omitted declaration manually. It groups nearby same-field OCR lines into one field-level suggestion (for example, the complete consumer-care contact block) and adds a small boundary padding; it does not overwrite an officer annotation.
+Paddle predictions are suggestions, not ground truth: review their field labels, box placement, and barcode result before submitting an annotation. The bridge deliberately omits obvious website/contact false product names and QR/non-EAN barcode detections; add a genuine omitted declaration manually. It groups nearby same-field OCR lines into one field-level suggestion (for example, the complete consumer-care contact block) and adds a small boundary padding; it does not overwrite an officer annotation.
 
 ## Visual QA sweep
 
@@ -64,8 +64,9 @@ The eight local contact sheets are written to `tmp/label_studio_overlay_audit/`.
 ## Annotation rules
 
 - One tight rectangle per visible statutory declaration.
-- Transcribe the text exactly as shown; never "fix" spelling, OCR, or punctuation.
+- The first review pass is **box-first**: transcriptions and readability are optional, so a reviewer can submit after verifying the field label and rectangle. The imported Paddle prediction retains its provisional OCR text separately.
+- If you add a transcription, copy the text exactly as shown; never "fix" spelling, OCR, or punctuation.
 - Do not annotate logos, marketing slogans, nutrition tables, or generic paragraphs unless they contain one of the listed statutory fields.
-- For a declaration split across nearby lines, draw one rectangle that covers only that declaration and enter the full joined transcription.
-- Mark a field `partly_obscured` or `unreadable` rather than guessing.
-- `barcode` needs a box but no semantic transcription. Enter the printed barcode number when it is visible; otherwise enter `unreadable`.
+- For a declaration split across nearby lines, draw one rectangle that covers only that declaration. Add the full joined transcription only when it is quick to verify.
+- When useful, mark a field `partly_obscured` or `unreadable` rather than guessing.
+- `barcode` needs a box; its printed number is optional in this first pass.
