@@ -19,6 +19,7 @@ This workspace creates reviewed ground truth for statutory package declarations.
 3. Open `http://localhost:8080`, create a local account, then create a project named **NiyamDrishti — Indian Package Declarations**.
 4. In **Labeling Setup**, choose **Custom Template** and paste `label_config.xml`.
 5. In **Data Import**, upload `test_data/label_studio/tasks_raw.json`.
+6. In **Settings → Cloud Storage**, add a **Source Storage → Local Files** entry with path `/label-studio/files/benchmark_raw`. This is a required read-only permission record for Label Studio's local-image route; do **not** sync it, because the task manifest has already created the 92 tasks.
 
 The images are served read-only from `test_data/benchmark_raw`; Label Studio annotation state is stored locally at `test_data/label_studio/state` and is deliberately ignored by Git. The launcher sets Label Studio's `LOCAL_FILES_SERVING_ENABLED` and `LOCAL_FILES_DOCUMENT_ROOT` settings so the imported local-file URLs resolve inside Docker.
 
