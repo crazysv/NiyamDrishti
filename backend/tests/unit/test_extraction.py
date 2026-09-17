@@ -123,6 +123,16 @@ def test_net_quantity_extractor_standardization():
         assert data["unit"] == expected_unit
 
 
+def test_net_quantity_extractor_accepts_noisy_multipack_punctuation():
+    """An OCR punctuation variant remains a generic multi-pack declaration."""
+    extractor = NetQuantityExtractor()
+
+    multipack = extractor.extract([create_ocr_line("3x125g)=375g", 1)], "img_test_123")
+
+    assert json.loads(multipack[0].parsed_value)["value"] == 375.0
+    assert json.loads(multipack[0].parsed_value)["is_multipack"] is True
+
+
 def test_manufacturer_address_extractor_with_pincode():
     """Verify manufacturer address extraction with 6-digit Indian PIN code (EXT-04)."""
     extractor = ManufacturerAddressExtractor()
@@ -201,6 +211,16 @@ def test_country_of_origin_extractor():
     assert len(decls) == 1
     data = json.loads(decls[0].parsed_value)
     assert data["country"] == "INDIA"
+
+
+def test_country_of_origin_extractor_accepts_merged_made_in_phrase():
+    """OCR commonly drops the space in a printed 'Made in India' declaration."""
+    extractor = CountryOfOriginExtractor()
+
+    declarations = extractor.extract([create_ocr_line("MADEININDIA", 1)], "img_test_123")
+
+    assert len(declarations) == 1
+    assert json.loads(declarations[0].parsed_value)["country"] == "INDIA"
 
 
 def test_commodity_name_extractor():

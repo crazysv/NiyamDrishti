@@ -61,6 +61,25 @@ Render a complete set of overlay contact sheets before or after a pre-label run:
 
 The eight local contact sheets are written to `tmp/label_studio_overlay_audit/`. They are ignored by Git and let the team quickly spot an off-target or overly broad suggestion before reviewing it in Label Studio.
 
+## Freeze and evaluate a completed review
+
+When all benchmark tasks are submitted, freeze the private Label Studio export before changing OCR code. This command requires a local Label Studio token only for the request; it writes no token to disk. The export and reports stay ignored by Git.
+
+```powershell
+$env:LABEL_STUDIO_API_TOKEN = '<local Label Studio token>'
+& .\backend\.venv\Scripts\python.exe .\tools\label_studio\freeze_ground_truth.py
+& .\backend\.venv\Scripts\python.exe .\tools\label_studio\evaluate_field_boxes.py
+Remove-Item Env:LABEL_STUDIO_API_TOKEN
+```
+
+The evaluator first rejects malformed/out-of-image boxes and reports suspicious near-duplicate boxes. It then compares the saved local Paddle predictions with the reviewed boxes using label-aware IoU matching (default threshold: 0.50). Its outputs are development diagnostics only: because the 40 raw products informed the review process, the resulting numbers are not independent holdout accuracy and do not measure transcription accuracy for optional box-first annotations.
+
+When score results are weak, use the local OCR-coverage audit before changing an extractor. It tells us whether Paddle saw any text line inside each reviewed field box, separating OCR/image limitations from extractor/grouping limitations:
+
+```powershell
+& .\backend\.venv\Scripts\python.exe .\tools\label_studio\audit_paddle_ocr_coverage.py
+```
+
 ## Annotation rules
 
 - One tight rectangle per visible statutory declaration.

@@ -40,6 +40,8 @@ test_data/benchmark_holdout/
 test_data/label_studio/tasks_raw.json
 test_data/label_studio/local_paddle_predictions.json
 test_data/label_studio/state/
+test_data/label_studio/exports/
+test_data/label_studio/reports/
 
 # Private project documentation remains local and is not published to GitHub.
 docs/

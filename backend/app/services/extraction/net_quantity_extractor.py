@@ -24,6 +24,7 @@ class NetQuantityExtractor(BaseFieldExtractor):
         re.IGNORECASE,
     )
 
+
     UNIT_NORMALIZATION = {
         "kg": "kg",
         "kilogram": "kg",
@@ -66,7 +67,7 @@ class NetQuantityExtractor(BaseFieldExtractor):
 
     # Multi-pack quantity formula e.g. "4Nx100g=400g" or "4 N x 100 g = 400 g"
     MULTIPACK_PATTERN = re.compile(
-        r"(?i)\b([0-9]+)\s*(?:N|U|PCS|PIECES|UNITS)?\s*[xX*]\s*([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z]+)\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z]+)\b"
+        r"(?i)\b([0-9]+)\s*(?:N|U|PCS|PIECES|UNITS)?\s*[xX*]\s*([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z]+)\s*(?:=|\)\s*=?)\s*([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z]+)\b"
     )
 
     NUTRITION_EXCLUSION = [

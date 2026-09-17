@@ -77,6 +77,11 @@ DATE_LINE_PATTERN = re.compile(
     r"\b(?:0?[1-9]|1[0-2])\s*[/.-]\s*(?:20)?\d{2}\b",
     re.IGNORECASE,
 )
+ADDRESS_CONTINUATION_PATTERN = re.compile(
+    r"(?:\b(?:pvt|private|ltd|limited|llp|road|rd|street|st|lane|nagar|industrial|estate|complex|"
+    r"district|state|pin(?:code)?|office|plot|block)\b|\b[1-9]\d{5}\b|[,;])",
+    re.IGNORECASE,
+)
 WORD_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 # The source extractors intentionally return a conservative anchor line.  For
@@ -192,7 +197,7 @@ def field_line_matches(label: str, text: str) -> bool:
     if label == "consumer_care":
         return bool(CONTACT_LINE_PATTERN.search(text))
     if label == "manufacturer_or_packer":
-        return bool(MANUFACTURER_LINE_PATTERN.search(text))
+        return bool(MANUFACTURER_LINE_PATTERN.search(text) or ADDRESS_CONTINUATION_PATTERN.search(text))
     if label == "country_of_origin":
         return bool(COUNTRY_LINE_PATTERN.search(text))
     if label == "mrp":
@@ -491,7 +496,7 @@ def create_predictions(
 ) -> list[dict[str, Any]]:
     tasks = json.loads(tasks_path.read_text(encoding="utf-8-sig"))
     if not isinstance(tasks, list):
-        raise ValueError("Task manifest must be a JSON array")
+        raise TypeError("Task manifest must be a JSON array")
 
     ocr_engine = PaddleOCREngine()
     extraction_service = DeclarationExtractionService()

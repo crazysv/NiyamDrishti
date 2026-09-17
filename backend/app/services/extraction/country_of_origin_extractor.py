@@ -14,7 +14,7 @@ class CountryOfOriginExtractor(BaseFieldExtractor):
     """
 
     ORIGIN_PATTERN = re.compile(
-        r"(?i)\b(?:COUNTRY\s+OF\s+ORIGIN|MADE\s+IN|PRODUCT\s+OF|ORIGIN)[\s:.-]*([A-Za-z\s]{3,30})\b",
+        r"(?i)\b(?:COUNTRY\s*OF\s*ORIGIN|MADE\s*IN|PRODUCT\s*OF|ORIGIN)[\s:.-]*([A-Za-z\s]{3,30})\b",
         re.IGNORECASE,
     )
 
@@ -36,7 +36,7 @@ class CountryOfOriginExtractor(BaseFieldExtractor):
 
             if match:
                 country_name = match.group(1).strip()
-            elif any(k in text.lower() for k in ["origin", "made in", "product of"]):
+            elif any(k in text.lower().replace(" ", "") for k in ["origin", "madein", "productof"]):
                 std_match = self.STANDALONE_COUNTRY_PATTERN.search(text)
                 if std_match:
                     country_name = std_match.group(1).strip()
