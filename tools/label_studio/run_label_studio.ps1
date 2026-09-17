@@ -16,6 +16,6 @@ docker run --rm -it `
     -p "${Port}:8080" `
     -v "${stateRoot}:/label-studio/data" `
     -v "${testDataRoot}:/label-studio/files" `
-    --env LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true `
-    --env LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/files `
+    --env LOCAL_FILES_SERVING_ENABLED=true `
+    --env LOCAL_FILES_DOCUMENT_ROOT=/label-studio/files `
     heartexlabs/label-studio:latest
