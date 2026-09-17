@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -45,6 +46,11 @@ FIELD_LABELS = {
     "country_of_origin": "country_of_origin",
 }
 MODEL_VERSION = "local-paddleocr-2.9.1"
+PRODUCT_NAME_REJECT_PATTERN = re.compile(
+    r"(?:@|\bwww\.|https?://|\b(?:call|toll\s*free|e-?mail|website|manufactured|marketed|address|batch|barcode)\b)",
+    re.IGNORECASE,
+)
+EAN_UPC_PATTERN = re.compile(r"^\d{8,14}$")
 
 
 def clip_box(box: dict[str, float], width: int, height: int) -> dict[str, float] | None:
@@ -133,6 +139,55 @@ def region_result(
     return [rectangle, transcription, readability_result]
 
 
+def remove_unreliable_suggestions(result: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Suppress obvious false field suggestions before human review.
+
+    This is deliberately conservative benchmark pre-label hygiene, not a legal
+    rule. A missing suggestion is preferable to presenting an annotator with a
+    confident-but-wrong product-name or QR-code-as-barcode box. The annotator
+    can still add a genuine field wherever it is visibly printed.
+    """
+    transcriptions = {
+        str(item.get("parentID")): " ".join(item.get("value", {}).get("text", []))
+        for item in result
+        if item.get("type") == "textarea"
+    }
+    rejected_ids = {
+        str(item.get("id"))
+        for item in result
+        if item.get("type") == "rectanglelabels"
+        and (
+            (
+                item.get("value", {}).get("rectanglelabels") == ["product_name"]
+                and PRODUCT_NAME_REJECT_PATTERN.search(transcriptions.get(str(item.get("id")), ""))
+            )
+            or (
+                item.get("value", {}).get("rectanglelabels") == ["barcode"]
+                and not EAN_UPC_PATTERN.fullmatch(transcriptions.get(str(item.get("id")), "").strip())
+            )
+        )
+    }
+    if not rejected_ids:
+        return result
+    return [
+        item
+        for item in result
+        if str(item.get("id")) not in rejected_ids and str(item.get("parentID")) not in rejected_ids
+    ]
+
+
+def normalize_prediction_suggestions(predictions: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+    """Apply deterministic suggestion-only hygiene to generated or saved output."""
+    removed = 0
+    for item in predictions:
+        result = item["prediction"].get("result", [])
+        cleaned = remove_unreliable_suggestions(result)
+        removed += (len(result) - len(cleaned)) // 3
+        item["prediction"]["result"] = cleaned
+        item["prediction"].setdefault("meta", {})["statutory_prediction_count"] = len(cleaned) // 3
+    return predictions, removed
+
+
 def build_prediction(
     image_path: Path,
     source_image_id: str,
@@ -187,6 +242,7 @@ def build_prediction(
             )
         )
 
+    result = remove_unreliable_suggestions(result)
     return {
         "model_version": MODEL_VERSION,
         "score": ocr_result.average_confidence,
@@ -338,6 +394,10 @@ def main() -> None:
         predictions = json.loads(args.output.read_text(encoding="utf-8"))
         if not isinstance(predictions, list):
             raise SystemExit("Prediction file must contain a JSON array")
+        predictions, removed = normalize_prediction_suggestions(predictions)
+        if removed:
+            args.output.write_text(json.dumps(predictions, indent=2), encoding="utf-8")
+            print(f"Removed {removed} obviously misclassified field suggestions.")
         print(f"Reusing {len(predictions)} local PaddleOCR predictions: {args.output}")
     else:
         predictions = create_predictions(args.tasks, args.raw_root, args.output, args.limit, args.max_ocr_edge)
