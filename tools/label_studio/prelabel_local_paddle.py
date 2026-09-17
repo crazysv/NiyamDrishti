@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -18,7 +19,6 @@ from typing import Any
 
 import cv2
 import requests
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_ROOT = REPOSITORY_ROOT / "backend"
@@ -35,7 +35,6 @@ from app.services.calibration.detector import BarcodeCalibrationDetector
 from app.services.extraction.service import DeclarationExtractionService
 from app.services.ocr.paddle_engine import PaddleOCREngine
 
-
 FIELD_LABELS = {
     "commodity_name": "product_name",
     "net_quantity": "net_quantity",
@@ -47,10 +46,47 @@ FIELD_LABELS = {
 }
 MODEL_VERSION = "local-paddleocr-2.9.1"
 PRODUCT_NAME_REJECT_PATTERN = re.compile(
-    r"(?:@|\bwww\.|https?://|\b(?:call|toll\s*free|e-?mail|website|manufactured|marketed|address|batch|barcode)\b)",
+    r"(?:@|\b(?:www\.)?[a-z0-9-]+\.(?:com|in|org)\b|https?://|"
+    r"\b(?:call|toll\s*free|e-?mail|website|manufactured|marketed|address|batch|barcode)\b)",
     re.IGNORECASE,
 )
 EAN_UPC_PATTERN = re.compile(r"^\d{8,14}$")
+CONTACT_LINE_PATTERN = re.compile(
+    r"(?:\b(?:consumer|customer|dabur)\b.*\b(?:care|call|write|service|helpline|toll)\b|"
+    r"\b(?:e-?mail|website|web\s*site|tel(?:ephone)?|phone|contact)\b|"
+    r"@|\b(?:www\.)?[a-z0-9-]+\.(?:com|in|org)\b|\b(?:toll\s*free|1800)\b)",
+    re.IGNORECASE,
+)
+MANUFACTURER_LINE_PATTERN = re.compile(
+    r"\b(?:manufactured|packed|marketed|imported|distributed|manufacture|packer|importer|"
+    r"regd\.?\s*off|address|lic(?:ence)?|mfg\.?\s*lic|factory)\b",
+    re.IGNORECASE,
+)
+COUNTRY_LINE_PATTERN = re.compile(
+    r"\b(?:country\s+of\s+origin|made\s+in|product\s+of|imported\s+from)\b",
+    re.IGNORECASE,
+)
+MRP_LINE_PATTERN = re.compile(r"\b(?:m\.?r\.?p\.?|maximum\s+retail|inclusive|incl\.?|all\s+taxes)\b|₹|\brs\.?", re.IGNORECASE)
+NET_QUANTITY_LINE_PATTERN = re.compile(
+    r"\b(?:net\s*(?:wt|weight|qty|quantity|vol|volume|content)?|quantity|weight|volume)\b|"
+    r"\b\d+(?:\.\d+)?\s*(?:kg|g|gm|ml|l|ltr|pcs|pieces|units?|n)\b",
+    re.IGNORECASE,
+)
+DATE_LINE_PATTERN = re.compile(
+    r"\b(?:mfg|mfd|pkd|packed\s+on|manufactured\s+on|date\s+of\s+(?:manufacture|packing))\b|"
+    r"\b(?:0?[1-9]|1[0-2])\s*[/.-]\s*(?:20)?\d{2}\b",
+    re.IGNORECASE,
+)
+WORD_PATTERN = re.compile(r"[a-z0-9]+", re.IGNORECASE)
+
+# The source extractors intentionally return a conservative anchor line.  For
+# the benchmark, annotators need a field-level rectangle instead: e.g. the
+# whole consumer-care block, not just the OCR line containing the e-mail.
+# These limits keep a nearby but unrelated package feature from being pulled
+# into the declaration.
+FIELD_GROUP_MAX_GAP_PX = 95.0
+FIELD_GROUP_MAX_DIAGONAL_PX = 135.0
+FIELD_BOX_PADDING_PX = 5.0
 
 
 def clip_box(box: dict[str, float], width: int, height: int) -> dict[str, float] | None:
@@ -79,6 +115,189 @@ def map_box_to_source(box: dict[str, float], scale: float) -> dict[str, float]:
     if scale == 1.0:
         return dict(box)
     return {key: float(value) / scale for key, value in box.items()}
+
+
+def line_box(line: Any) -> dict[str, float]:
+    """Return an OCR line's source-pixel axis-aligned box."""
+    return {
+        "x": float(line.bounding_box.x),
+        "y": float(line.bounding_box.y),
+        "w": float(line.bounding_box.w),
+        "h": float(line.bounding_box.h),
+    }
+
+
+def union_boxes(boxes: list[dict[str, float]]) -> dict[str, float]:
+    if not boxes:
+        raise ValueError("Cannot union an empty box list")
+    left = min(box["x"] for box in boxes)
+    top = min(box["y"] for box in boxes)
+    right = max(box["x"] + box["w"] for box in boxes)
+    bottom = max(box["y"] + box["h"] for box in boxes)
+    return {"x": left, "y": top, "w": right - left, "h": bottom - top}
+
+
+def padded_box(box: dict[str, float], padding: float = FIELD_BOX_PADDING_PX) -> dict[str, float]:
+    return {
+        "x": box["x"] - padding,
+        "y": box["y"] - padding,
+        "w": box["w"] + 2 * padding,
+        "h": box["h"] + 2 * padding,
+    }
+
+
+def box_gap(first: dict[str, float], second: dict[str, float]) -> tuple[float, float, float]:
+    """Return horizontal, vertical and Euclidean gaps between two boxes."""
+    horizontal = max(first["x"] - (second["x"] + second["w"]), second["x"] - (first["x"] + first["w"]), 0.0)
+    vertical = max(first["y"] - (second["y"] + second["h"]), second["y"] - (first["y"] + first["h"]), 0.0)
+    return horizontal, vertical, math.hypot(horizontal, vertical)
+
+
+def normalized_words(text: str) -> set[str]:
+    return set(WORD_PATTERN.findall(text.lower()))
+
+
+def raw_text_match(line_text: str, declaration_text: str) -> bool:
+    """Match an OCR line that contributed to an extractor's raw declaration."""
+    line_words = normalized_words(line_text)
+    declaration_words = normalized_words(declaration_text)
+    if not line_words or not declaration_words:
+        return False
+    # A short line such as "MRP" alone is too vague; meaningful overlap is
+    # still useful for multi-line declarations and avoids relying on OCR order.
+    overlap = line_words & declaration_words
+    return len(overlap) >= min(2, len(line_words)) or (len(line_words) == 1 and len(line_text.strip()) >= 5 and line_words <= declaration_words)
+
+
+def has_same_text_orientation(anchor: dict[str, float], candidate: dict[str, float]) -> bool:
+    """Reject a perpendicular nearby label, such as vertical side branding."""
+    anchor_is_horizontal = anchor["w"] >= anchor["h"]
+    candidate_is_horizontal = candidate["w"] >= candidate["h"]
+    return anchor_is_horizontal == candidate_is_horizontal
+
+
+def is_valid_ean_upc(value: str) -> bool:
+    """Accept only checksum-valid EAN-8/EAN-13/UPC-A/GTIN-14 digit strings."""
+    digits = re.sub(r"[\s-]", "", value)
+    if not EAN_UPC_PATTERN.fullmatch(digits) or len(digits) not in {8, 12, 13, 14}:
+        return False
+    total = 0
+    for index, digit in enumerate(reversed(digits[:-1])):
+        total += int(digit) * (3 if index % 2 == 0 else 1)
+    return (10 - total % 10) % 10 == int(digits[-1])
+
+
+def field_line_matches(label: str, text: str) -> bool:
+    """Identify lines that belong to a statutory declaration block."""
+    if label == "consumer_care":
+        return bool(CONTACT_LINE_PATTERN.search(text))
+    if label == "manufacturer_or_packer":
+        return bool(MANUFACTURER_LINE_PATTERN.search(text))
+    if label == "country_of_origin":
+        return bool(COUNTRY_LINE_PATTERN.search(text))
+    if label == "mrp":
+        return bool(MRP_LINE_PATTERN.search(text))
+    if label == "net_quantity":
+        return bool(NET_QUANTITY_LINE_PATTERN.search(text))
+    if label == "mfg_or_pkd_date":
+        return bool(DATE_LINE_PATTERN.search(text))
+    return False
+
+
+def connected_field_lines(
+    *, label: str, declaration_text: str, anchor_box: dict[str, float], lines: list[Any]
+) -> list[Any]:
+    """Collect the nearby OCR lines that make up one visible declaration.
+
+    We grow only through field-specific candidate lines.  This is deliberately
+    stricter than generic proximity grouping: a website elsewhere on a pack
+    must not become part of the consumer-care rectangle.
+    """
+    candidates = [
+        line
+        for line in lines
+        if (field_line_matches(label, line.text) or raw_text_match(line.text, declaration_text))
+        and has_same_text_orientation(anchor_box, line_box(line))
+    ]
+    if not candidates:
+        return []
+
+    selected: list[Any] = []
+    active_box = dict(anchor_box)
+    remaining = list(candidates)
+    while remaining:
+        closest_index = -1
+        closest_distance = float("inf")
+        for index, line in enumerate(remaining):
+            horizontal, vertical, diagonal = box_gap(active_box, line_box(line))
+            if (
+                horizontal <= FIELD_GROUP_MAX_GAP_PX
+                and vertical <= FIELD_GROUP_MAX_GAP_PX
+                and diagonal <= FIELD_GROUP_MAX_DIAGONAL_PX
+                and diagonal < closest_distance
+            ):
+                closest_index = index
+                closest_distance = diagonal
+        if closest_index < 0:
+            break
+        selected_line = remaining.pop(closest_index)
+        selected.append(selected_line)
+        active_box = union_boxes([active_box, line_box(selected_line)])
+    return selected
+
+
+def declaration_evidence(
+    *, label: str, declaration: Any, lines: list[Any]
+) -> tuple[dict[str, float], str, float]:
+    """Return a padded full-declaration box and its exact OCR transcription."""
+    anchor_box = {key: float(declaration.bounding_box[key]) for key in ("x", "y", "w", "h")}
+    grouped_lines = connected_field_lines(
+        label=label,
+        declaration_text=declaration.raw_text,
+        anchor_box=anchor_box,
+        lines=lines,
+    )
+    if not grouped_lines:
+        return padded_box(anchor_box), declaration.raw_text, declaration.confidence
+
+    grouped_boxes = [anchor_box, *(line_box(line) for line in grouped_lines)]
+    # Preserve OCR reading order whenever available; dedupe lines as an
+    # extractor's anchor text may also be a selected group line.
+    seen: set[str] = set()
+    transcript_lines: list[str] = []
+    for line in grouped_lines:
+        text = line.text.strip()
+        key = " ".join(text.split()).lower()
+        if text and key not in seen:
+            seen.add(key)
+            transcript_lines.append(text)
+    if not transcript_lines:
+        transcript_lines = [declaration.raw_text]
+    confidence = sum(float(line.confidence) for line in grouped_lines) / len(grouped_lines)
+    return padded_box(union_boxes(grouped_boxes)), "\n".join(transcript_lines), round(confidence, 4)
+
+
+def barcode_evidence(
+    *, barcode_box: dict[str, float], barcode_data: str | None, lines: list[Any]
+) -> tuple[dict[str, float], str]:
+    """Include a printed EAN/UPC digit line when it sits beside the barcode bars."""
+    barcode_digits = (barcode_data or "").strip()
+    candidates = [
+        line
+        for line in lines
+        if is_valid_ean_upc(line.text)
+    ]
+    nearest: Any | None = None
+    nearest_distance = float("inf")
+    for line in candidates:
+        _, _, distance = box_gap(barcode_box, line_box(line))
+        if distance <= FIELD_GROUP_MAX_DIAGONAL_PX and distance < nearest_distance:
+            nearest = line
+            nearest_distance = distance
+    if nearest is None:
+        return padded_box(barcode_box), barcode_digits or "unreadable"
+    digit_text = re.sub(r"[\s-]", "", nearest.text)
+    return padded_box(union_boxes([barcode_box, line_box(nearest)])), digit_text or barcode_digits or "unreadable"
 
 
 def region_result(
@@ -163,7 +382,7 @@ def remove_unreliable_suggestions(result: list[dict[str, Any]]) -> list[dict[str
             )
             or (
                 item.get("value", {}).get("rectanglelabels") == ["barcode"]
-                and not EAN_UPC_PATTERN.fullmatch(transcriptions.get(str(item.get("id")), "").strip())
+                and not is_valid_ean_upc(transcriptions.get(str(item.get("id")), "").strip())
             )
         )
     }
@@ -217,12 +436,17 @@ def build_prediction(
         label = FIELD_LABELS.get(declaration.field_type)
         if label is None:
             continue
+        evidence_box, evidence_text, evidence_confidence = declaration_evidence(
+            label=label,
+            declaration=declaration,
+            lines=ocr_result.lines,
+        )
         result.extend(
             region_result(
                 label=label,
-                text=declaration.raw_text,
-                confidence=declaration.confidence,
-                box=declaration.bounding_box,
+                text=evidence_text,
+                confidence=evidence_confidence,
+                box=evidence_box,
                 width=width,
                 height=height,
             )
@@ -231,12 +455,17 @@ def build_prediction(
     calibration = barcode_detector.calibrate(working_image)
     if calibration.is_calibrated and calibration.barcode_bbox:
         barcode_box = map_box_to_source(calibration.barcode_bbox, scale)
+        evidence_box, barcode_text = barcode_evidence(
+            barcode_box=barcode_box,
+            barcode_data=calibration.barcode_data,
+            lines=ocr_result.lines,
+        )
         result.extend(
             region_result(
                 label="barcode",
-                text=calibration.barcode_data or "unreadable",
+                text=barcode_text,
                 confidence=0.95,
-                box=barcode_box,
+                box=evidence_box,
                 width=width,
                 height=height,
             )

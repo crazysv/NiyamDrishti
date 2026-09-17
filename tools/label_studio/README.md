@@ -49,7 +49,7 @@ If attaching was interrupted after the prediction file was created, reuse that f
 & .\backend\.venv\Scripts\python.exe .\tools\label_studio\prelabel_local_paddle.py --reuse-output --apply --replace
 ```
 
-Paddle predictions are suggestions, not ground truth: review their field labels, box placement, transcription, and barcode result before submitting an annotation. The bridge deliberately omits obvious website/contact false product names and QR/non-EAN barcode detections; add a genuine omitted declaration manually.
+Paddle predictions are suggestions, not ground truth: review their field labels, box placement, transcription, and barcode result before submitting an annotation. The bridge deliberately omits obvious website/contact false product names and QR/non-EAN barcode detections; add a genuine omitted declaration manually. It groups nearby same-field OCR lines into one field-level suggestion (for example, the complete consumer-care contact block) and adds a small boundary padding; it does not overwrite an officer annotation.
 
 ## Visual QA sweep
 
