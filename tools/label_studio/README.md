@@ -23,6 +23,33 @@ This workspace creates reviewed ground truth for statutory package declarations.
 
 The images are served read-only from `test_data/benchmark_raw`; Label Studio annotation state is stored locally at `test_data/label_studio/state` and is deliberately ignored by Git. The launcher sets Label Studio's `LOCAL_FILES_SERVING_ENABLED` and `LOCAL_FILES_DOCUMENT_ROOT` settings so the imported local-file URLs resolve inside Docker.
 
+## Local PaddleOCR pre-labels
+
+Use the project’s existing local PaddleOCR and declaration extractors to create **review-only predictions** before manual labeling. This uses no Gemini key or quota.
+
+```powershell
+# Smoke-test one image first.
+& .\backend\.venv\Scripts\python.exe .\tools\label_studio\prelabel_local_paddle.py --limit 1
+
+# Create all predictions locally (does not change Label Studio yet).
+& .\backend\.venv\Scripts\python.exe .\tools\label_studio\prelabel_local_paddle.py
+```
+
+To attach the generated predictions to the existing tasks, create a Label Studio personal access token in the local account settings, set it only in the current PowerShell session, then run the `--apply` command. `--replace` removes only prior predictions made by this same local-Paddle tool; it never deletes officer annotations.
+
+```powershell
+$env:LABEL_STUDIO_API_TOKEN = '<local Label Studio token>'
+& .\backend\.venv\Scripts\python.exe .\tools\label_studio\prelabel_local_paddle.py --apply --replace
+```
+
+If attaching was interrupted after the prediction file was created, reuse that file rather than running OCR again:
+
+```powershell
+& .\backend\.venv\Scripts\python.exe .\tools\label_studio\prelabel_local_paddle.py --reuse-output --apply --replace
+```
+
+Paddle predictions are suggestions, not ground truth: review their field labels, box placement, transcription, and barcode result before submitting an annotation.
+
 ## Annotation rules
 
 - One tight rectangle per visible statutory declaration.
