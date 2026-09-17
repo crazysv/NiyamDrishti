@@ -103,6 +103,33 @@ def test_mrp_extractor_does_not_treat_coding_license_as_unit_sale_price():
     assert "unit_sale_price" not in data
 
 
+def test_mrp_extractor_associates_a_nearby_bare_value_with_the_mrp_header():
+    """A separated printed MRP value is valid only next to its explicit header."""
+    extractor = MRPExtractor()
+    lines = [
+        create_ocr_line("MRP (incl. of all taxes)", 1),
+        create_ocr_line("108", 2),
+        create_ocr_line("Batch 202608", 20),
+    ]
+
+    declarations = extractor.extract(lines, "img_test_123")
+
+    assert len(declarations) == 1
+    assert json.loads(declarations[0].parsed_value)["amount"] == 108.0
+    assert declarations[0].bounding_box["h"] >= 55.0
+
+
+def test_mrp_extractor_rejects_a_distant_bare_value():
+    """An MRP header cannot borrow a distant batch-like number as its price."""
+    extractor = MRPExtractor()
+    lines = [
+        create_ocr_line("MRP (incl. of all taxes)", 1),
+        create_ocr_line("108", 20),
+    ]
+
+    assert extractor.extract(lines, "img_test_123") == []
+
+
 def test_net_quantity_extractor_standardization():
     """Verify net quantity extraction and metric unit standardization (EXT-03)."""
     extractor = NetQuantityExtractor()
@@ -153,6 +180,14 @@ def test_manufacturer_address_extractor_with_pincode():
     assert data["pincode"] == "122015"
     assert data["has_valid_pincode"] is True
     assert "Niyam Agro Foods" in data["name_and_address"]
+    assert decl.bounding_box["h"] >= 85.0
+
+
+def test_manufacturer_address_extractor_does_not_misclassify_a_mfg_date_header():
+    """MFG/PKD date labels are not manufacturer declarations without 'by'/'at'."""
+    extractor = ManufacturerAddressExtractor()
+
+    assert extractor.extract([create_ocr_line("MFG DATE: 08/2026", 1)], "img_test_123") == []
 
 
 def test_mfg_date_extractor():

@@ -32,6 +32,7 @@ class MRPExtractor(BaseFieldExtractor):
         r"(?i)(?:\bRS\.?\s*|₹\s*|\bINR\s*|\bPRICE\s*[:.]?\s*)([0-9]{1,5}(?:\.[0-9]{1,2})?)"
     )
     BARE_DECIMAL_PATTERN = re.compile(r"^\s*([0-9]{1,5}\.[0-9]{2})\s*$")
+    BARE_PRICE_PATTERN = re.compile(r"^\s*([1-9][0-9]{0,4}(?:\.[0-9]{1,2})?)\s*(?:/-)?\s*$")
 
     USP_PATTERN = re.compile(
         r"(?:RS\.?|₹|INR)?\s*([0-9]+(?:\.[0-9]+)?)\s*[\/]\s*(g|kg|ml|l)\b",
@@ -42,6 +43,29 @@ class MRPExtractor(BaseFieldExtractor):
     @property
     def field_type(self) -> str:
         return "mrp"
+
+    @staticmethod
+    def _is_near_header(header: OCRLine, candidate: OCRLine) -> bool:
+        """Whether an unmarked numeric value can safely borrow an MRP header."""
+        if header.source_image_id and candidate.source_image_id and header.source_image_id != candidate.source_image_id:
+            return False
+        first, second = header.bounding_box, candidate.bounding_box
+        horizontal_gap = max(first.x - (second.x + second.w), second.x - (first.x + first.w), 0.0)
+        vertical_gap = max(first.y - (second.y + second.h), second.y - (first.y + first.h), 0.0)
+        # Only accept a bare number when it shares the same small printed
+        # declaration/table cell as an explicit MRP header. This avoids using
+        # batch codes, pincodes, or quantities elsewhere on the panel as price.
+        # OCR engines can emit distant visual regions consecutively, so reading
+        # order is intentionally not sufficient to establish an association.
+        return horizontal_gap <= 240 and vertical_gap <= 180
+
+    @staticmethod
+    def _union_box(first: OCRLine, second: OCRLine) -> dict[str, float]:
+        left = min(first.bounding_box.x, second.bounding_box.x)
+        top = min(first.bounding_box.y, second.bounding_box.y)
+        right = max(first.bounding_box.x + first.bounding_box.w, second.bounding_box.x + second.bounding_box.w)
+        bottom = max(first.bounding_box.y + first.bounding_box.h, second.bounding_box.y + second.bounding_box.h)
+        return {"x": left, "y": top, "w": right - left, "h": bottom - top}
 
     def extract(self, lines: list[OCRLine], source_image_id: str) -> list[ExtractedDeclaration]:
         declarations: list[ExtractedDeclaration] = []
@@ -163,8 +187,20 @@ class MRPExtractor(BaseFieldExtractor):
                             except ValueError:
                                 continue
                         bare = self.BARE_DECIMAL_PATTERN.match(c_text)
-                        if bare and fallback_decimal is None:
+                        if bare and fallback_decimal is None and self._is_near_header(line, cand_line):
                             fallback_decimal = (float(bare.group(1)), cand_line, c_text.strip())
+                        bare_price = self.BARE_PRICE_PATTERN.match(c_text)
+                        if (
+                            price_val is None
+                            and bare_price
+                            and self._is_near_header(line, cand_line)
+                        ):
+                            candidate_value = float(bare_price.group(1))
+                            if 5 <= candidate_value <= 50000:
+                                price_val = candidate_value
+                                price_line = cand_line
+                                combined_raw = f"{line.text} {c_text.strip()}"
+                                break
                     if price_val is not None:
                         break
 
@@ -216,18 +252,24 @@ class MRPExtractor(BaseFieldExtractor):
                     if usp_info:
                         parsed_payload.update(usp_info)
 
+                    evidence_box = (
+                        self._union_box(line, price_line)
+                        if price_line is not None and value_source_image_id == (line.source_image_id or source_image_id)
+                        else {
+                            "x": price_line.bounding_box.x if price_line is not None else line.bounding_box.x,
+                            "y": price_line.bounding_box.y if price_line is not None else line.bounding_box.y,
+                            "w": price_line.bounding_box.w if price_line is not None else line.bounding_box.w,
+                            "h": price_line.bounding_box.h if price_line is not None else line.bounding_box.h,
+                        }
+                    )
+
                     declarations.append(
                         ExtractedDeclaration(
                             field_type=self.field_type,
                             raw_text=combined_raw,
                             parsed_value=json.dumps(parsed_payload),
                             confidence=round(line.confidence, 4),
-                            bounding_box={
-                                "x": line.bounding_box.x,
-                                "y": line.bounding_box.y,
-                                "w": line.bounding_box.w,
-                                "h": line.bounding_box.h,
-                            },
+                            bounding_box=evidence_box,
                             source_image_id=value_source_image_id,
                             verdict="pass" if has_taxes else "needs_review",
                             metadata=parsed_payload,

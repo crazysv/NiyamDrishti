@@ -67,6 +67,7 @@ COUNTRY_LINE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 MRP_LINE_PATTERN = re.compile(r"\b(?:m\.?r\.?p\.?|maximum\s+retail|inclusive|incl\.?|all\s+taxes)\b|₹|\brs\.?", re.IGNORECASE)
+MRP_VALUE_LINE_PATTERN = re.compile(r"^\s*[1-9][0-9]{0,4}(?:\.[0-9]{1,2})?\s*(?:/-)?\s*$")
 NET_QUANTITY_LINE_PATTERN = re.compile(
     r"\b(?:net\s*(?:wt|weight|qty|quantity|vol|volume|content)?|quantity|weight|volume)\b|"
     r"\b\d+(?:\.\d+)?\s*(?:kg|g|gm|ml|l|ltr|pcs|pieces|units?|n)\b",
@@ -201,7 +202,7 @@ def field_line_matches(label: str, text: str) -> bool:
     if label == "country_of_origin":
         return bool(COUNTRY_LINE_PATTERN.search(text))
     if label == "mrp":
-        return bool(MRP_LINE_PATTERN.search(text))
+        return bool(MRP_LINE_PATTERN.search(text) or MRP_VALUE_LINE_PATTERN.match(text))
     if label == "net_quantity":
         return bool(NET_QUANTITY_LINE_PATTERN.search(text))
     if label == "mfg_or_pkd_date":
