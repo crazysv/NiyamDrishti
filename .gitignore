@@ -32,9 +32,15 @@ docker/*.env
 .DS_Store
 Thumbs.db
 
-# Test data / spike outputs (keep photos, exclude results)
+# Local experiments, sample captures, and generated outputs
+# Keep these on the workstation; do not publish package photographs or derived reports.
+test_data/spike_photos/
 test_data/spike_01_results/
 test_data/spike_02_results/
+test_data/test_pics/
+test_data/sample_pics/
+test_data/sample_reports/
+backend/tests/verify_real_samples.py
 test_data/benchmark_raw/
 test_data/benchmark_holdout/
 test_data/label_studio/tasks_raw.json
@@ -42,6 +48,21 @@ test_data/label_studio/local_paddle_predictions.json
 test_data/label_studio/state/
 test_data/label_studio/exports/
 test_data/label_studio/reports/
+test_data/models/
+test_data/detector_dataset/
+test_data/supplemental_raw/
+test_data/supplemental_round1/
+test_data/experimental_detector_v1/
+test_data/experimental_detector_v1.zip
+
+# Local-only agent guidance and working artifacts
+AGENTS.md
+MASTER_CONTENT.md
+.agents/
+session-start.md
+session-continue.md
+tmp/
+.codex-device-*.png
 
 # Private project documentation remains local and is not published to GitHub.
 docs/
