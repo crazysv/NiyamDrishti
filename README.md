@@ -1,6 +1,6 @@
 # NiyamDrishti
 
-[![CI](https://github.com/crazysv/NiyamDrishti/actions/workflows/ci.yml/badge.svg)](https://github.com/crazysv/NiyamDrishti/actions/workflows/ci.yml)
+[![CI](https://github.com/crazysv/NiyamDrishti/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/crazysv/NiyamDrishti/actions/workflows/ci.yml)
 
 **Evidence-backed inspection support for packaged commodities under the Legal Metrology (Packaged Commodities) Rules, 2011.**
 
