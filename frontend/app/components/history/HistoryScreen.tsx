@@ -27,7 +27,7 @@ import {
 import { searchInspections, deleteInspection } from "../../services/inspectionService";
 import { InspectionSummary, InspectionSearchParams } from "../../types/inspection";
 import { useOfflineQueue } from "../../hooks/useOfflineQueue";
-import { getPendingInspections, db, discardOfflineInspection } from "../../db/dexie";
+import { getPendingInspections, getLocalEvidence, db, discardOfflineInspection } from "../../db/dexie";
 
 function useOnlineStatus() {
   return React.useSyncExternalStore(
@@ -60,6 +60,7 @@ export default function HistoryScreen() {
   const [isAboutOpen, setIsAboutOpen] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [localEvidenceIds, setLocalEvidenceIds] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
 
   const handleDelete = async (id: string) => {
@@ -105,9 +106,15 @@ export default function HistoryScreen() {
   };
 
   const handleEvidenceAction = async (inspection: InspectionSummary) => {
+    const localEvidence = await getLocalEvidence(inspection.id);
+    if (localEvidence) {
+      router.push(`/inspections/evidence?id=${encodeURIComponent(inspection.id)}`);
+      return;
+    }
+
     const uploadPending = ["sync_pending", "syncing", "failed", "dead_letter"].includes(inspection.status);
     if (!uploadPending) {
-      router.push(`/inspections/${inspection.id}/evidence`);
+      router.push(`/inspections/evidence?id=${encodeURIComponent(inspection.id)}`);
       return;
     }
 
@@ -129,11 +136,15 @@ export default function HistoryScreen() {
     try {
       const result = await syncInspectionNow(localInspection.id);
       if (result.success && result.backendId) {
-        router.push(`/inspections/${result.backendId}/evidence`);
+        router.push(`/inspections/evidence?id=${encodeURIComponent(result.backendId)}`);
         return;
       }
       setErrorMessage(result.error || "The photos could not be uploaded. Keep this record and retry from History.");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown upload error";
+      setErrorMessage(`Retry failed: ${detail}`);
     } finally {
+      await refreshQueueState();
       setRetryingId(null);
     }
   };
@@ -146,6 +157,16 @@ export default function HistoryScreen() {
       if (activeChip === "offline") {
         // Load offline records from IndexedDB
         const pendingRecords = await getPendingInspections();
+        const storedEvidence = await Promise.all(
+          pendingRecords.map(({ inspection }) => getLocalEvidence(inspection.id))
+        );
+        setLocalEvidenceIds(
+          new Set(
+            pendingRecords
+              .filter((_, index) => Boolean(storedEvidence[index]))
+              .map(({ inspection }) => inspection.id)
+          )
+        );
         const mapped: InspectionSummary[] = pendingRecords.map(({ inspection, images }) => {
           const frontImg = images.find((img) => img.imageRole === "front_pdp") || images[0];
           return {
@@ -210,6 +231,16 @@ export default function HistoryScreen() {
       // If API fails (e.g. offline), fallback to IndexedDB records
       try {
         const pendingRecords = await getPendingInspections();
+        const storedEvidence = await Promise.all(
+          pendingRecords.map(({ inspection }) => getLocalEvidence(inspection.id))
+        );
+        setLocalEvidenceIds(
+          new Set(
+            pendingRecords
+              .filter((_, index) => Boolean(storedEvidence[index]))
+              .map(({ inspection }) => inspection.id)
+          )
+        );
         const mapped: InspectionSummary[] = pendingRecords.map(({ inspection, images }) => {
           const frontImg = images.find((img) => img.imageRole === "front_pdp") || images[0];
           return {
@@ -442,6 +473,7 @@ export default function HistoryScreen() {
               const isCompliant = !hasViolations && insp.status === "completed";
               const isNeedsReview = insp.status === "needs_review";
               const uploadPending = ["sync_pending", "syncing", "failed", "dead_letter"].includes(insp.status);
+              const hasLocalEvidence = localEvidenceIds.has(insp.id);
 
               const formattedDate = new Date(insp.created_at).toLocaleDateString("en-IN", {
                 day: "2-digit",
@@ -555,13 +587,13 @@ export default function HistoryScreen() {
                           <button
                             type="button"
                             onClick={() => handleEvidenceAction(insp)}
-                            disabled={retryingId === insp.id || (uploadPending && isSyncing)}
+                            disabled={retryingId === insp.id || (uploadPending && !hasLocalEvidence && isSyncing)}
                             className="font-mono text-xs font-bold text-[#333E50] hover:text-[#4A5568] flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform disabled:opacity-50"
                           >
                             {retryingId === insp.id ? (
                               <><RotateCw className="w-3.5 h-3.5 animate-spin" /><span>Uploading</span></>
                             ) : (
-                              <><span>{uploadPending ? "Retry Upload" : "View Evidence"}</span><ChevronRight className="w-3.5 h-3.5" /></>
+                              <><span>{hasLocalEvidence || !uploadPending ? "View Evidence" : "Retry Upload"}</span><ChevronRight className="w-3.5 h-3.5" /></>
                             )}
                           </button>
                         </div>

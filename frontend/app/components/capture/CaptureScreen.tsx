@@ -5,6 +5,8 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Webcam from "react-webcam";
+import { Capacitor } from "@capacitor/core";
+import { Camera as NativeCamera } from "@capacitor/camera";
 import {
   Camera,
   Check,
@@ -154,12 +156,14 @@ export default function CaptureScreen() {
     storageInfo,
     storageHealth,
     queueInspection,
+    createProvisionalEvidence,
     syncNow,
     syncInspectionNow,
   } = useOfflineQueue();
 
   const webcamRef = useRef<Webcam>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isNativeAndroid = Capacitor.isNativePlatform();
 
   // Video constraints
   const videoConstraints = {
@@ -214,7 +218,38 @@ export default function CaptureScreen() {
     [images]
   );
 
-  // Capture frame from webcam
+  const webPathToDataUrl = useCallback(async (webPath: string): Promise<string> => {
+    const response = await fetch(webPath);
+    if (!response.ok) throw new Error("The captured image could not be read from this device.");
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("The captured image could not be prepared."));
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  const handleNativeGallery = useCallback(async () => {
+    try {
+      const { results } = await NativeCamera.chooseFromGallery({
+        quality: 90,
+        limit: 1,
+        targetWidth: 1920,
+        targetHeight: 1080,
+      });
+      const image = results[0];
+      if (!image?.webPath) return;
+      await processImage(await webPathToDataUrl(image.webPath), activeSlot);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Gallery selection was cancelled.";
+      if (!/cancel/i.test(message)) setToastMessage(message);
+    }
+  }, [activeSlot, processImage, webPathToDataUrl]);
+
+  // Keep the existing embedded viewfinder on both the PWA and Android WebView.
+  // The native Camera plugin remains available for gallery selection only; using
+  // takePhoto here would replace this screen with Android's external camera UI.
   const handleCapture = useCallback(async () => {
     if (!webcamRef.current) return;
     setIsCapturing(true);
@@ -358,11 +393,21 @@ export default function CaptureScreen() {
         setToastMessage("Uploading images and running inspection analysis...");
         const result = await syncInspectionNow(inspectionId);
         if (result.success && result.backendId) {
-          router.push(`/inspections/${result.backendId}/evidence`);
+          router.push(`/inspections/evidence?id=${encodeURIComponent(result.backendId)}`);
           return;
         }
         setToastMessage(`Server analysis could not finish. Saved for retry: ${result.error || "unknown server error"}`);
         setTimeout(() => setToastMessage(null), 6000);
+        return;
+      } else if (isNativeAndroid) {
+        setToastMessage("Saved locally. Extracting provisional on-device evidence...");
+        const localEvidence = await createProvisionalEvidence(inspectionId);
+        setToastMessage(
+          localEvidence.status === "ready"
+            ? "Saved with local provisional evidence. It remains queued until you choose Sync Now."
+            : "Saved locally. Some on-device evidence could not be read; it remains queued until you choose Sync Now."
+        );
+        router.push(`/inspections/evidence?id=${encodeURIComponent(inspectionId)}`);
         return;
       } else {
         setToastMessage("Saved locally. It will remain queued until you choose Sync Now.");
@@ -860,7 +905,7 @@ export default function CaptureScreen() {
           </button>
 
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => (isNativeAndroid ? handleNativeGallery() : fileInputRef.current?.click())}
             aria-label="Upload from Gallery"
             className="w-10 h-10 rounded-full border border-[#D1CDC2] bg-[#F0EDE5] flex items-center justify-center text-[#566155] shadow-sm hover:bg-white active:scale-95 transition-all"
           >

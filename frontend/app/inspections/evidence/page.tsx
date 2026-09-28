@@ -1,32 +1,73 @@
 "use client";
 
-import React, { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import EvidenceViewer from "@/app/components/evidence/EvidenceViewer";
+import LocalProvisionalEvidenceViewer from "@/app/components/evidence/LocalProvisionalEvidenceViewer";
 import { InspectionEvidence } from "@/app/types/evidence";
-import { db } from "@/app/db/dexie";
+import { db, getLocalEvidence, OfflineImage, OfflineInspection, OfflineLocalEvidence } from "@/app/db/dexie";
+import { useOfflineQueue } from "@/app/hooks/useOfflineQueue";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { API_BASE } from "@/app/utils/apiConfig";
 
-interface EvidencePageProps {
-  params: Promise<{ id: string }>;
+export default function EvidencePage() {
+  return (
+    <Suspense fallback={null}>
+      <EvidencePageContent />
+    </Suspense>
+  );
 }
 
-export default function EvidencePage({ params }: EvidencePageProps) {
-  const resolvedParams = use(params);
-  const inspectionId = resolvedParams.id;
+function EvidencePageContent() {
+  const searchParams = useSearchParams();
+  const inspectionId = searchParams.get("id") || "";
   const router = useRouter();
 
   const [evidence, setEvidence] = useState<InspectionEvidence | null>(null);
+  const [localInspection, setLocalInspection] = useState<OfflineInspection | null>(null);
+  const [localEvidence, setLocalEvidence] = useState<OfflineLocalEvidence | null>(null);
+  const [localImages, setLocalImages] = useState<OfflineImage[]>([]);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { syncInspectionNow, isSyncing } = useOfflineQueue();
+
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace("/history");
+  };
 
   useEffect(() => {
     async function loadEvidence() {
+      if (!inspectionId) {
+        setError("No inspection was selected. Return to History and open an inspection.");
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       setError(null);
+      setLocalInspection(null);
+      setLocalEvidence(null);
+      setLocalImages([]);
+      setSyncError(null);
 
       try {
+        // A direct local ID represents an unsynced offline inspection. Prefer
+        // durable local evidence and make no server request in that state.
+        const directLocalInspection = await db.inspections.get(inspectionId);
+        if (directLocalInspection && directLocalInspection.status !== "synced") {
+          const savedLocalEvidence = await getLocalEvidence(inspectionId);
+          if (savedLocalEvidence) {
+            setLocalInspection(directLocalInspection);
+            setLocalEvidence(savedLocalEvidence);
+            setLocalImages(await db.inspectionImages.where("inspectionId").equals(inspectionId).toArray());
+            return;
+          }
+        }
+
         // 1. Attempt to fetch from backend API
         const token =
           typeof window !== "undefined"
@@ -87,6 +128,20 @@ export default function EvidencePage({ params }: EvidencePageProps) {
     loadEvidence();
   }, [inspectionId]);
 
+  const handleLocalSync = async (localInspectionId: string) => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setSyncError("Connect to the Internet before choosing Sync Now.");
+      return;
+    }
+    setSyncError(null);
+    const result = await syncInspectionNow(localInspectionId);
+    if (result.success && result.backendId) {
+      router.replace(`/inspections/evidence?id=${encodeURIComponent(result.backendId)}`);
+      return;
+    }
+    setSyncError(result.error || "Sync could not finish. Your local evidence remains safely stored on this device.");
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#f9f9fc] text-[#1a1c1e]">
@@ -96,13 +151,28 @@ export default function EvidencePage({ params }: EvidencePageProps) {
     );
   }
 
+  if (localInspection && localEvidence) {
+    return (
+      <LocalProvisionalEvidenceViewer
+        inspectionId={localInspection.id}
+        capturedAt={localInspection.createdAt}
+        images={localImages}
+        evidence={localEvidence}
+        isSyncing={isSyncing}
+        syncError={syncError}
+        onSyncNow={() => handleLocalSync(localInspection.id)}
+        onBack={handleBack}
+      />
+    );
+  }
+
   if (error || !evidence) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#f9f9fc] text-[#1a1c1e] p-6">
         <p className="text-sm font-mono text-red-600 mb-4">{error || "Evidence record not found"}</p>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={handleBack}
           className="flex items-center gap-2 bg-[#333e50] text-white px-4 py-2 rounded-md text-xs font-medium"
         >
           <ArrowLeft className="w-4 h-4" /> Go Back
@@ -114,8 +184,9 @@ export default function EvidencePage({ params }: EvidencePageProps) {
   return (
     <EvidenceViewer
       evidence={evidence}
-      onReviewQueueClick={() => router.push(`/inspections/${inspectionId}/review`)}
-      onGenerateReportClick={() => router.push(`/inspections/${inspectionId}/report`)}
+      onBack={handleBack}
+      onReviewQueueClick={() => router.push(`/inspections/review?id=${encodeURIComponent(inspectionId)}`)}
+      onGenerateReportClick={() => router.push(`/inspections/report?id=${encodeURIComponent(inspectionId)}`)}
     />
   );
 }

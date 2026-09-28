@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Maximize2,
   FileCheck2,
+  ArrowLeft,
 } from "lucide-react";
 import { EvidenceItem, InspectionEvidence } from "@/app/types/evidence";
 
@@ -23,6 +24,7 @@ interface EvidenceViewerProps {
   onSelectField?: (item: EvidenceItem) => void;
   onReviewQueueClick?: () => void;
   onGenerateReportClick?: () => void;
+  onBack?: () => void;
 }
 
 export default function EvidenceViewer({
@@ -30,6 +32,7 @@ export default function EvidenceViewer({
   onSelectField,
   onReviewQueueClick,
   onGenerateReportClick,
+  onBack,
 }: EvidenceViewerProps) {
   // Extract all distinct photo panels from items and primary image
   const imagePanels = React.useMemo(() => {
@@ -203,6 +206,16 @@ export default function EvidenceViewer({
       <header className="sticky top-0 z-50 bg-[#f9f9fc]/90 backdrop-blur-md border-b border-[#e2e2e5] px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                className="p-1.5 rounded-full hover:bg-black/5 active:scale-95 text-[#333E50]"
+                aria-label="Go Back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
             <AppLogo size={32} />
             <div className="flex flex-col">
               <span className="font-semibold text-base leading-tight tracking-tight text-[#1a1c1e]">

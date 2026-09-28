@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Download,
@@ -13,10 +13,6 @@ import {
 } from "lucide-react";
 import { API_BASE } from "@/app/utils/apiConfig";
 import { db } from "@/app/db/dexie";
-
-interface ReportPageProps {
-  params: Promise<{ id: string }>;
-}
 
 interface ReportMetadata {
   id: string;
@@ -51,9 +47,17 @@ interface EvidenceData {
   };
 }
 
-export default function InspectionReportPage({ params }: ReportPageProps) {
-  const resolvedParams = use(params);
-  const inspectionId = resolvedParams.id;
+export default function InspectionReportPage() {
+  return (
+    <Suspense fallback={null}>
+      <InspectionReportPageContent />
+    </Suspense>
+  );
+}
+
+function InspectionReportPageContent() {
+  const searchParams = useSearchParams();
+  const inspectionId = searchParams.get("id") || "";
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -64,8 +68,21 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isNarrating, setIsNarrating] = useState<boolean>(false);
 
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace(`/inspections/evidence?id=${encodeURIComponent(inspectionId)}`);
+  };
+
   useEffect(() => {
     async function loadReportData() {
+      if (!inspectionId) {
+        setError("No inspection was selected. Return to History and open an inspection.");
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       setError(null);
 
@@ -283,7 +300,7 @@ export default function InspectionReportPage({ params }: ReportPageProps) {
       <header className="sticky top-0 z-40 bg-[#F9F7F2]/95 backdrop-blur-md border-b border-[#D1CDC2] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="p-1.5 rounded-full hover:bg-black/5 active:scale-95 text-[#333E50]"
             aria-label="Go Back"
           >

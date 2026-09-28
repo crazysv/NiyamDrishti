@@ -1,4 +1,4 @@
-const CACHE_NAME = "niyamdrishti-offline-v7";
+const CACHE_NAME = "niyamdrishti-offline-v8";
 const PRECACHE_ASSETS = [
   "/",
 ];

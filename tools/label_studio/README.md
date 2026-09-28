@@ -2,6 +2,12 @@
 
 This workspace creates reviewed ground truth for statutory package declarations. It is for **evaluation first**, not model training. Do not import `benchmark_holdout`; those images are reserved for final testing and the demo.
 
+## Dataset policy
+
+Package photographs, Label Studio exports, trained checkpoints, OCR predictions, and generated overlays are deliberately local-only. They are not committed to GitHub because they are large and may carry source/licensing restrictions. The public repository retains the reproducible tools, label configuration, and the non-image [`dataset_manifest.example.json`](./dataset_manifest.example.json) metadata only.
+
+The metadata records the benchmark split design and the supplemental-set counts, not image paths, annotations, OCR text, or product photographs. Recreate a local workspace from authorised images before running any command in this directory.
+
 ## Start locally
 
 1. Generate the task manifest from the raw benchmark images:

@@ -1,27 +1,44 @@
 "use client";
 
-import React, { useEffect, useState, use } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import ReviewQueue from "@/app/components/review/ReviewQueue";
 import { InspectionReviewQueue } from "@/app/types/review";
 import { fetchReviewQueue } from "@/app/services/reviewService";
 import { Loader2, ArrowLeft } from "lucide-react";
 
-interface ReviewPageProps {
-  params: Promise<{ id: string }>;
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={null}>
+      <ReviewPageContent />
+    </Suspense>
+  );
 }
 
-export default function ReviewPage({ params }: ReviewPageProps) {
-  const resolvedParams = use(params);
-  const inspectionId = resolvedParams.id;
+function ReviewPageContent() {
+  const searchParams = useSearchParams();
+  const inspectionId = searchParams.get("id") || "";
   const router = useRouter();
 
   const [queue, setQueue] = useState<InspectionReviewQueue | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.replace(`/inspections/evidence?id=${encodeURIComponent(inspectionId)}`);
+  };
+
   useEffect(() => {
     async function loadQueue() {
+      if (!inspectionId) {
+        setError("No inspection was selected. Return to History and open an inspection.");
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       setError(null);
 
@@ -121,7 +138,7 @@ export default function ReviewPage({ params }: ReviewPageProps) {
         <p className="text-xs font-mono text-red-600 mb-4">{error || "Review queue could not be loaded."}</p>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={handleBack}
           className="flex items-center gap-2 bg-[#333e50] text-white px-4 py-2 rounded-sm text-xs font-mono"
         >
           <ArrowLeft className="w-4 h-4" /> Return
@@ -135,7 +152,7 @@ export default function ReviewPage({ params }: ReviewPageProps) {
       initialQueue={queue}
       inspectionId={inspectionId}
       productTitle={`Inspection Package (${inspectionId.slice(0, 8)}...)`}
-      onComplete={() => router.push(`/inspections/${inspectionId}/report`)}
+      onComplete={() => router.push(`/inspections/report?id=${encodeURIComponent(inspectionId)}`)}
     />
   );
 }

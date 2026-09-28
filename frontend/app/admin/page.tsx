@@ -1,5 +1,14 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AdminIndexPage() {
-  redirect("/admin/rule-packs");
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/admin/rule-packs");
+  }, [router]);
+
+  return null;
 }

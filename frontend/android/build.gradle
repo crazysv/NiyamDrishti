@@ -1,0 +1,51 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+apply from: "variables.gradle"
+
+// Capacitor 8 generates Java-21 compile settings, but this project and its
+// plugins use no Java-21 language APIs. Keeping every Android subproject at
+// Java 17 lets the reproducible Gradle 8.13 build run with the bundled local
+// JDK 17 instead of depending on a machine-specific JDK 21/25 installation.
+gradle.projectsEvaluated {
+    rootProject.subprojects.each { project ->
+        if (project.hasProperty('android')) {
+            project.android.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        // Capacitor Camera/Filesystem compile Kotlin as well. Keep its bytecode
+        // target identical to the Java target above so Gradle's compatibility
+        // check cannot produce a mixed 17/21 APK.
+        project.tasks.configureEach { task ->
+            if (task.hasProperty('kotlinOptions')) {
+                task.kotlinOptions.jvmTarget = '17'
+            }
+        }
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

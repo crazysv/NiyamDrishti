@@ -14,6 +14,7 @@ import {
 import { ImageRole, CommodityCategory } from "@/app/types/capture";
 import { QualityAssessment } from "@/app/utils/qualityGate";
 import { syncAllQueuedInspections, retryAllFailedInspections, syncSingleInspection } from "@/app/services/syncService";
+import { createLocalProvisionalEvidence } from "@/app/services/localEvidenceService";
 import {
   checkStorageHealth,
   StorageHealthStatus,
@@ -199,6 +200,11 @@ export function useOfflineQueue() {
     return saved;
   };
 
+  /** Runs after a capture is durably queued; never changes sync or legal-result state. */
+  const createProvisionalEvidence = async (inspectionId: string) => {
+    return createLocalProvisionalEvidence(inspectionId);
+  };
+
   return {
     pendingCount,
     deadLetterCount,
@@ -214,5 +220,6 @@ export function useOfflineQueue() {
     resolveConflict,
     discardInspection,
     queueInspection,
+    createProvisionalEvidence,
   };
 }

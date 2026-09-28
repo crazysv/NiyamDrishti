@@ -249,7 +249,7 @@ export default function ReviewQueue({
           {/* Back button + Brand */}
           <div className="flex items-center gap-3">
             <Link
-              href={`/inspections/${inspectionId}/evidence`}
+              href={`/inspections/evidence?id=${encodeURIComponent(inspectionId)}`}
               className="w-8 h-8 rounded-full bg-[#eeeef0] hover:bg-[#e2e2e5] text-[#333e50] flex items-center justify-center transition-colors"
               title="Return to Evidence"
             >
@@ -372,7 +372,7 @@ export default function ReviewQueue({
 
             <div className="w-full flex flex-col sm:flex-row gap-3 mt-3">
               <Link
-                href={`/inspections/${inspectionId}/evidence`}
+                href={`/inspections/evidence?id=${encodeURIComponent(inspectionId)}`}
                 className="flex-1 h-12 bg-white text-[#333e50] font-mono text-xs font-semibold rounded-sm border border-[#c5c6cd] flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm"
               >
                 View Evidence Map
@@ -674,7 +674,7 @@ export default function ReviewQueue({
       <nav className="fixed bottom-0 w-full z-40 bg-[#f9f9fc]/90 backdrop-blur-xl border-t border-[#e2e2e5] shadow-[0_-1px_8px_rgba(0,0,0,0.04)]">
         <div className="h-16 max-w-2xl mx-auto flex justify-around items-center px-4">
           <Link
-            href={`/inspections/${inspectionId}/evidence`}
+            href={`/inspections/evidence?id=${encodeURIComponent(inspectionId)}`}
             className="flex flex-col items-center justify-center gap-1 text-[#333e50] font-bold text-[10px] font-mono tracking-wider uppercase"
           >
             <ShieldCheck className="w-5 h-5 text-[#333e50]" />

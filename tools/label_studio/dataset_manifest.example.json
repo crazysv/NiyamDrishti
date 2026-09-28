@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Public, non-image metadata for the private NiyamDrishti package-declaration benchmark",
+  "data_policy": {
+    "repository_contains_images": false,
+    "repository_contains_annotations": false,
+    "repository_contains_model_checkpoints": false,
+    "reason": "Package photographs, derived OCR artifacts, and checkpoints remain local-only for repository size and source-rights hygiene."
+  },
+  "field_categories": [
+    "product_name",
+    "net_quantity",
+    "mrp",
+    "mfg_or_pkd_date",
+    "manufacturer_or_packer",
+    "consumer_care",
+    "country_of_origin",
+    "barcode"
+  ],
+  "reviewed_benchmark": {
+    "split_method": "product-disjoint",
+    "training_images": 73,
+    "training_boxes": 225,
+    "validation_images": 18,
+    "validation_boxes": 58,
+    "unlabelled_holdout_products": 4,
+    "unlabelled_holdout_images": 12,
+    "usage_note": "The holdout remains excluded from tuning and training."
+  },
+  "supplemental_round_1": {
+    "source_images": 1007,
+    "eligible_inference_only_images": 441,
+    "excluded_images": 566,
+    "usage_note": "These images are a local diagnostic set, not public training ground truth."
+  },
+  "reproduction": {
+    "tooling_directory": "tools/label_studio",
+    "label_configuration": "tools/label_studio/label_config.xml",
+    "instructions": "See tools/label_studio/README.md. Use only authorised local images."
+  }
+}

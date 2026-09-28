@@ -51,10 +51,62 @@ export interface OfflineImage {
   retryCount?: number;
 }
 
+/** Raw Android ML Kit geometry in the same upright source-image pixel space as OfflineImage.dataUrl. */
+export interface LocalEvidenceBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  polygon: [number, number][];
+  coordinateSpace: "source_image_px";
+}
+
+export interface LocalOcrLineEvidence {
+  text: string;
+  boundingBox: LocalEvidenceBox;
+}
+
+export interface LocalBarcodeEvidence {
+  rawValue: string;
+  displayValue: string | null;
+  format: number;
+  boundingBox: LocalEvidenceBox;
+}
+
+/**
+ * Local, raw evidence only. It intentionally has no declaration labels, legal
+ * rules, calibration conclusions, or Pass/Fail field because only the server
+ * may produce the verified statutory result.
+ */
+export interface OfflineLocalImageEvidence {
+  imageId: string;
+  imageRole: ImageRole;
+  sourceWidth: number;
+  sourceHeight: number;
+  ocrText: string;
+  ocrLines: LocalOcrLineEvidence[];
+  barcodes: LocalBarcodeEvidence[];
+  ocrError?: string;
+  barcodeError?: string;
+}
+
+export interface OfflineLocalEvidence {
+  /** One durable local-evidence record per local inspection. */
+  id: string;
+  inspectionId: string;
+  status: "processing" | "ready" | "partial" | "unavailable";
+  engine: "mlkit_bundled";
+  createdAt: string;
+  updatedAt: string;
+  images: OfflineLocalImageEvidence[];
+  error?: string;
+}
+
 // Dexie Database schema
 class NiyamDrishtiDatabase extends Dexie {
   inspections!: EntityTable<OfflineInspection, "id">;
   inspectionImages!: EntityTable<OfflineImage, "id">;
+  localEvidence!: EntityTable<OfflineLocalEvidence, "id">;
 
   constructor() {
     super("NiyamDrishtiOfflineDB");
@@ -69,6 +121,11 @@ class NiyamDrishtiDatabase extends Dexie {
     this.version(3).stores({
       inspections: "id, backendId, status, commodityCategory, createdAt, capturedOffline, failureCategory",
       inspectionImages: "id, inspectionId, imageRole, isSynced, createdAt, clientId",
+    });
+    this.version(4).stores({
+      inspections: "id, backendId, status, commodityCategory, createdAt, capturedOffline, failureCategory",
+      inspectionImages: "id, inspectionId, imageRole, isSynced, createdAt, clientId",
+      localEvidence: "id, inspectionId, status, createdAt",
     });
   }
 }
@@ -181,6 +238,16 @@ export async function updateImageSyncState(
   updates: Partial<OfflineImage>
 ): Promise<void> {
   await db.inspectionImages.update(imageId, updates);
+}
+
+/** Returns raw local ML Kit evidence for a queued inspection, if it exists. */
+export async function getLocalEvidence(inspectionId: string): Promise<OfflineLocalEvidence | undefined> {
+  return db.localEvidence.get(inspectionId);
+}
+
+/** Writes raw provisional evidence independently from the server inspection lifecycle. */
+export async function saveLocalEvidence(evidence: OfflineLocalEvidence): Promise<void> {
+  await db.localEvidence.put(evidence);
 }
 
 /**
@@ -302,8 +369,9 @@ export async function resolveInspectionConflict(
  * Permanently discards an offline inspection and its attached images from IndexedDB
  */
 export async function discardOfflineInspection(inspectionId: string): Promise<void> {
-  await db.transaction("rw", db.inspections, db.inspectionImages, async () => {
+  await db.transaction("rw", db.inspections, db.inspectionImages, db.localEvidence, async () => {
     await db.inspectionImages.where("inspectionId").equals(inspectionId).delete();
+    await db.localEvidence.delete(inspectionId);
     await db.inspections.delete(inspectionId);
   });
 }

@@ -311,6 +311,9 @@ export async function syncSingleInspection(
   if (allImagesSucceeded) {
     if (backendInspectionId) {
       try {
+        // Image uploads are idempotent and cheap to retry. Server-side OCR may call
+        // a quota-limited provider, so one officer-initiated Sync Now must result in
+        // one analysis attempt—not a hidden burst of duplicate OCR requests.
         await fetchWithRetry(
           `${API_BASE}/inspections/${backendInspectionId}/process`,
           {
@@ -318,10 +321,7 @@ export async function syncSingleInspection(
             headers: getAuthHeaders(currentToken),
           },
           {
-            maxRetries: 2,
-            onRetry: (attempt, delay, reason) => {
-              console.warn('[Sync] Retrying inspection process (' + attempt + '): ' + reason);
-            },
+            maxRetries: 0,
           }
         );
       } catch (procErr) {
