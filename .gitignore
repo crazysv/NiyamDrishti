@@ -55,6 +55,8 @@ MASTER_CONTENT.md
 .agents/
 session-start.md
 session-continue.md
+frontend/AGENTS.md
+frontend/CLAUDE.md
 tmp/
 .codex-device-*.png
 
