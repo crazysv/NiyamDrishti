@@ -439,7 +439,9 @@ async def upload_inspection_image(
         with PILImage.open(io.BytesIO(file_bytes)) as pil_img:
             width_px, height_px = pil_img.size
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is not a readable image") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded file is not a readable image"
+        ) from exc
 
     # Idempotency check: if image with client_id already attached, return existing image (E4-02)
     if img_client_id:
@@ -889,8 +891,10 @@ async def extract_inspection_declarations(
     # returned useful multi-region OCR but omitted that panel, make one
     # narrowly scoped request against the most likely legal-text image rather
     # than treating the omission as a confirmed package violation.
-    if ocr_provider and ocr_provider.lower().strip() == "gemini" and not any(
-        declaration.field_type == "mrp" for declaration in all_declarations
+    if (
+        ocr_provider
+        and ocr_provider.lower().strip() == "gemini"
+        and not any(declaration.field_type == "mrp" for declaration in all_declarations)
     ):
         retry_image = next(
             (
@@ -1487,8 +1491,7 @@ async def get_inspection_evidence(
     # and must prevent a partial OCR result from appearing compliant.
     unbound_violations = [v for v in inspection.violations if v.extracted_field_id is None]
     has_unbound_failure = any(
-        v.severity in ("critical", "major") and not _violation_requires_officer_review(v)
-        for v in unbound_violations
+        v.severity in ("critical", "major") and not _violation_requires_officer_review(v) for v in unbound_violations
     )
     has_unbound_review = bool(unbound_violations) and not has_unbound_failure
 

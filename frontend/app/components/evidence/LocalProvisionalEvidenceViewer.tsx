@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Barcode,
   ArrowLeft,
-  CheckCircle2,
   ChevronRight,
   CloudUpload,
   History,
@@ -120,14 +119,11 @@ export default function LocalProvisionalEvidenceViewer({
     return result;
   }, [evidence.images, images]);
 
-  const activeImage = images.find((image) => image.id === activeImageId) || images[0];
+  const resolvedActiveImageId = activeImageId || images[0]?.id || "";
+  const activeImage = images.find((image) => image.id === resolvedActiveImageId) || images[0];
   const activeEvidence = evidence.images.find((item) => item.imageId === activeImage?.id);
   const activeItems = items.filter((item) => item.imageId === activeImage?.id);
   const activeItem = items.find((item) => item.id === activeItemId) || null;
-
-  useEffect(() => {
-    if (!activeImageId && images[0]) setActiveImageId(images[0].id);
-  }, [activeImageId, images]);
 
   useEffect(() => {
     const updateNetworkState = () => setIsOnline(navigator.onLine);

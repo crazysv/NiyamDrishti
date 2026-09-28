@@ -9,8 +9,8 @@ from app.services.preprocessing import (
     PipelineConfig,
     PreprocessingPipeline,
     map_bbox_to_original,
-    map_polygon_to_original,
     map_point_to_original,
+    map_polygon_to_original,
 )
 
 

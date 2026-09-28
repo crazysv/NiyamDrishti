@@ -11,6 +11,10 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    // Capacitor copies the static web build here. These are generated bundles,
+    // not editable frontend source.
+    "android/app/build/**",
+    "android/app/src/main/assets/**",
     "next-env.d.ts",
   ]),
 ]);

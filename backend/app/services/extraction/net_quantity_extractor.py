@@ -24,7 +24,6 @@ class NetQuantityExtractor(BaseFieldExtractor):
         re.IGNORECASE,
     )
 
-
     UNIT_NORMALIZATION = {
         "kg": "kg",
         "kilogram": "kg",

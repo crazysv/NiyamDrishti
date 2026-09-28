@@ -190,11 +190,7 @@ class MRPExtractor(BaseFieldExtractor):
                         if bare and fallback_decimal is None and self._is_near_header(line, cand_line):
                             fallback_decimal = (float(bare.group(1)), cand_line, c_text.strip())
                         bare_price = self.BARE_PRICE_PATTERN.match(c_text)
-                        if (
-                            price_val is None
-                            and bare_price
-                            and self._is_near_header(line, cand_line)
-                        ):
+                        if price_val is None and bare_price and self._is_near_header(line, cand_line):
                             candidate_value = float(bare_price.group(1))
                             if 5 <= candidate_value <= 50000:
                                 price_val = candidate_value

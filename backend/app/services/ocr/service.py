@@ -1,4 +1,5 @@
 import logging
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from PIL import Image
@@ -10,6 +11,9 @@ from app.services.ocr.schemas import BoundingBox, OCRLine, OCRResult
 from app.services.ocr.tesseract_engine import TesseractEngine
 from app.services.preprocessing import PreprocessedImage, PreprocessingPipeline
 from app.services.preprocessing.pipeline import map_polygon_to_original
+
+if TYPE_CHECKING:
+    from app.services.ocr.gemini_engine import GeminiOCREngine
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +45,13 @@ class OCRService:
         self._custom_local_engines = primary_engine is not None or fallback_engine is not None
 
     @property
-    def gemini_engine(self) -> BaseOCREngine:
+    def gemini_engine(self) -> "GeminiOCREngine":
         """Lazy loader for GeminiOCREngine."""
         if self._gemini_engine is None:
             from app.services.ocr.gemini_engine import GeminiOCREngine
 
             self._gemini_engine = GeminiOCREngine()
-        return self._gemini_engine
+        return cast("GeminiOCREngine", self._gemini_engine)
 
     def is_gemini_available(self) -> bool:
         """Checks if Gemini Vision OCR engine is configured and ready."""

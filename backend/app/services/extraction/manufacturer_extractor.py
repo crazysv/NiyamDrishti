@@ -80,9 +80,7 @@ class ManufacturerAddressExtractor(BaseFieldExtractor):
                 # business entity only when the text explicitly says "by" or
                 # "at"; otherwise do not turn a manufacturing date into a
                 # manufacturer-address declaration.
-                if raw_role in {"mfd", "mfg", "pkd", "packed"} and not re.search(
-                    r"(?i)\b(?:by|at)\b", text
-                ):
+                if raw_role in {"mfd", "mfg", "pkd", "packed"} and not re.search(r"(?i)\b(?:by|at)\b", text):
                     continue
 
                 address_parts = [text]
